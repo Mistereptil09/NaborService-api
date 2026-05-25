@@ -32,7 +32,7 @@ describe('Events Entities — TypeORM Metadata', () => {
       ],
       synchronize: false,
     });
-    dataSource.buildMetadatas();
+    (dataSource as unknown as { buildMetadatas(): void }).buildMetadatas();
   });
 
   // ─── EvenementsCategory ───────────────────────────────────────────────
@@ -359,7 +359,7 @@ describe('Events Entities — TypeORM Metadata', () => {
       expect(col).toBeDefined();
       expect(col!.type).toBe('varchar');
       expect(col!.isNullable).toBe(true);
-      const hasUnique = col!.isUnique === true ||
+      const hasUnique = (col as { isUnique?: boolean }).isUnique === true ||
         metadata.uniques.some((u) => u.columns.some((c) => c.databaseName === 'stripe_session_id'));
       expect(hasUnique).toBe(true);
     });
@@ -372,7 +372,7 @@ describe('Events Entities — TypeORM Metadata', () => {
       expect(col).toBeDefined();
       expect(col!.type).toBe('varchar');
       expect(col!.isNullable).toBe(true);
-      const hasUnique = col!.isUnique === true ||
+      const hasUnique = (col as { isUnique?: boolean }).isUnique === true ||
         metadata.uniques.some((u) => u.columns.some((c) => c.databaseName === 'stripe_payment_intent'));
       expect(hasUnique).toBe(true);
     });

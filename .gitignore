@@ -15,3 +15,8 @@ npm-debug.log*
 
 # OS
 .DS_Store
+.kiro
+cahier_des_charges_nabor.md
+services/dsl/__pycache__
+services/dsl/parser.out
+services/dsl/parsetab.py

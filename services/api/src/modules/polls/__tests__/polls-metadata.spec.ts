@@ -15,7 +15,7 @@ describe('Polls Domain — TypeORM Metadata', () => {
       entities: [Poll, PollOption, Vote, User],
       synchronize: false,
     });
-    dataSource.buildMetadatas();
+    (dataSource as unknown as { buildMetadatas(): void }).buildMetadatas();
   });
 
   describe('Poll entity', () => {

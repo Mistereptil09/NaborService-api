@@ -26,7 +26,7 @@ describe('Messaging Entities — TypeORM Metadata', () => {
       ],
       synchronize: false,
     });
-    dataSource.buildMetadatas();
+    (dataSource as unknown as { buildMetadatas(): void }).buildMetadatas();
   });
 
   describe('ChatGroup', () => {

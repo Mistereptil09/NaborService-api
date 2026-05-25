@@ -8,6 +8,19 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
+- Module d'authentification NestJS :
+  - **`TokenService`** : émission de JWT HS256 (15 min) et tokens de rafraîchissement opaques de 64 caractères (base64url) stockés dans Redis.
+  - **`SessionService`** : gestion et audit des sessions actives (`UserSession`) dans PostgreSQL avec support de révocation unitaire/globale.
+  - **`RateLimitService` & `RateLimitGuard`** : rate limiting glissant Redis (`INCR` + `EXPIRE`) par IP (login : 10/15min) et par utilisateur (refresh : 10/1min).
+  - **`TotpService`** : chiffrement AES-256-GCM des secrets TOTP à l'aide d'une clé maîtresse, flux de challenge en deux étapes avec challenge_token opaque, flux de setup/confirmation et blocage temporaire de brute-force (15 min).
+- Tests unitaires et tests de propriétés robustes (`fast-check`) validant 15 propriétés de correction critiques (format de tokens, non-divulgation d'identifiants, cycle de vie de session, Argon2id, invalidation sur changement de mot de passe/suppression, rate limiting).
+- Fichier `.dockerignore` dans `services/api` pour optimiser le build Docker en ignorant `node_modules` et `dist`.
+
+### Changed
+- Inscription (`register`) : sécurisation par Argon2id avec sel cryptographique aléatoire de 16 octets, et création atomique transactionnelle des préférences de notification (`UserNotificationPreferences`) par défaut.
+- Connexion (`login`) : protection contre les attaques temporelles par vérification uniforme (dummy verification) en cas de compte inexistant ou supprimé.
+- Stratégie JWT : invalidation des tokens actifs si le mot de passe est modifié après émission ou si le compte est supprimé (`deleted_at IS NOT NULL`).
+- Configuration Jest : ajout de `transformIgnorePatterns` dans `package.json` pour compiler les dépendances ESM (`@scure`, `@noble`, `otplib`).
 - 24 entités TypeORM PostgreSQL conformes au CDC section 3.1 (users, social, messaging, listings, events, polls, incidents)
 - 16 types ENUM PostgreSQL centralisés dans `src/common/enums.ts`
 - 7 modules NestJS domaine (SocialModule, MessagingModule, ListingsModule, EventsModule, PollsModule, IncidentsModule)

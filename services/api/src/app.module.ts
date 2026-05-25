@@ -11,7 +11,6 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { SocialModule } from './modules/social/social.module';
 import { ListingsModule } from './modules/listings/listings.module';
-import { ChatModule } from './chat/chat.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
 import { EventsModule } from './modules/events/events.module';
 import { PollsModule } from './modules/polls/polls.module';
@@ -27,7 +26,6 @@ import { IncidentsModule } from './modules/incidents/incidents.module';
     UsersModule,
     SocialModule,
     ListingsModule,
-    ChatModule,
     MessagingModule,
     EventsModule,
     PollsModule,

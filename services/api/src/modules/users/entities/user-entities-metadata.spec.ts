@@ -14,7 +14,7 @@ describe('User & Authentication entities metadata', () => {
       entities: [User, UserSession, UserNotificationPreferences],
       synchronize: false,
     });
-    dataSource.buildMetadatas();
+    (dataSource as unknown as { buildMetadatas(): void }).buildMetadatas();
   });
 
   describe('User entity', () => {
@@ -145,12 +145,12 @@ describe('User & Authentication entities metadata', () => {
         metadata.columns.find((c) => c.databaseName === name)!;
 
       const emailCol = findCol('email');
-      const hasEmailUnique = emailCol.isUnique === true ||
+      const hasEmailUnique = (emailCol as { isUnique?: boolean }).isUnique === true ||
         metadata.uniques.some(u => u.columns.some(c => c.databaseName === 'email'));
       expect(hasEmailUnique).toBe(true);
 
       const stripeCol = findCol('stripe_account_id');
-      const hasStripeUnique = stripeCol.isUnique === true ||
+      const hasStripeUnique = (stripeCol as { isUnique?: boolean }).isUnique === true ||
         metadata.uniques.some(u => u.columns.some(c => c.databaseName === 'stripe_account_id'));
       expect(hasStripeUnique).toBe(true);
     });
