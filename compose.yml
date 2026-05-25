@@ -1,0 +1,89 @@
+services:
+  postgres:
+    build:
+      context: ./docker/postgres
+    image: nabor_postgres:17-uuidv7
+    container_name: nabor_postgres
+    environment:
+      POSTGRES_USER: nabor
+      POSTGRES_PASSWORD: nabor_secret
+      POSTGRES_DB: nabor_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-extensions.sql:/docker-entrypoint-initdb.d/init-extensions.sql
+
+  mongo:
+    image: mongo:7
+    container_name: nabor_mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: nabor
+      MONGO_INITDB_ROOT_PASSWORD: nabor_secret
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  neo4j:
+    image: neo4j:5
+    container_name: nabor_neo4j
+    environment:
+      NEO4J_AUTH: neo4j/nabor_secret
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: nabor_redis
+    ports:
+      - "6379:6379"
+
+  mailpit:
+    image: axllent/mailpit
+    container_name: nabor_mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  api:
+    build:
+      context: ./services/api
+      dockerfile: ../../docker/api/Dockerfile
+    container_name: nabor_api
+    environment:
+      DATABASE_URL: postgres://nabor:nabor_secret@postgres:5432/nabor_db
+      MONGODB_URI: mongodb://nabor:nabor_secret@mongo:27017/nabor_db?authSource=admin
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: nabor_secret
+      CORS_ORIGIN: http://localhost:5173
+      DSL_SERVICE_URL: http://dsl-service:8000
+      JWT_SECRET: dev-secret-change-in-production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - mongo
+      - neo4j
+      - redis
+
+  dsl-service:
+    build:
+      context: ./services/dsl
+      dockerfile: ../../docker/dsl/Dockerfile
+    container_name: nabor_dsl_service
+    environment:
+      DSL_SERVICE_URL: http://dsl-service:8000
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:
+  mongo_data:
+  neo4j_data:

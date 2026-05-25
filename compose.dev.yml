@@ -1,0 +1,19 @@
+services:
+  api:
+    build:
+      target: dev
+    volumes:
+      - ./services/api:/app
+      - /app/node_modules
+    command: npm run start:dev
+    environment:
+      NODE_ENV: development
+
+  dsl-service:
+    build:
+      target: dev
+    volumes:
+      - ./services/dsl:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      PYTHONUNBUFFERED: "1"

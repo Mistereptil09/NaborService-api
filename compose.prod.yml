@@ -1,0 +1,14 @@
+services:
+  api:
+    build:
+      target: prod
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped
+
+  dsl-service:
+    build:
+      target: prod
+    environment:
+      PYTHONUNBUFFERED: "1"
+    restart: unless-stopped
