@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UserNotificationPreferences } from './entities/user-notification-preferences.entity';
 import { UserSession } from './entities/user-session.entity';
+import { UserDataProcessing } from '../users/entities/user-data-processing.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
 import { RateLimitService } from './rate-limit.service';
@@ -18,7 +19,12 @@ import { TotpService } from './totp.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserSession, UserNotificationPreferences]),
+    TypeOrmModule.forFeature([
+      User,
+      UserSession,
+      UserNotificationPreferences,
+      UserDataProcessing,
+    ]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

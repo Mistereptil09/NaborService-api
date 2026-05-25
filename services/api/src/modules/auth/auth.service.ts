@@ -15,6 +15,7 @@ import { User } from '../users/entities/user.entity';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UserNotificationPreferences } from './entities/user-notification-preferences.entity';
+import { UserDataProcessing } from '../users/entities/user-data-processing.entity';
 import { SessionService } from './session.service';
 import { TokenService } from './token.service';
 import { TotpService } from './totp.service';
@@ -77,6 +78,14 @@ export class AuthService {
         notifMessage: true,
       });
       await manager.save(preferences);
+
+      // Create data processing preferences atomically
+      const dataProcessing = manager.create(UserDataProcessing, {
+        userId: savedUser.id,
+        optOuts: [],
+        isRestricted: false,
+      });
+      await manager.save(dataProcessing);
 
       return { message: 'Compte créé avec succès' };
     });

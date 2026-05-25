@@ -8,6 +8,13 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
+- Implémentation du système de préférences RGPD (`user_data_processing`) sous `src/modules/users/` :
+  - **`UserDataProcessing` (entité)** : table dédiée avec relation `OneToOne` vers `User` et `onDelete: 'CASCADE'`, stockant les types d'opposition (`opt_outs` TEXT[]) et la limitation globale (`is_restricted` BOOLEAN).
+  - **`DataProcessingService`** : service injectable exposant des méthodes unifiées de vérification de statut d'opposition (`isOptedOut`, `getEffectiveOptOuts`) et de modification de configuration (`setOptOuts`, `setRestricted`, `createDefault`).
+  - **Création atomique à l'inscription** : intégration dans `AuthService.register()` d'une insertion transactionnelle par défaut pour garantir la conformité dès la création du compte.
+  - **Spécifications techniques** : mise à jour de la section 3.1 du `cahier_des_charges_nabor.md` documentant le schéma SQL et les règles de conformité RGPD.
+  - **Tests robustes Jest et Fast-Check** : suite de tests unitaires d'edge cases et tests de propriétés fast-check (100 runs chacun) prouvant mathématiquement le respect des opt-outs par les services consommateurs (projections d'interactions Neo4j, emails non essentiels, flux de découverte).
+
 - Implémentation de la couche d'infrastructure et des services graphiques Neo4j sous `src/database/neo4j/` conformes aux spécifications CDC :
   - **`Neo4jService`** : service générique d'exécution de requêtes Cypher résilient avec gestion automatique de fermeture des sessions et mécanisme de retry exponentiel (délais `[1000, 5000, 30000]` ms) en cas d'erreurs transitoires.
   - **`Neo4jInitService`** : initialisation automatique de 10 index de base de données (8 RANGE, 2 RANGE composites, 1 index POINT spatial sur le centroid) avec gestion gracieuse des index existants (skip) et fail-fast au démarrage.
@@ -69,3 +76,10 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Connexions PostgreSQL (TypeORM), MongoDB (Mongoose), Neo4j (Bolt), Redis (ioredis)
 - Swagger/OpenAPI auto-généré
 - Docker Compose basique (PostgreSQL 16, MongoDB 7, Neo4j 5, Redis 7)
+
+# not forget :
+MongoDB schemas — Les 7 collections Mongoose (user_media, listing_documents, contracts, messages, event_documents, event_tickets, incident_documents) # done
+Neo4j initialization — Index, contraintes, et service de base pour les requêtes Cypher # currently doing
+Users module — Profil complet (GET/PATCH /users/me, avatar/banner upload, RGPD export, discover)
+Social module — Follow, friendships, blocks, swipes
+Qu'est-ce que tu veux attaquer ensuite ?

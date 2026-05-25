@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { User } from './user.entity';
 import { UserSession } from './user-session.entity';
 import { UserNotificationPreferences } from './user-notification-preferences.entity';
+import { UserDataProcessing } from './user-data-processing.entity';
 
 describe('User & Authentication entities metadata', () => {
   let dataSource: DataSource;
@@ -11,7 +12,7 @@ describe('User & Authentication entities metadata', () => {
       type: 'postgres',
       host: 'fake',
       database: 'fake',
-      entities: [User, UserSession, UserNotificationPreferences],
+      entities: [User, UserSession, UserNotificationPreferences, UserDataProcessing],
       synchronize: false,
     });
     (dataSource as unknown as { buildMetadatas(): void }).buildMetadatas();
@@ -415,6 +416,72 @@ describe('User & Authentication entities metadata', () => {
       expect(relation).toBeDefined();
       expect(relation!.relationType).toBe('one-to-one');
       expect(relation!.type).toBe(User);
+    });
+  });
+
+  describe('UserDataProcessing entity', () => {
+    it('should have table name "user_data_processing"', () => {
+      const metadata = dataSource.getMetadata(UserDataProcessing);
+      expect(metadata.tableName).toBe('user_data_processing');
+    });
+
+    it('should have user_id as primary key', () => {
+      const metadata = dataSource.getMetadata(UserDataProcessing);
+      const userIdCol = metadata.columns.find(
+        (c) => c.databaseName === 'user_id',
+      )!;
+      expect(userIdCol.isPrimary).toBe(true);
+      expect(userIdCol.type).toBe('uuid');
+    });
+
+    it('should have all expected columns', () => {
+      const metadata = dataSource.getMetadata(UserDataProcessing);
+      const columnNames = metadata.columns.map((c) => c.databaseName);
+      const expectedColumns = [
+        'user_id',
+        'opt_outs',
+        'is_restricted',
+        'restricted_at',
+        'updated_at',
+      ];
+      for (const col of expectedColumns) {
+        expect(columnNames).toContain(col);
+      }
+    });
+
+    it('should have correct column configurations', () => {
+      const metadata = dataSource.getMetadata(UserDataProcessing);
+      const findCol = (name: string) =>
+        metadata.columns.find((c) => c.databaseName === name)!;
+
+      const optOuts = findCol('opt_outs');
+      expect(optOuts.type).toBe('text');
+      expect(optOuts.isArray).toBe(true);
+      expect(optOuts.isNullable).toBe(false);
+
+      const isRestricted = findCol('is_restricted');
+      expect(isRestricted.type).toBe('boolean');
+      expect(isRestricted.isNullable).toBe(false);
+      expect(isRestricted.default).toBe(false);
+
+      const restrictedAt = findCol('restricted_at');
+      expect(restrictedAt.type).toBe('timestamptz');
+      expect(restrictedAt.isNullable).toBe(true);
+
+      const updatedAt = findCol('updated_at');
+      expect(updatedAt.type).toBe('timestamptz');
+      expect(updatedAt.isNullable).toBe(true);
+    });
+
+    it('should have OneToOne relation to User with onDelete CASCADE', () => {
+      const metadata = dataSource.getMetadata(UserDataProcessing);
+      const relation = metadata.relations.find(
+        (r) => r.propertyName === 'user',
+      );
+      expect(relation).toBeDefined();
+      expect(relation!.relationType).toBe('one-to-one');
+      expect(relation!.type).toBe(User);
+      expect(relation!.onDelete).toBe('CASCADE');
     });
   });
 });
