@@ -1,0 +1,483 @@
+import { Repository } from 'typeorm';
+import { Model } from 'mongoose';
+import Redis from 'ioredis';
+import { UsersService } from '../users.service';
+import { UserMediaService } from '../user-media.service';
+import { UserSecurityService } from '../user-security.service';
+import { UserPreferencesService } from '../user-preferences.service';
+import { UserRgpdService } from '../user-rgpd.service';
+import { UserDiscoveryService } from '../user-discovery.service';
+import { UserSocialService } from '../user-social.service';
+import { User } from '../entities/user.entity';
+import { Follow } from '../../social/entities/follow.entity';
+import { Friendship } from '../../social/entities/friendship.entity';
+import { UserBlock } from '../../social/entities/user-block.entity';
+import { UserSwipe } from '../../social/entities/user-swipe.entity';
+import { UserReport } from '../entities/user-report.entity';
+import { UserSession } from '../../auth/entities/user-session.entity';
+import { UserNotificationPreferences } from '../entities/user-notification-preferences.entity';
+import { UserDataProcessing } from '../entities/user-data-processing.entity';
+import { TotpService } from '../../auth/totp.service';
+import { SessionService } from '../../auth/session.service';
+import { TokenService } from '../../auth/token.service';
+import { DataProcessingService } from '../data-processing.service';
+import { Neo4jService } from '../../../database/neo4j/neo4j.service';
+import { VisibilityEnum, MessagePolicyEnum } from '../../../common/enums';
+
+// Mock sharp
+jest.mock('sharp', () => {
+  const fn = jest.fn().mockImplementation(() => ({
+    metadata: jest.fn().mockResolvedValue({ width: 200, height: 200 }),
+    webp: jest.fn().mockReturnThis(),
+    toBuffer: jest.fn().mockResolvedValue(Buffer.from('mocked-webp-data')),
+  }));
+  return Object.assign(fn, {
+    default: fn,
+  });
+});
+
+// Mock otplib
+jest.mock('otplib', () => ({
+  authenticator: {
+    verify: jest.fn().mockReturnValue(true),
+  },
+}));
+
+describe('Users Module Services Unit Tests', () => {
+  // ----------------------------------------------------
+  // UserMediaService
+  // ----------------------------------------------------
+  describe('UserMediaService', () => {
+    let mediaService: UserMediaService;
+    let mockUserRepo: jest.Mocked<Repository<User>>;
+    let mockMediaModel: any;
+
+    beforeEach(() => {
+      mockUserRepo = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+      } as unknown as jest.Mocked<Repository<User>>;
+
+      mockMediaModel = jest.fn().mockImplementation((data) => ({
+        ...data,
+        save: jest.fn().mockResolvedValue({ _id: { toString: () => 'new-media-id' } }),
+      })) as any;
+      mockMediaModel.findOne = jest.fn();
+      mockMediaModel.updateOne = jest.fn();
+      mockMediaModel.deleteOne = jest.fn();
+
+      mediaService = new UserMediaService(mockUserRepo, mockMediaModel as unknown as Model<any>);
+    });
+
+    it('should upload avatar successfully and process using sharp', async () => {
+      const mockUser = new User();
+      mockUser.id = 'user-1';
+      mockUserRepo.findOne.mockResolvedValue(mockUser);
+      mockMediaModel.findOne.mockResolvedValue(null);
+
+      const mockFile = {
+        buffer: Buffer.from('fake-img'),
+        size: 1000,
+        mimetype: 'image/png',
+      } as Express.Multer.File;
+
+      const mediaId = await mediaService.uploadMedia('user-1', mockFile, 'avatar');
+      expect(mediaId).toBe('new-media-id');
+      expect(mockUserRepo.save).toHaveBeenCalled();
+    });
+
+    it('should throw PayloadTooLargeException if avatar exceeds size limit', async () => {
+      const mockFile = {
+        buffer: Buffer.from('fake-img'),
+        size: 3000000, // > 2MB
+        mimetype: 'image/png',
+      } as Express.Multer.File;
+
+      await expect(mediaService.uploadMedia('user-1', mockFile, 'avatar')).rejects.toThrow(
+        'Taille du fichier dépasse la limite',
+      );
+    });
+
+    it('should throw UnsupportedMediaTypeException if format is invalid', async () => {
+      const mockFile = {
+        buffer: Buffer.from('fake-img'),
+        size: 100,
+        mimetype: 'image/svg+xml',
+      } as Express.Multer.File;
+
+      await expect(mediaService.uploadMedia('user-1', mockFile, 'avatar')).rejects.toThrow(
+        'Format de fichier non supporté',
+      );
+    });
+
+    it('should delete media successfully and set pg reference to null', async () => {
+      const mockUser = new User();
+      mockUser.id = 'user-1';
+      mockUser.profilePictureMongoId = 'media-id';
+      mockUserRepo.findOne.mockResolvedValue(mockUser);
+      mockMediaModel.findOne.mockResolvedValue({ _id: 'media-id' });
+
+      await mediaService.deleteMedia('user-1', 'avatar');
+
+      expect(mockMediaModel.deleteOne).toHaveBeenCalled();
+      expect(mockUser.profilePictureMongoId).toBeNull();
+      expect(mockUserRepo.save).toHaveBeenCalled();
+    });
+  });
+
+  // ----------------------------------------------------
+  // UserSecurityService
+  // ----------------------------------------------------
+  describe('UserSecurityService', () => {
+    let securityService: UserSecurityService;
+    let mockUserRepo: jest.Mocked<Repository<User>>;
+    let mockSessionRepo: jest.Mocked<Repository<UserSession>>;
+    let mockRedis: jest.Mocked<Redis>;
+    let mockTotpService: jest.Mocked<TotpService>;
+    let mockTokenService: jest.Mocked<TokenService>;
+
+    beforeEach(() => {
+      mockUserRepo = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+        update: jest.fn(),
+      } as unknown as jest.Mocked<Repository<User>>;
+
+      mockSessionRepo = {
+        findOne: jest.fn(),
+        update: jest.fn(),
+      } as unknown as jest.Mocked<Repository<UserSession>>;
+
+      mockRedis = {
+        get: jest.fn(),
+        set: jest.fn(),
+        del: jest.fn(),
+      } as unknown as jest.Mocked<Redis>;
+
+      mockTotpService = {
+        decryptSecret: jest.fn().mockReturnValue('decrypted-secret'),
+      } as unknown as jest.Mocked<TotpService>;
+
+      mockTokenService = {
+        hashRefreshToken: jest.fn().mockReturnValue('hashed-token'),
+      } as unknown as jest.Mocked<TokenService>;
+
+      securityService = new UserSecurityService(
+        mockUserRepo,
+        mockSessionRepo,
+        mockRedis,
+        mockTotpService,
+        mockTokenService,
+      );
+    });
+
+    it('should request password reset, store token in Redis', async () => {
+      const mockUser = new User();
+      mockUser.id = 'user-1';
+      mockUserRepo.findOne.mockResolvedValue(mockUser);
+      mockRedis.get.mockResolvedValue(null);
+
+      await securityService.requestPasswordReset('test@nabor.fr');
+
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        expect.stringContaining('password-reset:'),
+        'user-1',
+        'EX',
+        900,
+      );
+    });
+
+    it('should confirm password reset and revoke all sessions', async () => {
+      const mockUser = new User();
+      mockUser.id = 'user-1';
+      mockUserRepo.findOne.mockResolvedValue(mockUser);
+      mockRedis.get.mockResolvedValue('user-1');
+
+      await securityService.confirmPasswordReset('valid-token', 'new-super-pass');
+
+      expect(mockUserRepo.save).toHaveBeenCalled();
+      expect(mockRedis.del).toHaveBeenCalled();
+      expect(mockSessionRepo.update).toHaveBeenCalled();
+    });
+  });
+
+  // ----------------------------------------------------
+  // UserPreferencesService
+  // ----------------------------------------------------
+  describe('UserPreferencesService', () => {
+    let preferencesService: UserPreferencesService;
+    let mockUserRepo: jest.Mocked<Repository<User>>;
+    let mockNotifRepo: jest.Mocked<Repository<UserNotificationPreferences>>;
+
+    beforeEach(() => {
+      mockUserRepo = {
+        findOne: jest.fn(),
+        update: jest.fn(),
+      } as unknown as jest.Mocked<Repository<User>>;
+
+      mockNotifRepo = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+      } as unknown as jest.Mocked<Repository<UserNotificationPreferences>>;
+
+      preferencesService = new UserPreferencesService(mockUserRepo, mockNotifRepo);
+    });
+
+    it('should get and update locale active preference', async () => {
+      mockUserRepo.findOne.mockResolvedValue({ locale: 'en' } as User);
+      mockUserRepo.update.mockResolvedValue({ affected: 1 } as any);
+
+      const read = await preferencesService.getLocale('user-1');
+      expect(read.locale).toBe('en');
+
+      const updated = await preferencesService.updateLocale('user-1', 'fr');
+      expect(updated.locale).toBe('fr');
+      expect(mockUserRepo.update).toHaveBeenCalledWith('user-1', { locale: 'fr' });
+    });
+
+    it('should throw BadRequestException if update locale is invalid', async () => {
+      await expect(preferencesService.updateLocale('user-1', 'de')).rejects.toThrow(
+        'Locale non supporté',
+      );
+    });
+  });
+
+  // ----------------------------------------------------
+  // UserRgpdService
+  // ----------------------------------------------------
+  describe('UserRgpdService', () => {
+    let rgpdService: UserRgpdService;
+    let mockUserRepo: jest.Mocked<Repository<User>>;
+    let mockDataProcessingRepo: jest.Mocked<Repository<UserDataProcessing>>;
+    let mockDataProcessingService: jest.Mocked<DataProcessingService>;
+    let mockTotpService: jest.Mocked<TotpService>;
+
+    beforeEach(() => {
+      mockUserRepo = {
+        findOne: jest.fn(),
+        update: jest.fn(),
+      } as unknown as jest.Mocked<Repository<User>>;
+
+      mockDataProcessingRepo = {
+        findOne: jest.fn(),
+      } as unknown as jest.Mocked<Repository<UserDataProcessing>>;
+
+      mockDataProcessingService = {
+        isOptedOut: jest.fn(),
+        setOptOuts: jest.fn(),
+        getEffectiveOptOuts: jest.fn(),
+        setRestricted: jest.fn(),
+      } as unknown as jest.Mocked<DataProcessingService>;
+
+      mockTotpService = {
+        decryptSecret: jest.fn().mockReturnValue('secret'),
+      } as unknown as jest.Mocked<TotpService>;
+
+      rgpdService = new UserRgpdService(
+        mockUserRepo,
+        mockDataProcessingRepo,
+        mockDataProcessingService,
+        mockTotpService,
+      );
+    });
+
+    it('should rectify personal data with valid TOTP', async () => {
+      const mockUser = new User();
+      mockUser.id = 'user-1';
+      mockUser.totpSecret = 'encrypted';
+      mockUserRepo.findOne.mockResolvedValue(mockUser);
+
+      await rgpdService.rectifyPersonalData('user-1', {
+        firstName: 'NewName',
+        totpCode: '123456',
+      });
+
+      expect(mockUserRepo.update).toHaveBeenCalledWith('user-1', { firstName: 'NewName' });
+    });
+
+    it('should add opt-out successfully if not already opted out', async () => {
+      mockDataProcessingService.isOptedOut.mockResolvedValue(false);
+      mockDataProcessingRepo.findOne.mockResolvedValue({ optOuts: [] } as any);
+
+      await rgpdService.addOptOut('user-1', 'discovery');
+
+      expect(mockDataProcessingService.setOptOuts).toHaveBeenCalledWith('user-1', ['discovery']);
+    });
+  });
+
+  // ----------------------------------------------------
+  // UserDiscoveryService
+  // ----------------------------------------------------
+  describe('UserDiscoveryService', () => {
+    let discoveryService: UserDiscoveryService;
+    let mockUserRepo: jest.Mocked<Repository<User>>;
+    let mockSwipeRepo: jest.Mocked<Repository<UserSwipe>>;
+    let mockBlockRepo: jest.Mocked<Repository<UserBlock>>;
+    let mockDataProcessingService: jest.Mocked<DataProcessingService>;
+    let mockNeo4jService: jest.Mocked<Neo4jService>;
+    let mockQueue: any;
+
+    beforeEach(() => {
+      mockUserRepo = {
+        findOne: jest.fn(),
+        find: jest.fn(),
+        createQueryBuilder: jest.fn(),
+      } as unknown as jest.Mocked<Repository<User>>;
+
+      mockSwipeRepo = {
+        findOne: jest.fn(),
+        find: jest.fn(),
+        create: jest.fn(),
+        save: jest.fn(),
+      } as unknown as jest.Mocked<Repository<UserSwipe>>;
+
+      mockBlockRepo = {
+        find: jest.fn(),
+      } as unknown as jest.Mocked<Repository<UserBlock>>;
+
+      mockDataProcessingService = {
+        isOptedOut: jest.fn().mockResolvedValue(false),
+      } as unknown as jest.Mocked<DataProcessingService>;
+
+      mockNeo4jService = {
+        run: jest.fn().mockResolvedValue({ records: [] }),
+      } as unknown as jest.Mocked<Neo4jService>;
+
+      mockQueue = {
+        add: jest.fn(),
+      };
+
+      discoveryService = new UserDiscoveryService(
+        mockUserRepo,
+        mockSwipeRepo,
+        mockBlockRepo,
+        mockDataProcessingService,
+        mockNeo4jService,
+        mockQueue,
+      );
+    });
+
+    it('should swipe target user and publish job to Neo4j queue', async () => {
+      const mockUser = new User();
+      mockUser.id = 'target-user';
+      mockUserRepo.findOne.mockResolvedValue(mockUser);
+      mockSwipeRepo.findOne.mockResolvedValue(null);
+      mockSwipeRepo.create.mockReturnValue({} as any);
+
+      await discoveryService.swipe('user-1', 'target-user', { direction: 'like' });
+
+      expect(mockSwipeRepo.save).toHaveBeenCalled();
+      expect(mockQueue.add).toHaveBeenCalledWith('user.swipe', {
+        swiperId: 'user-1',
+        swipedId: 'target-user',
+        direction: 'like',
+      });
+    });
+  });
+
+  // ----------------------------------------------------
+  // UserSocialService
+  // ----------------------------------------------------
+  describe('UserSocialService', () => {
+    let socialService: UserSocialService;
+    let mockUserRepo: jest.Mocked<Repository<User>>;
+    let mockFollowRepo: jest.Mocked<Repository<Follow>>;
+    let mockFriendshipRepo: jest.Mocked<Repository<Friendship>>;
+    let mockBlockRepo: jest.Mocked<Repository<UserBlock>>;
+    let mockReportRepo: jest.Mocked<Repository<UserReport>>;
+    let mockQueue: any;
+
+    beforeEach(() => {
+      mockUserRepo = {
+        findOne: jest.fn(),
+      } as unknown as jest.Mocked<Repository<User>>;
+
+      mockFollowRepo = {
+        findOne: jest.fn(),
+        create: jest.fn(),
+        save: jest.fn(),
+        delete: jest.fn(),
+      } as unknown as jest.Mocked<Repository<Follow>>;
+
+      mockFriendshipRepo = {
+        findOne: jest.fn(),
+        create: jest.fn(),
+        save: jest.fn(),
+      } as unknown as jest.Mocked<Repository<Friendship>>;
+
+      mockBlockRepo = {
+        findOne: jest.fn(),
+        create: jest.fn(),
+        save: jest.fn(),
+        delete: jest.fn(),
+      } as unknown as jest.Mocked<Repository<UserBlock>>;
+
+      mockReportRepo = {
+        create: jest.fn(),
+        save: jest.fn(),
+      } as unknown as jest.Mocked<Repository<UserReport>>;
+
+      mockQueue = {
+        add: jest.fn(),
+      };
+
+      socialService = new UserSocialService(
+        mockUserRepo,
+        mockFollowRepo,
+        mockFriendshipRepo,
+        mockBlockRepo,
+        mockReportRepo,
+        mockQueue,
+      );
+    });
+
+    it('should follow user and detect mutual follow for friendship', async () => {
+      const mockTarget = new User();
+      mockTarget.id = 'user-2';
+      mockUserRepo.findOne.mockResolvedValue(mockTarget);
+
+      mockBlockRepo.findOne.mockResolvedValue(null);
+      mockFollowRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({} as any); // follow back exists
+
+      mockFollowRepo.create.mockReturnValue({} as any);
+      mockFriendshipRepo.findOne.mockResolvedValue(null);
+      mockFriendshipRepo.create.mockReturnValue({} as any);
+
+      await socialService.follow('user-1', 'user-2');
+
+      expect(mockFollowRepo.save).toHaveBeenCalled();
+      expect(mockFriendshipRepo.save).toHaveBeenCalled();
+      expect(mockQueue.add).toHaveBeenCalledWith('user.friends_with.create', {
+        userId1: 'user-1',
+        userId2: 'user-2',
+      });
+    });
+
+    it('should block user and clean up relationships', async () => {
+      const mockTarget = new User();
+      mockTarget.id = 'user-2';
+      mockUserRepo.findOne.mockResolvedValue(mockTarget);
+      mockBlockRepo.findOne.mockResolvedValue(null);
+      mockBlockRepo.create.mockReturnValue({} as any);
+
+      mockFriendshipRepo.findOne.mockResolvedValue(null);
+
+      await socialService.block('user-1', 'user-2');
+
+      expect(mockBlockRepo.save).toHaveBeenCalled();
+      expect(mockFollowRepo.delete).toHaveBeenCalledWith({ followerId: 'user-1', followedId: 'user-2' });
+      expect(mockFollowRepo.delete).toHaveBeenCalledWith({ followerId: 'user-2', followedId: 'user-1' });
+    });
+
+    it('should report user successfully with reason', async () => {
+      const mockTarget = new User();
+      mockTarget.id = 'user-2';
+      mockUserRepo.findOne.mockResolvedValue(mockTarget);
+      mockReportRepo.create.mockReturnValue({} as any);
+
+      await socialService.report('user-1', 'user-2', 'Inappropriate content');
+
+      expect(mockReportRepo.save).toHaveBeenCalled();
+    });
+  });
+});

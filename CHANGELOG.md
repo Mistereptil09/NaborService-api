@@ -8,13 +8,16 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
+- Implémentation complète des routes utilisateurs (32 endpoints REST) conformes aux spécifications du CDC sous `src/modules/users/` :
+  - **`UsersController`** : 32 endpoints REST complets couvrant le CRUD de profil, les soft-deletes avec TOTP, la révocation de sessions, la gestion des bannières/avatars (Sharp WebP), la réinitialisation de mot de passe (Redis TTL + rate limiting), la gestion des préférences de notifications et langues, les droits RGPD (rectification, limitation de traitement, oppositions), et le graphe social complet (follows, friendships, blocks, signalements, swipes, discovery scores Neo4j).
+  - **Correction d'infrastructures** : adaptation de l'import `sharp` en import par défaut standard ES dans `UserMediaService` pour la robustesse du mocking Jest, et correction d'une référence de fonction non-existante dans `deleteMedia`.
+  - **Tests robustes Jest et Fast-Check** : suite de tests unitaires d'edge cases complète sous Jest pour les 6 sous-services, et tests de propriétés `fast-check` couvrant **les 20 propriétés de correction** (100 runs chacun) définies dans la spécification technique.
 - Implémentation du système de préférences RGPD (`user_data_processing`) sous `src/modules/users/` :
   - **`UserDataProcessing` (entité)** : table dédiée avec relation `OneToOne` vers `User` et `onDelete: 'CASCADE'`, stockant les types d'opposition (`opt_outs` TEXT[]) et la limitation globale (`is_restricted` BOOLEAN).
   - **`DataProcessingService`** : service injectable exposant des méthodes unifiées de vérification de statut d'opposition (`isOptedOut`, `getEffectiveOptOuts`) et de modification de configuration (`setOptOuts`, `setRestricted`, `createDefault`).
   - **Création atomique à l'inscription** : intégration dans `AuthService.register()` d'une insertion transactionnelle par défaut pour garantir la conformité dès la création du compte.
   - **Spécifications techniques** : mise à jour de la section 3.1 du `cahier_des_charges_nabor.md` documentant le schéma SQL et les règles de conformité RGPD.
   - **Tests robustes Jest et Fast-Check** : suite de tests unitaires d'edge cases et tests de propriétés fast-check (100 runs chacun) prouvant mathématiquement le respect des opt-outs par les services consommateurs (projections d'interactions Neo4j, emails non essentiels, flux de découverte).
-
 - Implémentation de la couche d'infrastructure et des services graphiques Neo4j sous `src/database/neo4j/` conformes aux spécifications CDC :
   - **`Neo4jService`** : service générique d'exécution de requêtes Cypher résilient avec gestion automatique de fermeture des sessions et mécanisme de retry exponentiel (délais `[1000, 5000, 30000]` ms) en cas d'erreurs transitoires.
   - **`Neo4jInitService`** : initialisation automatique de 10 index de base de données (8 RANGE, 2 RANGE composites, 1 index POINT spatial sur le centroid) avec gestion gracieuse des index existants (skip) et fail-fast au démarrage.
