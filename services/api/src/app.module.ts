@@ -15,6 +15,7 @@ import { MessagingModule } from './modules/messaging/messaging.module';
 import { EventsModule } from './modules/events/events.module';
 import { PollsModule } from './modules/polls/polls.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
+import { MongoSchemasModule } from './database/mongo-schemas';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { IncidentsModule } from './modules/incidents/incidents.module';
         uri: config.get<string>('MONGODB_URI'),
       }),
     }),
+    MongoSchemasModule,
   ],
   controllers: [AppController],
   providers: [AppService],

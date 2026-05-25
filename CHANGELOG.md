@@ -8,6 +8,12 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
+- Implémentation des 7 schémas MongoDB Mongoose (`user_media`, `listing_documents`, `contracts`, `messages`, `event_documents`, `event_tickets`, `incident_documents`) sous `src/database/mongo-schemas/` conformes aux spécifications CDC.
+- Validations de tailles Mongoose par fichier individuel (photos ≤ 1,5 Mo, pièces jointes ≤ 4,5 Mo, avatars ≤ 2 Mo, bannières ≤ 4 Mo).
+- Pre-save hooks Mongoose validant la taille BSON cumulée (ex. photos ≤ 12 Mo, pièces jointes ≤ 13,5 Mo, événements ≤ 13,5 Mo) avec propagation d'erreurs ValidationError détaillées.
+- Module global `MongoSchemasModule` enregistrant et exportant tous les modèles pour injection.
+- Tests unitaires Jest complets et tests de propriétés `fast-check` robustes pour la conformité et la sécurité des schémas.
+
 - Module d'authentification NestJS :
   - **`TokenService`** : émission de JWT HS256 (15 min) et tokens de rafraîchissement opaques de 64 caractères (base64url) stockés dans Redis.
   - **`SessionService`** : gestion et audit des sessions actives (`UserSession`) dans PostgreSQL avec support de révocation unitaire/globale.
@@ -17,6 +23,7 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Fichier `.dockerignore` dans `services/api` pour optimiser le build Docker en ignorant `node_modules` et `dist`.
 
 ### Changed
+- Optimisation des paramètres du test de propriétés `Argon2id` (`numRuns: 30`, `memoryCost: 16384`, `timeCost: 2`) accélérant le passage complet de la suite de tests de **24s à 5,6s** (gain de 4,2x).
 - Inscription (`register`) : sécurisation par Argon2id avec sel cryptographique aléatoire de 16 octets, et création atomique transactionnelle des préférences de notification (`UserNotificationPreferences`) par défaut.
 - Connexion (`login`) : protection contre les attaques temporelles par vérification uniforme (dummy verification) en cas de compte inexistant ou supprimé.
 - Stratégie JWT : invalidation des tokens actifs si le mot de passe est modifié après émission ou si le compte est supprimé (`deleted_at IS NOT NULL`).
