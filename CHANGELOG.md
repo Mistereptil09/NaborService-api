@@ -8,12 +8,16 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
+- Implémentation de la couche d'infrastructure et des services graphiques Neo4j sous `src/database/neo4j/` conformes aux spécifications CDC :
+  - **`Neo4jService`** : service générique d'exécution de requêtes Cypher résilient avec gestion automatique de fermeture des sessions et mécanisme de retry exponentiel (délais `[1000, 5000, 30000]` ms) en cas d'erreurs transitoires.
+  - **`Neo4jInitService`** : initialisation automatique de 10 index de base de données (8 RANGE, 2 RANGE composites, 1 index POINT spatial sur le centroid) avec gestion gracieuse des index existants (skip) et fail-fast au démarrage.
+  - **`Neo4jSyncService`** : service d'alimentation et synchronisation idempotente PostgreSQL → Neo4j (MERGE sur nœuds `User`, `Listing`, `Event`, `Category`, et 14 projections relationnelles comme `[:LIVES_IN]`, `[:FOLLOWS]`, `[:FRIENDS_WITH]`, etc.).
+  - **`NeighbourhoodService`** : service de gestion géographique des quartiers comme source de vérité exclusive (mapping de points WGS-84 natifs, requêtes spatiales de proximité par distance, suppression sécurisée avec barrière de résidents actifs, et modification atomique d'adjacences en transaction).
 - Implémentation des 7 schémas MongoDB Mongoose (`user_media`, `listing_documents`, `contracts`, `messages`, `event_documents`, `event_tickets`, `incident_documents`) sous `src/database/mongo-schemas/` conformes aux spécifications CDC.
 - Validations de tailles Mongoose par fichier individuel (photos ≤ 1,5 Mo, pièces jointes ≤ 4,5 Mo, avatars ≤ 2 Mo, bannières ≤ 4 Mo).
 - Pre-save hooks Mongoose validant la taille BSON cumulée (ex. photos ≤ 12 Mo, pièces jointes ≤ 13,5 Mo, événements ≤ 13,5 Mo) avec propagation d'erreurs ValidationError détaillées.
 - Module global `MongoSchemasModule` enregistrant et exportant tous les modèles pour injection.
 - Tests unitaires Jest complets et tests de propriétés `fast-check` robustes pour la conformité et la sécurité des schémas.
-
 - Module d'authentification NestJS :
   - **`TokenService`** : émission de JWT HS256 (15 min) et tokens de rafraîchissement opaques de 64 caractères (base64url) stockés dans Redis.
   - **`SessionService`** : gestion et audit des sessions actives (`UserSession`) dans PostgreSQL avec support de révocation unitaire/globale.

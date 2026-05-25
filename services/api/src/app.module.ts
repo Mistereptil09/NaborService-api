@@ -5,7 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { postgresConfig } from './database/postgres.config';
-import { Neo4jModule } from './database/neo4j.module';
+import { Neo4jModule } from './database/neo4j';
 import { RedisModule } from './database/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
