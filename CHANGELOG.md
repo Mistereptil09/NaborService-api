@@ -8,6 +8,14 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Added
+- Implémentation et intégration complète du module d'Annonces et Services (Listings) sous `src/modules/listings/` :
+  - **`ListingsService` & `ListingContentService`** : CRUD complet de listings PostgreSQL et de contenu MongoDB associé (description HTML enrichie et tags).
+  - **`ListingMediaService`** : gestion robuste de téléchargement/suppression d'images WebP (Sharp) avec limite stricte à 8 photos (5 Mo max) et réorganisation contiguë automatique des ordres d'images (0..N-1) lors des suppressions.
+  - **`ListingStateMachineService`** : gestion résiliente des transitions d'états d'annonces (`open` -> `pending` -> `in_progress` -> `closed` | `cancelled`) via optimistic locking.
+  - **`ListingSignatureService` & Gateway / Workers** : signature électronique simple eIDAS (Canvas base64 + TOTP validation), immutabilité stricte des documents signés, validation d'intégrité SHA-256 bidirectionnelle, génération PDF asynchrone (BullMQ `pdf-generation`), expiration automatique (24h de TTL) via `contract-expiration` delayed job, et notifications WebSocket en temps réel via `ListingsGateway`.
+  - **`ListingReportService` & `ListingModerationService`** : flux de modération complet (resolution de signalements, avertissements aux créateurs, suspension gracieuse de transaction) et routage admin/modérateur sécurisé.
+  - **Résolution des erreurs de compilation TypeScript** : typage précis pour les queries TypeORM avec `IsNull()`, fallback de date pour le socket gateway, import correct du décorateur `@Inject()`, et assertions de non-nullité pour les documents Mongo.
+  - **Tests robustes de correction `fast-check`** : refactorisation complète de la suite de tests de propriétés (`listings.properties.spec.ts`) pour utiliser les promesses asynchrones `fc.asyncProperty` d'une manière type-safe. Les **13 propriétés de correction** mathématiques et les unit/integration tests (soit **135 tests** au total) passent désormais à 100% avec le build NestJS compilé sans aucune erreur.
 - Implémentation complète des routes utilisateurs (32 endpoints REST) conformes aux spécifications du CDC sous `src/modules/users/` :
   - **`UsersController`** : 32 endpoints REST complets couvrant le CRUD de profil, les soft-deletes avec TOTP, la révocation de sessions, la gestion des bannières/avatars (Sharp WebP), la réinitialisation de mot de passe (Redis TTL + rate limiting), la gestion des préférences de notifications et langues, les droits RGPD (rectification, limitation de traitement, oppositions), et le graphe social complet (follows, friendships, blocks, signalements, swipes, discovery scores Neo4j).
   - **Correction d'infrastructures** : adaptation de l'import `sharp` en import par défaut standard ES dans `UserMediaService` pour la robustesse du mocking Jest, et correction d'une référence de fonction non-existante dans `deleteMedia`.
