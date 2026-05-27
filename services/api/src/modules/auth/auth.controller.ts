@@ -14,7 +14,17 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiTags,
+  ApiOkResponse,
+  ApiCreatedResponse,
+  ApiBadRequestResponse,
+  ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+} from '@nestjs/swagger';
 import * as Express from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -47,6 +57,8 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Créer un compte' })
+  @ApiCreatedResponse({ description: 'Compte créé avec succès' })
+  @ApiBadRequestResponse({ description: 'Données invalides ou email déjà utilisé' })
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
@@ -55,6 +67,9 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @RateLimit('login', 10, 900) // 10 requests per 15 mins per IP
   @ApiOperation({ summary: 'Se connecter et obtenir un JWT' })
+  @ApiOkResponse({ description: 'Connexion réussie (renvoie le token access_token ou un challenge TOTP)' })
+  @ApiUnauthorizedResponse({ description: 'Email ou mot de passe incorrect' })
+  @ApiBadRequestResponse({ description: 'Données d\'entrée invalides' })
   async login(
     @Body() dto: LoginDto,
     @Req() req: Express.Request,
@@ -84,6 +99,9 @@ export class AuthController {
   @Post('totp/verify')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Vérifier le code TOTP et activer la session' })
+  @ApiOkResponse({ description: 'Code TOTP validé avec succès, session démarrée' })
+  @ApiUnauthorizedResponse({ description: 'Code TOTP ou token de challenge invalide/expiré' })
+  @ApiBadRequestResponse({ description: 'Données de validation invalides' })
   async verifyTotp(
     @Body() dto: TotpVerifyDto,
     @Req() req: Express.Request,
@@ -147,6 +165,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @RateLimit('refresh', 10, 60) // 10 requests per 1 min per user_id
   @ApiOperation({ summary: 'Renouveler le token access_token' })
+  @ApiOkResponse({ description: 'Tokens rafraîchis avec succès' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié, session expirée ou révoquée' })
   async refresh(
     @Req() req: Express.Request,
     @Res({ passthrough: true }) res: Express.Response,
@@ -216,6 +236,8 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Se déconnecter' })
+  @ApiOkResponse({ description: 'Déconnexion réussie' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié ou session invalide' })
   async logout(
     @Req() req: Express.Request,
     @Res({ passthrough: true }) res: Express.Response,
@@ -249,6 +271,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Se déconnecter de tous les appareils' })
+  @ApiOkResponse({ description: 'Déconnexion globale réussie' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async logoutAll(@Req() req: { user: { sub: string } }) {
     const activeSessions = await this.sessionService.findActiveByUser(req.user.sub);
 
@@ -267,6 +291,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Lister les sessions actives' })
+  @ApiOkResponse({ description: 'Liste des sessions actives retournée' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async getSessions(@Req() req: Express.Request & { user: { sub: string } }) {
     const activeSessions = await this.sessionService.findActiveByUser(req.user.sub);
     const token = this.extractRefreshTokenFromCookie(req);
@@ -286,6 +312,10 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Révoquer une session spécifique' })
+  @ApiOkResponse({ description: 'Session révoquée avec succès' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
+  @ApiForbiddenResponse({ description: 'Accès interdit (la session n\'appartient pas à l\'utilisateur)' })
+  @ApiNotFoundResponse({ description: 'Session introuvable' })
   async deleteSession(
     @Param('id') sessionId: string,
     @Req() req: { user: { sub: string } },
@@ -313,6 +343,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Générer un secret TOTP (MFA) pour setup' })
+  @ApiOkResponse({ description: 'Secret TOTP et QR Code générés avec succès' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async setupTotp(@Req() req: Express.Request & { user: { sub: string } }) {
     const user = await this.userRepository.findOneOrFail({
       where: { id: req.user.sub },
@@ -324,6 +356,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Confirmer le code TOTP et activer la MFA' })
+  @ApiOkResponse({ description: 'TOTP configuré et activé avec succès' })
+  @ApiBadRequestResponse({ description: 'Code TOTP fourni invalide' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async confirmTotp(
     @Req() req: { user: { sub: string } },
     @Body() dto: TotpConfirmDto,
@@ -336,6 +371,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Générer un token SSO pour l'app Java" })
+  @ApiOkResponse({ description: 'Token SSO généré avec succès' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   desktopToken(@Req() req: { user: { sub: string } }) {
     return this.authService.generateDesktopToken(req.user.sub);
   }

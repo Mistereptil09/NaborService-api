@@ -3,7 +3,7 @@ import { IsString, Matches } from 'class-validator';
 
 export class TotpConfirmDto {
   @ApiProperty({
-    description: 'TOTP 6-digit code from authenticator app',
+    description: "Code TOTP à 6 chiffres de l'application d'authentification",
     example: '123456',
   })
   @IsString()
