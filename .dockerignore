@@ -1,3 +1,7 @@
 .git
 .gitignore
 README.md
+.env.exemple
+CHANGELOG
+README.md
+copose*.yml

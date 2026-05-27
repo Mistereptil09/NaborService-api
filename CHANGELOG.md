@@ -32,6 +32,7 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   - Création de tests de propriétés `fast-check` robustes dans `api-module-fixes.property.spec.ts` pour valider la robustesse de ces corrections, avec 541 tests passants à 100%.
 
 ### Added
+- **Spec listings-routes-cdc** : création complète de la spécification (requirements.md, design.md, tasks.md) pour le module Annonces & Services (25 requirements, 13 propriétés de correction, 18 tâches d'implémentation).
 - Implémentation complète et migration vers le système de stockage média découpé GridFS sous `src/modules/media/` :
   - **`GridFSService`** : Intégration bas niveau avec le pilote natif MongoDB pour fragmenter les flux binaires en chunks de 255 Ko, avec suppression atomique (chunks + fichiers) et verrous transactionnels assurant un nettoyage complet en cas d'échec d'écriture.
   - **`UploadPipeline`** : Pipeline d'optimisation unifié validant les mimetypes et tailles limites, convertissant automatiquement les images (JPEG/PNG/GIF) au format WebP (qualité 80) via `sharp`, compressant les vidéos à un maximum de 1080p via `fluent-ffmpeg`, et transcodant les fichiers audios au format Opus (128 kbps).
@@ -81,6 +82,16 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Fichier `.dockerignore` dans `services/api` pour optimiser le build Docker en ignorant `node_modules` et `dist`.
 
 ### Changed
+- **Infrastructure de connexion aux bases de données** :
+  - Création de `src/database/database.utils.ts` avec utilitaires partagés : `requireEnv()` (validation d'env vars avec message clair par service), `connectWithRetry()` (retry générique avec logging uniforme), et `DB_RETRY_CONFIG` (5 tentatives, 3s de délai).
+  - Refactorisation de `postgres.config.ts` : utilisation de `connectWithRetry` via `dataSourceFactory` pour un retry contrôlé à l'initialisation TypeORM.
+  - Extraction de `mongo.config.ts` depuis `app.module.ts` : configuration Mongoose isolée avec `connectWithRetry` pour vérifier la connectivité avant de retourner l'URI.
+  - Refactorisation de `redis.module.ts` : désactivation du retry interne ioredis (`retryStrategy: () => null`, `lazyConnect: true`), suppression du spam `[ioredis] Unhandled error event`, retry géré exclusivement par `connectWithRetry`.
+  - Refactorisation de `neo4j.module.ts` : `verifyConnectivity()` encapsulé dans `connectWithRetry` (bloquant au démarrage).
+  - Comportement uniforme : si un service est injoignable après 5 tentatives, le processus crash proprement (exit code 1) pour permettre un restart Docker.
+- **Docker Compose** : ajout de `env_file: .env` sur le service API pour injecter les variables d'environnement depuis le fichier `.env` racine (pattern standard en production).
+- **`.env.example`** : ajout de toutes les variables manquantes (`DATABASE_URL`, `MONGODB_URI`, `NEO4J_URI`, `NEO4J_USER`, `REDIS_HOST`, `DSL_SERVICE_URL`) avec valeurs par défaut fonctionnelles pour Docker.
+- **`app.module.ts`** : nettoyage — suppression de la config Mongoose inline, import de `mongoConfig` depuis `database/mongo.config.ts`.
 - Optimisation des paramètres du test de propriétés `Argon2id` (`numRuns: 30`, `memoryCost: 16384`, `timeCost: 2`) accélérant le passage complet de la suite de tests de **24s à 5,6s** (gain de 4,2x).
 - Inscription (`register`) : sécurisation par Argon2id avec sel cryptographique aléatoire de 16 octets, et création atomique transactionnelle des préférences de notification (`UserNotificationPreferences`) par défaut.
 - Connexion (`login`) : protection contre les attaques temporelles par vérification uniforme (dummy verification) en cas de compte inexistant ou supprimé.
@@ -99,8 +110,6 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Extension `pg_uuidv7` pour PostgreSQL 17 (UUID v7 ordonnés chronologiquement)
 - Micro-service DSL Python (lexer, parser, query_builder) pour requêtes MongoDB admin en lecture seule
 - `.dockerignore` pour optimiser les builds Docker
-
-### Changed
 - Restructuration `src/` : modules métier dans `src/modules/`, configs DB dans `src/database/`, enums dans `src/common/`
 - Entité User mise à jour : suppression colonnes obsolètes, ajout index CDC, import enums centralisés
 - `auth.service.ts` : migration bcrypt → argon2 (conformité CDC), correction null check TOTP

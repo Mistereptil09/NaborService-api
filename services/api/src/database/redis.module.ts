@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { requireEnv, connectWithRetry } from './database.utils';
 
 export const REDIS_CLIENT = 'REDIS_CLIENT';
 
@@ -10,12 +11,33 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
     {
       provide: REDIS_CLIENT,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) =>
-        new Redis({
-          host: config.get<string>('REDIS_HOST'),
-          port: config.get<number>('REDIS_PORT'),
-          password: config.get<string>('REDIS_PASSWORD') || undefined,
-        }),
+      useFactory: async (config: ConfigService) => {
+        const host = requireEnv(config, 'REDIS_HOST', 'Redis');
+        const port = config.get<number>('REDIS_PORT', 6379);
+        const password = config.get<string>('REDIS_PASSWORD') || undefined;
+
+        // We manage retries ourselves via connectWithRetry.
+        // Create a new client on each attempt so ioredis doesn't interfere.
+        const client = await connectWithRetry('Redis', async () => {
+          const redis = new Redis({
+            host,
+            port,
+            password,
+            maxRetriesPerRequest: null, // Required for BullMQ
+            lazyConnect: true,
+            retryStrategy: () => null, // Disable ioredis internal retries
+            enableOfflineQueue: false,
+          });
+
+          // Suppress unhandled error events during connection attempt
+          redis.on('error', () => {});
+
+          await redis.connect();
+          return redis;
+        });
+
+        return client;
+      },
     },
   ],
   exports: [REDIS_CLIENT],

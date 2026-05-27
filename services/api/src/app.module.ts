@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { postgresConfig } from './database/postgres.config';
+import { mongoConfig } from './database/mongo.config';
 import { Neo4jModule } from './database/neo4j';
 import { RedisModule } from './database/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -22,6 +23,7 @@ import { MediaModule } from './modules/media/media.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync(postgresConfig),
+    MongooseModule.forRootAsync(mongoConfig),
     RedisModule,
     Neo4jModule,
     AuthModule,
@@ -33,13 +35,6 @@ import { MediaModule } from './modules/media/media.module';
     PollsModule,
     IncidentsModule,
     MediaModule,
-    MongooseModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        uri: config.get<string>('MONGODB_URI'),
-      }),
-    }),
     MongoSchemasModule,
   ],
   controllers: [AppController],
