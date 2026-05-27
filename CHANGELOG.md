@@ -32,6 +32,7 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   - Création de tests de propriétés `fast-check` robustes dans `api-module-fixes.property.spec.ts` pour valider la robustesse de ces corrections, avec 541 tests passants à 100%.
 
 ### Added
+- **Système de Synchronisation** : Refonte de la synchronisation hors ligne bidirectionnelle (API ↔ SQLite Java Desktop). Consolidation des opérations d'écriture vers une route générique permissive (`POST /sync/updates`) accessible aux administrateurs et modérateurs. Le système gère nativement l'idempotence via des jobs Redis, et permet l'édition transverse (`incident`, `user`, `listing`, `event`, `neighbourhood`) tout en nettoyant rigoureusement les champs sensibles (mot de passe, totp, stripe_account_id). Toutes les créations (inserts) d'incidents ou de signalements repasseront désormais par les routes REST standards.
 - **Spec listings-routes-cdc** : création complète de la spécification (requirements.md, design.md, tasks.md) pour le module Annonces & Services (25 requirements, 13 propriétés de correction, 18 tâches d'implémentation).
 - Implémentation complète et migration vers le système de stockage média découpé GridFS sous `src/modules/media/` :
   - **`GridFSService`** : Intégration bas niveau avec le pilote natif MongoDB pour fragmenter les flux binaires en chunks de 255 Ko, avec suppression atomique (chunks + fichiers) et verrous transactionnels assurant un nettoyage complet en cas d'échec d'écriture.

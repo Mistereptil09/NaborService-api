@@ -18,6 +18,7 @@ import { PollsModule } from './modules/polls/polls.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { MongoSchemasModule } from './database/mongo-schemas';
 import { MediaModule } from './modules/media/media.module';
+import { SyncModule } from './modules/sync/sync.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { MediaModule } from './modules/media/media.module';
     IncidentsModule,
     MediaModule,
     MongoSchemasModule,
+    SyncModule,
   ],
   controllers: [AppController],
   providers: [AppService],
