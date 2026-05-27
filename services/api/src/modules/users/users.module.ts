@@ -25,6 +25,7 @@ import { UserDiscoveryService } from './user-discovery.service';
 import { UserSocialService } from './user-social.service';
 
 import { AuthModule } from '../auth/auth.module';
+import { MediaModule } from '../media/media.module';
 
 const mockQueue = {
   add: async (name: string, data: any) => {
@@ -48,6 +49,7 @@ const mockQueue = {
     ]),
     MongooseModule.forFeature([{ name: UserMedia.name, schema: UserMediaSchema }]),
     AuthModule,
+    MediaModule,
   ],
   controllers: [UsersController],
   providers: [

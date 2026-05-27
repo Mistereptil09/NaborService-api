@@ -330,11 +330,11 @@ export class ListingsController {
     @Req() req: any,
     @Res() res: any,
   ) {
-    const doc = await this.signatureService.getContract(req.user.id, id, 'contract');
-    res.setHeader('Content-Type', doc.pdf.mimetype);
+    const doc = await this.signatureService.getContractStream(req.user.id, id, 'contract');
+    res.setHeader('Content-Type', doc.mimetype);
     res.setHeader('Content-Disposition', `attachment; filename="contract_${id}.pdf"`);
-    res.setHeader('Content-Length', doc.pdf.size_bytes.toString());
-    res.send(doc.pdf.data);
+    res.setHeader('Content-Length', doc.sizeBytes.toString());
+    doc.stream.pipe(res);
   }
 
   @Get(':listing_id/receipt')
@@ -348,11 +348,11 @@ export class ListingsController {
     @Req() req: any,
     @Res() res: any,
   ) {
-    const doc = await this.signatureService.getContract(req.user.id, id, 'receipt');
-    res.setHeader('Content-Type', doc.pdf.mimetype);
+    const doc = await this.signatureService.getContractStream(req.user.id, id, 'receipt');
+    res.setHeader('Content-Type', doc.mimetype);
     res.setHeader('Content-Disposition', `attachment; filename="receipt_${id}.pdf"`);
-    res.setHeader('Content-Length', doc.pdf.size_bytes.toString());
-    res.send(doc.pdf.data);
+    res.setHeader('Content-Length', doc.sizeBytes.toString());
+    doc.stream.pipe(res);
   }
 
   @Post(':listing_id/sign')

@@ -5,9 +5,6 @@ export type ContractDocument = HydratedDocument<Contract>;
 
 @Schema({ _id: false, timestamps: false })
 export class Pdf {
-  @Prop({ required: true, type: Buffer })
-  data: Buffer;
-
   @Prop({ required: true })
   mimetype: string;
 

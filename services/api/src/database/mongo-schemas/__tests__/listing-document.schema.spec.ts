@@ -49,13 +49,12 @@ describe('ListingDocument Schema', () => {
     expect(err).toBeUndefined();
   });
 
-  it('should reject a photo exceeding 1.5 MB', () => {
+  it('should accept a photo of any size on database schema level (validation delegated to service)', () => {
     const doc = new ListingDocumentModel({
       pg_listing_id: 'lst_123',
       body_html: '<p>Beautiful listing</p>',
       photos: [
         {
-          data: Buffer.from('photo'),
           mimetype: 'image/jpeg',
           size_bytes: 1572865, // 1.5 MB + 1 byte
           order: 1,
@@ -67,11 +66,7 @@ describe('ListingDocument Schema', () => {
       updated_at: new Date(),
     });
     const err = doc.validateSync();
-    expect(err).toBeDefined();
-    expect(err?.errors['photos.0.size_bytes']).toBeDefined();
-    expect(err?.errors['photos.0.size_bytes'].message).toBe(
-      'size_bytes exceeds maximum of 1572864 bytes for photo',
-    );
+    expect(err).toBeUndefined();
   });
 
   it('should reject photos array exceeding length 8', () => {

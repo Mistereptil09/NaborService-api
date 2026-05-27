@@ -15,6 +15,8 @@ import { User } from '../users/entities/user.entity';
 import { ListingTransactionService } from './listing-transaction.service';
 import { TotpService } from '../auth/totp.service';
 import { SignDocumentDto } from './dto/listing-routes.dtos';
+import { MediaService } from '../media/services/media.service';
+import { GridFSService } from '../media/services/gridfs.service';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { authenticator } = require('otplib');
@@ -28,6 +30,8 @@ export class ListingSignatureService {
     private readonly contractModel: Model<ContractDocument>,
     private readonly transactionService: ListingTransactionService,
     private readonly totpService: TotpService,
+    private readonly mediaService: MediaService,
+    private readonly gridfsService: GridFSService,
   ) {}
 
   async signDocument(
@@ -80,10 +84,16 @@ export class ListingSignatureService {
       throw new ForbiddenException('TOTP requis ou invalide');
     }
 
-    // Verify SHA-256 PDF integrity
+    // Verify SHA-256 PDF integrity using the new MediaService & GridFSService
+    const mediaFiles = await this.mediaService.findByOwner('contract', transaction.id);
+    const contractFile = mediaFiles.find((m) => m.contract_type === 'contract');
+    if (!contractFile) {
+      throw new NotFoundException('Contrat introuvable');
+    }
+    const gridfsFile = await this.gridfsService.download(contractFile.gridfs_file_id);
     const computedHash = crypto
       .createHash('sha256')
-      .update(contract.pdf.data)
+      .update(gridfsFile.buffer)
       .digest('hex');
 
     if (computedHash !== contract.sha256_hash) {
@@ -121,5 +131,41 @@ export class ListingSignatureService {
     }
 
     return doc;
+  }
+
+  async getContractStream(
+    userId: string,
+    listingId: string,
+    type: 'contract' | 'receipt',
+  ): Promise<{
+    stream: any;
+    mimetype: string;
+    sizeBytes: number;
+  }> {
+    const transaction = await this.transactionService.findByListingId(listingId);
+    await this.transactionService.verifyPartyAccess(userId, transaction);
+
+    const doc = await this.contractModel.findOne({
+      pg_transaction_id: transaction.id,
+      type,
+    });
+
+    if (!doc) {
+      throw new NotFoundException(`Aucun ${type === 'contract' ? 'contrat' : 'reçu'} trouvé pour cette annonce`);
+    }
+
+    const mediaFiles = await this.mediaService.findByOwner('contract', transaction.id);
+    const contractFile = mediaFiles.find((m) => m.contract_type === type);
+    if (!contractFile) {
+      throw new NotFoundException('Fichier de contrat introuvable');
+    }
+
+    const stream = this.gridfsService.openDownloadStream(contractFile.gridfs_file_id);
+
+    return {
+      stream,
+      mimetype: contractFile.mimetype,
+      sizeBytes: contractFile.size_bytes,
+    };
   }
 }

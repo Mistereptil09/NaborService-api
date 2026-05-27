@@ -16,6 +16,7 @@ import { EventsModule } from './modules/events/events.module';
 import { PollsModule } from './modules/polls/polls.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { MongoSchemasModule } from './database/mongo-schemas';
+import { MediaModule } from './modules/media/media.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { MongoSchemasModule } from './database/mongo-schemas';
     EventsModule,
     PollsModule,
     IncidentsModule,
+    MediaModule,
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

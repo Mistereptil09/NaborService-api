@@ -27,41 +27,22 @@ describe('UserMedia Schema', () => {
     const doc = new UserMediaModel({
       pg_user_id: 'usr_123',
       type: 'avatar',
-      data: Buffer.from('test'),
       mimetype: 'image/png',
-      size_bytes: 2097152, // exactly 2 MB
+      size_bytes: 2097152,
       width_px: 500,
       height_px: 500,
       uploaded_at: new Date(),
     });
     const err = doc.validateSync();
     expect(err).toBeUndefined();
-  });
-
-  it('should reject an avatar exceeding 2 MB', () => {
-    const doc = new UserMediaModel({
-      pg_user_id: 'usr_123',
-      type: 'avatar',
-      data: Buffer.from('test'),
-      mimetype: 'image/png',
-      size_bytes: 2097153, // 2 MB + 1 byte
-      width_px: 500,
-      height_px: 500,
-      uploaded_at: new Date(),
-    });
-    const err = doc.validateSync();
-    expect(err).toBeDefined();
-    expect(err?.errors.size_bytes).toBeDefined();
-    expect(err?.errors.size_bytes.message).toBe('size_bytes exceeds maximum of 2097152 bytes for avatar');
   });
 
   it('should validate successfully for a valid banner', () => {
     const doc = new UserMediaModel({
       pg_user_id: 'usr_123',
       type: 'banner',
-      data: Buffer.from('test'),
       mimetype: 'image/png',
-      size_bytes: 4194304, // exactly 4 MB
+      size_bytes: 4194304,
       width_px: 1200,
       height_px: 400,
       uploaded_at: new Date(),
@@ -70,28 +51,10 @@ describe('UserMedia Schema', () => {
     expect(err).toBeUndefined();
   });
 
-  it('should reject a banner exceeding 4 MB', () => {
-    const doc = new UserMediaModel({
-      pg_user_id: 'usr_123',
-      type: 'banner',
-      data: Buffer.from('test'),
-      mimetype: 'image/png',
-      size_bytes: 4194305, // 4 MB + 1 byte
-      width_px: 1200,
-      height_px: 400,
-      uploaded_at: new Date(),
-    });
-    const err = doc.validateSync();
-    expect(err).toBeDefined();
-    expect(err?.errors.size_bytes).toBeDefined();
-    expect(err?.errors.size_bytes.message).toBe('size_bytes exceeds maximum of 4194304 bytes for banner');
-  });
-
   it('should reject invalid types', () => {
     const doc = new UserMediaModel({
       pg_user_id: 'usr_123',
       type: 'invalid_type',
-      data: Buffer.from('test'),
       mimetype: 'image/png',
       size_bytes: 100,
       width_px: 50,
@@ -109,7 +72,6 @@ describe('UserMedia Schema', () => {
     expect(err).toBeDefined();
     expect(err?.errors.pg_user_id).toBeDefined();
     expect(err?.errors.type).toBeDefined();
-    expect(err?.errors.data).toBeDefined();
     expect(err?.errors.mimetype).toBeDefined();
     expect(err?.errors.size_bytes).toBeDefined();
     expect(err?.errors.width_px).toBeDefined();

@@ -27,6 +27,7 @@ import { PdfGenerationWorker } from './workers/pdf-generation.worker';
 import { ContractExpirationWorker } from './workers/contract-expiration.worker';
 
 import { AuthModule } from '../auth/auth.module';
+import { MediaModule } from '../media/media.module';
 
 const mockQueue = {
   add: async (name: string, data: any, options?: any) => {
@@ -51,6 +52,7 @@ const mockQueue = {
       { name: Contract.name, schema: ContractSchema },
     ]),
     AuthModule,
+    MediaModule,
   ],
   controllers: [ListingsController],
   providers: [

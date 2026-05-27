@@ -13,7 +13,7 @@ describe('Property 4: Per-item binary size enforcement', () => {
     MessageModel = mongoose.models.Message || mongoose.model('Message', MessageSchema);
   });
 
-  it('should enforce per-photo size limit (1.5 MB) on ListingDocument', () => {
+  it('should accept size_bytes of any size on ListingDocument schema level (validation delegated to service)', () => {
     fc.assert(
       fc.property(fc.integer({ min: 0, max: 4_000_000 }), size_bytes => {
         const doc = new ListingDocumentModel({
@@ -21,7 +21,6 @@ describe('Property 4: Per-item binary size enforcement', () => {
           body_html: '<p>test</p>',
           photos: [
             {
-              data: Buffer.from('p'),
               mimetype: 'image/jpeg',
               size_bytes,
               order: 1,
@@ -34,17 +33,8 @@ describe('Property 4: Per-item binary size enforcement', () => {
         });
 
         const err = doc.validateSync();
-        const limit = 1572864; // 1.5 MB
-
-        if (size_bytes <= limit) {
-          expect(err).toBeUndefined();
-        } else {
-          expect(err).toBeDefined();
-          expect(err?.errors['photos.0.size_bytes']).toBeDefined();
-          expect(err?.errors['photos.0.size_bytes'].message).toBe(
-            `size_bytes exceeds maximum of ${limit} bytes for photo`,
-          );
-        }
+        // Validation should pass since database-level photo size checks are removed and delegated to NestJS services
+        expect(err).toBeUndefined();
       }),
       { numRuns: 100 },
     );

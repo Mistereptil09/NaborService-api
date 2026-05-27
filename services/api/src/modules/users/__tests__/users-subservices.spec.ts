@@ -49,31 +49,20 @@ describe('Users Module Services Unit Tests', () => {
   // ----------------------------------------------------
   describe('UserMediaService', () => {
     let mediaService: UserMediaService;
-    let mockUserRepo: jest.Mocked<Repository<User>>;
-    let mockMediaModel: any;
+    let mockMediaService: any;
 
     beforeEach(() => {
-      mockUserRepo = {
-        findOne: jest.fn(),
-        save: jest.fn(),
-      } as unknown as jest.Mocked<Repository<User>>;
+      mockMediaService = {
+        upload: jest.fn(),
+        delete: jest.fn(),
+        findByOwner: jest.fn(),
+      };
 
-      mockMediaModel = jest.fn().mockImplementation((data) => ({
-        ...data,
-        save: jest.fn().mockResolvedValue({ _id: { toString: () => 'new-media-id' } }),
-      })) as any;
-      mockMediaModel.findOne = jest.fn();
-      mockMediaModel.updateOne = jest.fn();
-      mockMediaModel.deleteOne = jest.fn();
-
-      mediaService = new UserMediaService(mockUserRepo, mockMediaModel as unknown as Model<any>);
+      mediaService = new UserMediaService(mockMediaService as any);
     });
 
     it('should upload avatar successfully and process using sharp', async () => {
-      const mockUser = new User();
-      mockUser.id = 'user-1';
-      mockUserRepo.findOne.mockResolvedValue(mockUser);
-      mockMediaModel.findOne.mockResolvedValue(null);
+      mockMediaService.upload.mockResolvedValue({ _id: { toString: () => 'new-media-id' } });
 
       const mockFile = {
         buffer: Buffer.from('fake-img'),
@@ -83,10 +72,12 @@ describe('Users Module Services Unit Tests', () => {
 
       const mediaId = await mediaService.uploadMedia('user-1', mockFile, 'avatar');
       expect(mediaId).toBe('new-media-id');
-      expect(mockUserRepo.save).toHaveBeenCalled();
+      expect(mockMediaService.upload).toHaveBeenCalledWith(mockFile, 'user_avatar', 'user-1');
     });
 
     it('should throw PayloadTooLargeException if avatar exceeds size limit', async () => {
+      mockMediaService.upload.mockRejectedValue(new Error('Taille du fichier dépasse la limite'));
+
       const mockFile = {
         buffer: Buffer.from('fake-img'),
         size: 3000000, // > 2MB
@@ -99,6 +90,8 @@ describe('Users Module Services Unit Tests', () => {
     });
 
     it('should throw UnsupportedMediaTypeException if format is invalid', async () => {
+      mockMediaService.upload.mockRejectedValue(new Error('Format de fichier non supporté'));
+
       const mockFile = {
         buffer: Buffer.from('fake-img'),
         size: 100,
@@ -111,17 +104,13 @@ describe('Users Module Services Unit Tests', () => {
     });
 
     it('should delete media successfully and set pg reference to null', async () => {
-      const mockUser = new User();
-      mockUser.id = 'user-1';
-      mockUser.profilePictureMongoId = 'media-id';
-      mockUserRepo.findOne.mockResolvedValue(mockUser);
-      mockMediaModel.findOne.mockResolvedValue({ _id: 'media-id' });
+      mockMediaService.findByOwner.mockResolvedValue([{ _id: { toString: () => 'media-id' } }]);
+      mockMediaService.delete.mockResolvedValue(undefined);
 
       await mediaService.deleteMedia('user-1', 'avatar');
 
-      expect(mockMediaModel.deleteOne).toHaveBeenCalled();
-      expect(mockUser.profilePictureMongoId).toBeNull();
-      expect(mockUserRepo.save).toHaveBeenCalled();
+      expect(mockMediaService.findByOwner).toHaveBeenCalledWith('user_avatar', 'user-1');
+      expect(mockMediaService.delete).toHaveBeenCalledWith('media-id');
     });
   });
 

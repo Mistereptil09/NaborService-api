@@ -9,7 +9,7 @@ describe('Property 2: Type-dependent size limit enforcement', () => {
     UserMediaModel = mongoose.models.UserMedia || mongoose.model('UserMedia', UserMediaSchema);
   });
 
-  it('should accept size_bytes within limits and reject above limits', () => {
+  it('should accept size_bytes of any size on database schema level (validation delegated to service)', () => {
     fc.assert(
       fc.property(
         fc.oneof(fc.constant('avatar'), fc.constant('banner')),
@@ -18,7 +18,6 @@ describe('Property 2: Type-dependent size limit enforcement', () => {
           const doc = new UserMediaModel({
             pg_user_id: 'usr_123',
             type,
-            data: Buffer.from('test'),
             mimetype: 'image/png',
             size_bytes,
             width_px: 100,
@@ -27,19 +26,8 @@ describe('Property 2: Type-dependent size limit enforcement', () => {
           });
 
           const err = doc.validateSync();
-          const limit = type === 'avatar' ? 2097152 : 4194304;
-
-          if (size_bytes <= limit) {
-            // Mongoose validation should pass
-            expect(err).toBeUndefined();
-          } else {
-            // Mongoose validation should fail on size_bytes
-            expect(err).toBeDefined();
-            expect(err?.errors.size_bytes).toBeDefined();
-            expect(err?.errors.size_bytes.message).toContain(
-              `size_bytes exceeds maximum of ${limit} bytes for ${type}`,
-            );
-          }
+          // Validation should pass since database-level size checks are removed and delegated to NestJS services
+          expect(err).toBeUndefined();
         },
       ),
       { numRuns: 100 },

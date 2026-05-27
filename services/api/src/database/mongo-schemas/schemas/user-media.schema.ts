@@ -11,29 +11,10 @@ export class UserMedia {
   @Prop({ required: true, enum: ['avatar', 'banner'] })
   type: string;
 
-  @Prop({ required: true, type: Buffer })
-  data: Buffer;
-
   @Prop({ required: true })
   mimetype: string;
 
-  @Prop({
-    required: true,
-    validate: {
-      validator: function (this: any, val: number) {
-        const doc = this && this.constructor && this.constructor.name === 'Query' ? null : this;
-        const type = doc ? doc.type : 'media';
-        const limit = type === 'avatar' ? 2097152 : 4194304;
-        if (val > limit) {
-          throw new Error(`size_bytes exceeds maximum of ${limit} bytes for ${type}`);
-        }
-        return true;
-      },
-      message: (props: any) => {
-        return props.reason?.message || 'size_bytes exceeds limit';
-      },
-    },
-  })
+  @Prop({ required: true })
   size_bytes: number;
 
   @Prop({ required: true })

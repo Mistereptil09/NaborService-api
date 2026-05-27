@@ -377,40 +377,25 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
           })
         ),
         async ({ count, deleteIndex }) => {
-          // Setup initial photos
-          const photos = Array.from({ length: count }, (_, i) => ({
-            _id: `p-${i}`,
-            order: i,
-          }));
-
-          const doc = {
-            photos,
-            updated_at: null,
-            save: jest.fn().mockReturnThis(),
+          const mockListingRepo: any = {
+            findOne: jest.fn().mockResolvedValue({ id: 'l1', creatorId: 'c1' }),
           };
 
-          const mockDocModel: any = {
-            findOne: jest.fn().mockResolvedValue(doc),
-          };
-
-          const mockListingRepo: any = {};
-          const mockListingsService: any = {
-            findOne: jest.fn().mockResolvedValue({ creatorId: 'c1' }),
+          const mockMediaService: any = {
+            findById: jest.fn().mockResolvedValue({ owner_id: 'l1', owner_type: 'listing_photo' }),
+            delete: jest.fn().mockResolvedValue(undefined),
           };
 
           const mediaService = new ListingMediaService(
             mockListingRepo,
-            mockDocModel,
-            mockListingsService
+            mockMediaService
           );
 
           await mediaService.deleteMedia('c1', 'l1', `p-${deleteIndex}`);
 
-          // Verify new photo count and contiguous ordering
-          expect(doc.photos.length).toBe(count - 1);
-          doc.photos.forEach((photo: any, index: number) => {
-            expect(photo.order).toBe(index);
-          });
+          expect(mockListingRepo.findOne).toHaveBeenCalledWith({ where: { id: 'l1' } });
+          expect(mockMediaService.findById).toHaveBeenCalledWith(`p-${deleteIndex}`);
+          expect(mockMediaService.delete).toHaveBeenCalledWith(`p-${deleteIndex}`);
         }
       ),
       { numRuns: 100 }
@@ -694,7 +679,7 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             id: fc.uuid(),
             title: fc.string(),
             reports_count: fc.integer({ min: 1, max: 10 }),
-            last_report_at: fc.date(),
+            last_report_at: fc.date().filter(d => !isNaN(d.getTime())),
           }),
           { minLength: 2, maxLength: 20 }
         ),

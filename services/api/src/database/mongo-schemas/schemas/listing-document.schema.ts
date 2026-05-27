@@ -1,25 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import {
-  createBinarySizeValidator,
-  createArrayLengthValidator,
-  createTotalSizePreSaveHook,
-} from '../validators/size-validators';
+import { createArrayLengthValidator } from '../validators/size-validators';
 
 export type ListingDocumentDocument = HydratedDocument<ListingDocument>;
 
 @Schema({ _id: false, timestamps: false })
 export class Photo {
-  @Prop({ required: true, type: Buffer })
-  data: Buffer;
-
   @Prop({ required: true })
   mimetype: string;
 
   @Prop({ default: null, type: String })
   caption: string | null;
 
-  @Prop({ required: true, validate: createBinarySizeValidator(1572864, 'photo') })
+  @Prop({ required: true })
   size_bytes: number;
 
   @Prop({ required: true })
@@ -59,15 +52,6 @@ export class ListingDocument {
 }
 
 export const ListingDocumentSchema = SchemaFactory.createForClass(ListingDocument);
-
-// Pre-save hook for aggregate size safety
-ListingDocumentSchema.pre(
-  'save',
-  createTotalSizePreSaveHook({
-    binaryFields: [{ path: 'photos', isArray: true, sizeField: 'size_bytes' }],
-    maxTotalBytes: 12582912, // 12 MB
-  }),
-);
 
 // Indexes
 ListingDocumentSchema.index({ pg_listing_id: 1 }, { unique: true });
