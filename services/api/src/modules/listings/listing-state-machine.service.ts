@@ -44,6 +44,11 @@ export class ListingStateMachineService {
       throw new ConflictException('L\'annonce n\'est plus ouverte');
     }
 
+    const existingTransaction = await this.transactionService.findOneByListingId(listingId);
+    if (existingTransaction) {
+      throw new ConflictException('Une transaction existe déjà pour cette annonce');
+    }
+
     // Create transaction
     const transaction = await this.transactionService.create(
       listingId,

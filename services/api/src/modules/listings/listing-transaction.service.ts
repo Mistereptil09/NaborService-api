@@ -51,6 +51,12 @@ export class ListingTransactionService {
     return transaction;
   }
 
+  async findOneByListingId(listingId: string): Promise<ListingTransaction | null> {
+    return this.transactionRepository.findOne({
+      where: { listingId },
+    });
+  }
+
   async findById(id: string): Promise<ListingTransaction> {
     const transaction = await this.transactionRepository.findOne({
       where: { id },

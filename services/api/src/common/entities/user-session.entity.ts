@@ -7,7 +7,7 @@ import {
   ManyToOne,
   PrimaryColumn,
 } from 'typeorm';
-import { User } from './user.entity';
+import { User } from '../../modules/users/entities/user.entity';
 
 @Entity('user_sessions')
 @Check('chk_session_expiry', '"expires_at" > "created_at"')

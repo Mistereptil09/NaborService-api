@@ -8,6 +8,7 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { JwtService } from '@nestjs/jwt';
 
 @WebSocketGateway({ cors: true })
 export class ListingsGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -16,10 +17,24 @@ export class ListingsGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   private userSockets = new Map<string, string>(); // userId -> socketId
 
+  constructor(private readonly jwtService: JwtService) {}
+
   handleConnection(client: Socket) {
-    const userId = client.handshake.query.userId as string;
-    if (userId) {
-      this.userSockets.set(userId, client.id);
+    const token = client.handshake.auth?.token;
+    if (!token) {
+      client.disconnect();
+      return;
+    }
+    try {
+      const payload = this.jwtService.verify(token);
+      const userId = payload.sub;
+      if (userId) {
+        this.userSockets.set(userId, client.id);
+      } else {
+        client.disconnect();
+      }
+    } catch {
+      client.disconnect();
     }
   }
 
@@ -66,7 +81,6 @@ export class ListingsGateway implements OnGatewayConnection, OnGatewayDisconnect
         updated_at: updatedAt,
       };
       this.server.to(`listing:${listingId}`).emit('listing:status_changed', payload);
-      this.server.emit('listing:status_changed', payload);
     }
   }
 }

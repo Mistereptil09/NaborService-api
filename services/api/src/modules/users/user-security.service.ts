@@ -16,7 +16,7 @@ import * as crypto from 'crypto';
 import * as argon2 from 'argon2';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import { User } from './entities/user.entity';
-import { UserSession } from '../auth/entities/user-session.entity';
+import { UserSession } from '../../common/entities/user-session.entity';
 import { TotpService } from '../auth/totp.service';
 import { ChangeEmailDto, ChangePasswordDto } from './dto/user-routes.dtos';
 import { TokenService } from '../auth/token.service';
@@ -151,6 +151,7 @@ export class UserSecurityService {
 
     // In a real environment, we'd trigger bull:email queue to dispatch the reset link.
     // In dev / test, we'll log it.
+    // TODO: Replace console.log with BullMQ email queue job (bull:email) for production
     console.log(`Password reset link: http://localhost:3000/v1/users/password-reset/confirm?token=${token}`);
   }
 

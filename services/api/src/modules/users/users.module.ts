@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User } from './entities/user.entity';
-import { UserSession } from './entities/user-session.entity';
-import { UserNotificationPreferences } from './entities/user-notification-preferences.entity';
+import { UserSession } from '../../common/entities/user-session.entity';
+import { UserNotificationPreferences } from '../../common/entities/user-notification-preferences.entity';
 import { UserDataProcessing } from './entities/user-data-processing.entity';
 import { UserReport } from './entities/user-report.entity';
 import { Follow } from '../social/entities/follow.entity';
@@ -15,6 +15,7 @@ import { UserMedia, UserMediaSchema } from '../../database/mongo-schemas/schemas
 
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
+import { AdminController } from './admin.controller';
 import { DataProcessingService } from './data-processing.service';
 
 import { UserMediaService } from './user-media.service';
@@ -51,7 +52,7 @@ const mockQueue = {
     AuthModule,
     MediaModule,
   ],
-  controllers: [UsersController],
+  controllers: [UsersController, AdminController],
   providers: [
     UsersService,
     DataProcessingService,

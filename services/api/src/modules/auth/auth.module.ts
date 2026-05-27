@@ -6,8 +6,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../users/entities/user.entity';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { UserNotificationPreferences } from './entities/user-notification-preferences.entity';
-import { UserSession } from './entities/user-session.entity';
+import { UserNotificationPreferences } from '../../common/entities/user-notification-preferences.entity';
+import { UserSession } from '../../common/entities/user-session.entity';
 import { UserDataProcessing } from '../users/entities/user-data-processing.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
@@ -52,6 +52,7 @@ import { TotpService } from './totp.service';
     SessionService,
     RateLimitService,
     TotpService,
+    JwtModule,
   ],
 })
 export class AuthModule {}

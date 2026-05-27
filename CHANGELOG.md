@@ -7,6 +7,30 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Fixed
+- **Sécurité et Authentification** :
+  - Sécurisation du serveur WebSocket `ListingsGateway` en remplaçant l'authentification par simple paramètre d'URL `userId` par une validation JWT obligatoire depuis `socket.handshake.auth.token`.
+  - Ajout de validations strictes (`@IsEmail`, `@IsString`, `@IsNotEmpty`, `@MaxLength`) sur `LoginDto` pour interdire les payloads invalides à la connexion.
+  - Remplacement des vérifications manuelles de rôles dans `ListingsController` par un garde et décorateur unifié `@Roles('moderator', 'admin')` avec un `RolesGuard`.
+  - Augmentation de la durée d'expiration du token SSO Desktop de 30 jours à 90 jours conformément aux spécifications CDC pour les sessions Java Desktop.
+- **Robustesse et Intégrité Fonctionnelle** :
+  - Résolution d'un leak dans `ListingsGateway` en restreignant l'événement de changement de statut d'annonce aux seules salles concernées (`listing:${listingId}`) au lieu d'une diffusion globale.
+  - Résolution de la création de transactions dupliquées en vérifiant l'existence d'une transaction active pour l'annonce via `expressInterest` (lève un `ConflictException`).
+  - Propagation correcte des erreurs de base de données dans `UsersService.exportJson` au lieu d'un retour silencieux de tableau vide, assurant une information précise en cas d'échec.
+  - Modification de la route `DELETE /users/me/data-processing/opt-out` pour recevoir le paramètre `processingType` via query parameters au lieu de request body.
+- **Modifications d'Infrastructure et Configuration** :
+  - Activation globale de `ValidationPipe` (avec `whitelist`, `forbidNonWhitelisted`, `transform`) dans `src/main.ts` pour appliquer systématiquement les validations de DTO.
+  - Configuration du préfixe d'API global `/v1/` dans `src/main.ts` pour toutes les routes.
+  - Intégration du middleware `cookie-parser` dans `src/main.ts` et bascule des contrôleurs d'authentification/utilisateurs vers `req.cookies` au lieu d'un parsing manuel fragile.
+  - Création de la route d'administration `DELETE /admin/users/:user_id/totp` permettant de réinitialiser le TOTP d'un utilisateur en tant qu'administrateur.
+- **Consolidation Structurelle et Nettoyage** :
+  - Consolidation des entités dupliquées conflictuelles `UserSession` et `UserNotificationPreferences` dans `src/common/entities/`, suppression des doublons obsolètes dans `auth/entities` et `users/entities`, et mise à jour de tous les imports associés.
+  - Correction de l'ordre d'importation de `ListingsController` dans `ListingsModule` pour prévenir les dépendances circulaires à l'initialisation.
+  - Ajout du décorateur `@ApiTags('Listings')` sur `ListingsController` pour corriger le regroupement Swagger/OpenAPI.
+- **Documentation et Améliorations** :
+  - Ajout de commentaires explicatifs (TODO/deviations) documentant les choix techniques et évolutions (intégration BullMQ e-mail, SSO Desktop Device Authorization QR-code, déviation du routage TOTP).
+  - Création de tests de propriétés `fast-check` robustes dans `api-module-fixes.property.spec.ts` pour valider la robustesse de ces corrections, avec 541 tests passants à 100%.
+
 ### Added
 - Implémentation complète et migration vers le système de stockage média découpé GridFS sous `src/modules/media/` :
   - **`GridFSService`** : Intégration bas niveau avec le pilote natif MongoDB pour fragmenter les flux binaires en chunks de 255 Ko, avec suppression atomique (chunks + fichiers) et verrous transactionnels assurant un nettoyage complet en cas d'échec d'écriture.

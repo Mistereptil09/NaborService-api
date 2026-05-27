@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
 import { User } from './user.entity';
-import { UserSession } from './user-session.entity';
-import { UserNotificationPreferences } from './user-notification-preferences.entity';
+import { UserSession } from '../../../common/entities/user-session.entity';
+import { UserNotificationPreferences } from '../../../common/entities/user-notification-preferences.entity';
 import { UserDataProcessing } from './user-data-processing.entity';
 
 describe('User & Authentication entities metadata', () => {

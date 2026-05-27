@@ -171,7 +171,7 @@ export class AuthController {
     @Req() req: Express.Request,
     @Res({ passthrough: true }) res: Express.Response,
   ) {
-    const token = this.extractRefreshTokenFromCookie(req);
+    const token = req.cookies?.['refresh_token'];
     if (!token) {
       throw new UnauthorizedException('Non authentifié');
     }
@@ -242,7 +242,7 @@ export class AuthController {
     @Req() req: Express.Request,
     @Res({ passthrough: true }) res: Express.Response,
   ) {
-    const token = this.extractRefreshTokenFromCookie(req);
+    const token = req.cookies?.['refresh_token'];
     if (!token) {
       throw new UnauthorizedException('Non authentifié');
     }
@@ -295,7 +295,7 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async getSessions(@Req() req: Express.Request & { user: { sub: string } }) {
     const activeSessions = await this.sessionService.findActiveByUser(req.user.sub);
-    const token = this.extractRefreshTokenFromCookie(req);
+    const token = req.cookies?.['refresh_token'];
     const currentHash = token ? this.tokenService.hashRefreshToken(token) : null;
 
     return activeSessions.map((session) => ({
@@ -374,6 +374,7 @@ export class AuthController {
   @ApiOkResponse({ description: 'Token SSO généré avec succès' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   desktopToken(@Req() req: { user: { sub: string } }) {
+    // TODO: Replace with full QR-based Device Authorization Flow (CDC UC-04) in a future iteration
     return this.authService.generateDesktopToken(req.user.sub);
   }
 
@@ -383,22 +384,5 @@ export class AuthController {
       return xForwardedFor.split(',')[0].trim();
     }
     return request.socket?.remoteAddress || '127.0.0.1';
-  }
-
-  private extractRefreshTokenFromCookie(request: Express.Request): string | undefined {
-    const cookieHeader = request.headers.cookie;
-    if (!cookieHeader) {
-      return undefined;
-    }
-    const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
-      const parts = cookie.split('=');
-      if (parts.length >= 2) {
-        const name = parts[0].trim();
-        const value = parts.slice(1).join('=').trim();
-        acc[name] = value;
-      }
-      return acc;
-    }, {} as Record<string, string>);
-    return cookies['refresh_token'];
   }
 }

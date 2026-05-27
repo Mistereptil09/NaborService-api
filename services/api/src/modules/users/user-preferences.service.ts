@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
-import { UserNotificationPreferences } from './entities/user-notification-preferences.entity';
+import { UserNotificationPreferences } from '../../common/entities/user-notification-preferences.entity';
 import { UpdateNotifPrefsDto } from './dto/user-routes.dtos';
 
 @Injectable()

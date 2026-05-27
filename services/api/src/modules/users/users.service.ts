@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
@@ -164,25 +165,45 @@ export class UsersService {
   async exportJson(userId: string): Promise<any> {
     const profile = await this.getProfile(userId);
 
-    const listings = await this.userRepository.manager.query(
-      'SELECT * FROM listings WHERE creator_id = $1 AND deleted_at IS NULL',
-      [userId],
-    ).catch(() => []);
+    let listings;
+    try {
+      listings = await this.userRepository.manager.query(
+        'SELECT * FROM listings WHERE creator_id = $1 AND deleted_at IS NULL',
+        [userId],
+      );
+    } catch (err) {
+      throw new InternalServerErrorException(`Impossible d'exporter les annonces : ${err.message}`);
+    }
 
-    const messages = await this.userRepository.manager.query(
-      'SELECT * FROM message_metadata WHERE sender_id = $1 AND is_deleted = false',
-      [userId],
-    ).catch(() => []);
+    let messages;
+    try {
+      messages = await this.userRepository.manager.query(
+        'SELECT * FROM message_metadata WHERE sender_id = $1 AND is_deleted = false',
+        [userId],
+      );
+    } catch (err) {
+      throw new InternalServerErrorException(`Impossible d'exporter les messages : ${err.message}`);
+    }
 
-    const eventParticipations = await this.userRepository.manager.query(
-      'SELECT * FROM event_participants WHERE user_id = $1',
-      [userId],
-    ).catch(() => []);
+    let eventParticipations;
+    try {
+      eventParticipations = await this.userRepository.manager.query(
+        'SELECT * FROM event_participants WHERE user_id = $1',
+        [userId],
+      );
+    } catch (err) {
+      throw new InternalServerErrorException(`Impossible d'exporter les participations aux événements : ${err.message}`);
+    }
 
-    const votes = await this.userRepository.manager.query(
-      'SELECT * FROM votes WHERE user_id = $1',
-      [userId],
-    ).catch(() => []);
+    let votes;
+    try {
+      votes = await this.userRepository.manager.query(
+        'SELECT * FROM votes WHERE user_id = $1',
+        [userId],
+      );
+    } catch (err) {
+      throw new InternalServerErrorException(`Impossible d'exporter les votes : ${err.message}`);
+    }
 
     return {
       profile,

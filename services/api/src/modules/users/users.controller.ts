@@ -72,22 +72,6 @@ export class UsersController {
     private readonly socialService: UserSocialService,
   ) {}
 
-  private extractRefreshTokenFromCookie(request: any): string | undefined {
-    const cookieHeader = request.headers?.cookie;
-    if (!cookieHeader) {
-      return undefined;
-    }
-    const cookies = cookieHeader.split(';').reduce((acc: any, cookie: any) => {
-      const parts = cookie.split('=');
-      if (parts.length >= 2) {
-        const name = parts[0].trim();
-        const value = parts.slice(1).join('=').trim();
-        acc[name] = value;
-      }
-      return acc;
-    }, {} as Record<string, string>);
-    return cookies['refresh_token'];
-  }
 
   // --- Profile ---
 
@@ -215,7 +199,7 @@ export class UsersController {
   @ApiBadRequestResponse({ description: 'Ancien mot de passe ou code TOTP invalide, ou mot de passe non sécurisé' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
-    const refreshToken = this.extractRefreshTokenFromCookie(req);
+    const refreshToken = req.cookies?.['refresh_token'];
     await this.securityService.changePassword(req.user.sub, dto, refreshToken);
   }
 
@@ -341,7 +325,7 @@ export class UsersController {
   @ApiNoContentResponse({ description: 'Droit d\'opposition révoqué avec succès (traitement réactivé)' })
   @ApiBadRequestResponse({ description: 'Type de traitement invalide' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async removeOptOut(@Req() req: { user: JwtPayload }, @Body() dto: OptOutDto) {
+  async removeOptOut(@Req() req: { user: JwtPayload }, @Query() dto: OptOutDto) {
     await this.rgpdService.removeOptOut(req.user.sub, dto.processingType);
   }
 

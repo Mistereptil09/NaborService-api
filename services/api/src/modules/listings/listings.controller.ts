@@ -32,6 +32,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { ChatGroup } from '../messaging/entities/chat-group.entity';
 import { ListingsService } from './listings.service';
 import { ListingContentService } from './listing-content.service';
@@ -74,30 +76,30 @@ export class ListingsController {
   // --- Moderation Routes (Must be declared BEFORE parameter routes to avoid conflict) ---
   
   @Get('reported')
+  @Roles('moderator', 'admin')
+  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Lister les annonces signalées (Modérateur/Admin)' })
   @ApiOkResponse({ description: 'Liste des annonces signalées retournée avec succès' })
   @ApiForbiddenResponse({ description: 'Action réservée aux modérateurs et administrateurs' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async getReportedListings(@Query() query: ListListingsDto, @Req() req: any) {
-    if (req.user.role !== UserRoleEnum.MODERATOR && req.user.role !== UserRoleEnum.ADMIN) {
-      throw new ForbiddenException('Action réservée aux modérateurs');
-    }
+  async getReportedListings(@Query() query: ListListingsDto) {
     return this.reportService.getReportedListings(query);
   }
 
   @Get('moderated_actions')
+  @Roles('moderator', 'admin')
+  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Lister toutes les actions de modération (Modérateur/Admin)' })
   @ApiOkResponse({ description: 'Liste de l\'historique global de modération retournée' })
   @ApiForbiddenResponse({ description: 'Action réservée aux modérateurs et administrateurs' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async getAllModerationActions(@Query() query: ListListingsDto, @Req() req: any) {
-    if (req.user.role !== UserRoleEnum.MODERATOR && req.user.role !== UserRoleEnum.ADMIN) {
-      throw new ForbiddenException('Action réservée aux modérateurs');
-    }
+  async getAllModerationActions(@Query() query: ListListingsDto) {
     return this.moderationService.getAllModerationActions(query);
   }
 
   @Post(':listing_id/moderate')
+  @Roles('moderator', 'admin')
+  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Modérer une annonce (Modérateur/Admin)' })
   @ApiOkResponse({ description: 'Action de modération appliquée avec succès sur l\'annonce' })
   @ApiBadRequestResponse({ description: 'Action ou motif invalide' })
@@ -109,23 +111,19 @@ export class ListingsController {
     @Body() dto: ModerateListingDto,
     @Req() req: any,
   ) {
-    if (req.user.role !== UserRoleEnum.MODERATOR && req.user.role !== UserRoleEnum.ADMIN) {
-      throw new ForbiddenException('Action réservée aux modérateurs');
-    }
     await this.moderationService.moderate(req.user.id, id, dto);
     return { success: true };
   }
 
   @Get(':listing_id/moderation')
+  @Roles('moderator', 'admin')
+  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Consulter l\'historique de modération d\'une annonce (Modérateur/Admin)' })
   @ApiOkResponse({ description: 'Historique complet des actions de modération sur l\'annonce retourné' })
   @ApiForbiddenResponse({ description: 'Action réservée aux modérateurs et administrateurs' })
   @ApiNotFoundResponse({ description: 'Annonce introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async getModerationHistory(@Param('listing_id') id: string, @Req() req: any) {
-    if (req.user.role !== UserRoleEnum.MODERATOR && req.user.role !== UserRoleEnum.ADMIN) {
-      throw new ForbiddenException('Action réservée aux modérateurs');
-    }
+  async getModerationHistory(@Param('listing_id') id: string) {
     return this.moderationService.getModerationHistory(id);
   }
 

@@ -14,7 +14,7 @@ import { DataSource, IsNull, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { UserNotificationPreferences } from './entities/user-notification-preferences.entity';
+import { UserNotificationPreferences } from '../../common/entities/user-notification-preferences.entity';
 import { UserDataProcessing } from '../users/entities/user-data-processing.entity';
 import { SessionService } from './session.service';
 import { TokenService } from './token.service';
@@ -198,7 +198,7 @@ export class AuthService {
       type: 'desktop',
     };
     const desktopToken = this.jwtService.sign(payload, {
-      expiresIn: 60 * 60 * 24 * 30, // 30 days
+      expiresIn: 60 * 60 * 24 * 90, // 90 days
     });
 
     return { desktopToken };
