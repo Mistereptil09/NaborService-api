@@ -21,6 +21,7 @@ import { ListingReportService } from './listing-report.service';
 import { ListingModerationService } from './listing-moderation.service';
 import { ListingSignatureService } from './listing-signature.service';
 import { ListingsGateway } from './listings.gateway';
+import { ListingsController } from './listings.controller';
 
 import { PdfGenerationWorker } from './workers/pdf-generation.worker';
 import { ContractExpirationWorker } from './workers/contract-expiration.worker';
@@ -93,5 +94,3 @@ const mockQueue = {
   ],
 })
 export class ListingsModule {}
-
-import { ListingsController } from './listings.controller';
