@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
+import { Job, Queue } from 'bullmq';
 import { Model } from 'mongoose';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -8,9 +10,19 @@ import { ListingTransaction } from '../entities/listing-transaction.entity';
 import { Listing } from '../entities/listing.entity';
 import { ListingStatusEnum, TransactionStatusEnum } from '../../../common/enums';
 import { ListingsGateway } from '../listings.gateway';
+import { ContractExpirationJobPayload } from '../../../queue/interfaces/job-payloads';
+import { classifyAndThrow } from '../../../queue/utils/error-classifier';
+import { getBackoffDelay } from '../../../queue/utils/backoff-strategy';
 
-@Injectable()
-export class ContractExpirationWorker {
+@Processor('contract-expiration', {
+  concurrency: 1,
+  settings: {
+    backoffStrategy: (attemptsMade: number, type: string) => {
+      return type === 'custom' ? getBackoffDelay('contract-expiration', attemptsMade) : 1000;
+    },
+  },
+})
+export class ContractExpirationWorker extends WorkerHost {
   constructor(
     @InjectRepository(ListingTransaction)
     private readonly transactionRepository: Repository<ListingTransaction>,
@@ -19,9 +31,19 @@ export class ContractExpirationWorker {
     @InjectModel(Contract.name)
     private readonly contractModel: Model<ContractDocument>,
     private readonly listingsGateway: ListingsGateway,
-    @Inject('BullQueue_neo4j-sync')
-    private readonly neo4jSyncQueue: { add: (name: string, data: any) => Promise<any> },
-  ) {}
+    @InjectQueue('neo4j-sync')
+    private readonly neo4jSyncQueue: Queue,
+  ) {
+    super();
+  }
+
+  async process(job: Job<ContractExpirationJobPayload>): Promise<any> {
+    try {
+      await this.processJob(job.data);
+    } catch (error: any) {
+      classifyAndThrow(error);
+    }
+  }
 
   async processJob(data: { transactionId: string }): Promise<void> {
     const transaction = await this.transactionRepository.findOne({

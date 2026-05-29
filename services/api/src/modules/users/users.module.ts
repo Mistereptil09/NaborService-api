@@ -28,13 +28,6 @@ import { UserSocialService } from './user-social.service';
 import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
 
-const mockQueue = {
-  add: async (name: string, data: any) => {
-    console.log(`[Mock Queue Job added] name: ${name}, data:`, data);
-    return { id: `mock-job-${Date.now()}` };
-  },
-};
-
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -62,14 +55,6 @@ const mockQueue = {
     UserRgpdService,
     UserDiscoveryService,
     UserSocialService,
-    {
-      provide: 'BullQueue_neo4j-sync',
-      useValue: mockQueue,
-    },
-    {
-      provide: 'BullQueue_rgpd-anonymise',
-      useValue: mockQueue,
-    },
   ],
   exports: [
     UsersService,

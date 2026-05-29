@@ -19,10 +19,15 @@ import { IncidentsModule } from './modules/incidents/incidents.module';
 import { MongoSchemasModule } from './database/mongo-schemas';
 import { MediaModule } from './modules/media/media.module';
 import { SyncModule } from './modules/sync/sync.module';
+import { GeoModule } from './modules/geo/geo.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
+    QueueModule,
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync(postgresConfig),
     MongooseModule.forRootAsync(mongoConfig),
     RedisModule,
@@ -38,6 +43,7 @@ import { SyncModule } from './modules/sync/sync.module';
     MediaModule,
     MongoSchemasModule,
     SyncModule,
+    GeoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

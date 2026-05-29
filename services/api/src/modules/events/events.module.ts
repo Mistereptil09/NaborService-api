@@ -6,6 +6,7 @@ import { EventParticipant } from './entities/event-participant.entity';
 import { EventSwipe } from './entities/event-swipe.entity';
 import { EventReport } from './entities/event-report.entity';
 import { EventModerationAction } from './entities/event-moderation-action.entity';
+import { EventsGateway } from './events.gateway';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { EventModerationAction } from './entities/event-moderation-action.entity
       EventModerationAction,
     ]),
   ],
-  exports: [TypeOrmModule],
+  providers: [EventsGateway],
+  exports: [TypeOrmModule, EventsGateway],
 })
 export class EventsModule {}

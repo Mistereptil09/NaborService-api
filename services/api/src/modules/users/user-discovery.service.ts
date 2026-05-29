@@ -157,9 +157,18 @@ export class UserDiscoveryService {
         MATCH (target:User)
         WHERE target.pg_id IN $candidateIds
         
-        // Proximity (lives in same neighbourhood)
-        OPTIONAL MATCH (u)-[:LIVES_IN]->(n:Neighbourhood)<-[:LIVES_IN]-(target)
-        WITH u, target, case when n is not null then 3 else 0 end as geoScore
+        // Proximity (graph traversal using ADJACENT_TO up to 2 hops)
+        OPTIONAL MATCH (u)-[:LIVES_IN]->(uNb:Neighbourhood)
+        OPTIONAL MATCH (target)-[:LIVES_IN]->(tNb:Neighbourhood)
+        OPTIONAL MATCH p = shortestPath((uNb)-[:ADJACENT_TO*0..2]-(tNb))
+        WITH u, target, CASE WHEN p IS NOT NULL THEN length(p) ELSE -1 END AS hops
+        WITH u, target, 
+             CASE hops
+               WHEN 0 THEN 3
+               WHEN 1 THEN 2
+               WHEN 2 THEN 1
+               ELSE 0
+             END AS geoScore
         
         // Social common connections
         OPTIONAL MATCH (u)-[:FOLLOWS|FRIENDS_WITH]-(c:User)-[:FOLLOWS|FRIENDS_WITH]-(target)

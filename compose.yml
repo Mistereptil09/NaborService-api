@@ -79,6 +79,21 @@ services:
       - "1025:1025"
       - "8025:8025"
 
+  ban:
+    image: etalab/addok
+    container_name: nabor_ban
+    environment:
+      - ADDOK_CONFIG_MODULE=/etc/addok/addok.conf
+    volumes:
+      - ./docker/addok/addok.conf:/etc/addok/addok.conf
+      - ban_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7878/search/?q=test > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   api:
     build:
       context: ./services/api
@@ -103,6 +118,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ban:
+        condition: service_healthy
 
   dsl-service:
     build:
@@ -119,3 +136,4 @@ volumes:
   mongo_data:
   neo4j_data:
   redis_data:
+  ban_data:

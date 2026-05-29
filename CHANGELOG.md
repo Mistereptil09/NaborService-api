@@ -32,6 +32,13 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   - Création de tests de propriétés `fast-check` robustes dans `api-module-fixes.property.spec.ts` pour valider la robustesse de ces corrections, avec 541 tests passants à 100%.
 
 ### Added
+- **Intégration BullMQ et File d'Attente Distribuée** :
+  - Installation et configuration de `@nestjs/bullmq`, `bullmq`, et `ioredis` pour la gestion asynchrone des tâches avec résilience et retry (backoff exponentiel plafonné à 30s).
+  - Implémentation du `RedisIoAdapter` pour le support pub/sub des WebSockets (Socket.io) sur un déploiement horizontalement scalable.
+  - Migration de 9 tâches de fond vers des `@Processor` dédiés : `neo4j-sync`, `email`, `pdf-generation`, `stripe-webhook`, `waitlist-promote`, `rgpd-anonymise`, `crypto-rotation`, `event-register`, et `contract-expiration`.
+  - Intégration de verrous pessimistes PostgreSQL (`SELECT FOR UPDATE`) dans `EventRegisterWorker` pour prévenir les conditions de course lors des réservations.
+  - Création de `QueueHealthService` et `QueueHealthController` (`GET /health/queues`) pour l'observabilité temps réel des files d'attente.
+  - Implémentation de `QueueFailureListener` et `ErrorClassifier` pour la journalisation structurée globale des échecs de jobs.
 - **Système de Synchronisation** : Refonte de la synchronisation hors ligne bidirectionnelle (API ↔ SQLite Java Desktop). Consolidation des opérations d'écriture vers une route générique permissive (`POST /sync/updates`) accessible aux administrateurs et modérateurs. Le système gère nativement l'idempotence via des jobs Redis, et permet l'édition transverse (`incident`, `user`, `listing`, `event`, `neighbourhood`) tout en nettoyant rigoureusement les champs sensibles (mot de passe, totp, stripe_account_id). Toutes les créations (inserts) d'incidents ou de signalements repasseront désormais par les routes REST standards.
 - **Spec listings-routes-cdc** : création complète de la spécification (requirements.md, design.md, tasks.md) pour le module Annonces & Services (25 requirements, 13 propriétés de correction, 18 tâches d'implémentation).
 - Implémentation complète et migration vers le système de stockage média découpé GridFS sous `src/modules/media/` :

@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Job } from 'bullmq';
 import { Model } from 'mongoose';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -7,9 +9,19 @@ import * as crypto from 'crypto';
 import { Contract, ContractDocument } from '../../../database/mongo-schemas/schemas/contract.schema';
 import { ListingTransaction } from '../entities/listing-transaction.entity';
 import { Listing } from '../entities/listing.entity';
+import { PdfGenerationJobPayload } from '../../../queue/interfaces/job-payloads';
+import { classifyAndThrow } from '../../../queue/utils/error-classifier';
+import { getBackoffDelay } from '../../../queue/utils/backoff-strategy';
 
-@Injectable()
-export class PdfGenerationWorker {
+@Processor('pdf-generation', {
+  concurrency: 1,
+  settings: {
+    backoffStrategy: (attemptsMade: number, type: string) => {
+      return type === 'custom' ? getBackoffDelay('pdf-generation', attemptsMade) : 1000;
+    },
+  },
+})
+export class PdfGenerationWorker extends WorkerHost {
   constructor(
     @InjectRepository(ListingTransaction)
     private readonly transactionRepository: Repository<ListingTransaction>,
@@ -17,7 +29,17 @@ export class PdfGenerationWorker {
     private readonly listingRepository: Repository<Listing>,
     @InjectModel(Contract.name)
     private readonly contractModel: Model<ContractDocument>,
-  ) {}
+  ) {
+    super();
+  }
+
+  async process(job: Job<PdfGenerationJobPayload>): Promise<any> {
+    try {
+      return await this.processJob(job.name, job.data);
+    } catch (error: any) {
+      classifyAndThrow(error);
+    }
+  }
 
   async processJob(jobName: string, data: { transactionId: string }): Promise<any> {
     const transaction = await this.transactionRepository.findOne({

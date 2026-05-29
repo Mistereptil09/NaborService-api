@@ -29,13 +29,6 @@ import { ContractExpirationWorker } from './workers/contract-expiration.worker';
 import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
 
-const mockQueue = {
-  add: async (name: string, data: any, options?: any) => {
-    console.log(`[Mock Queue Job added] name: ${name}, data:`, data, 'options:', options);
-    return { id: `mock-job-${Date.now()}` };
-  },
-};
-
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -67,22 +60,6 @@ const mockQueue = {
     ListingsGateway,
     PdfGenerationWorker,
     ContractExpirationWorker,
-    {
-      provide: 'BullQueue_neo4j-sync',
-      useValue: mockQueue,
-    },
-    {
-      provide: 'BullQueue_pdf-generation',
-      useValue: mockQueue,
-    },
-    {
-      provide: 'BullQueue_contract-expiration',
-      useValue: mockQueue,
-    },
-    {
-      provide: 'BullQueue_email',
-      useValue: mockQueue,
-    },
   ],
   exports: [
     ListingsService,
