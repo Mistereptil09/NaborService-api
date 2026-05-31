@@ -8,6 +8,64 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Fixed
+- **Injection de dépendances — EventsModule** :
+  - Résolution d'une `UnknownDependenciesException` au démarrage causée par `UserBlockRepository` manquant dans `EventsModule`. Ajout de l'entité `UserBlock` aux imports TypeORM du module et injection dans `EventsGateway`.
+- **Migration TOTP vers otplib v13** :
+  - Remplacement de l'API objet obsolète (`authenticator.verify`, `authenticator.generate`) par l'API fonctionnelle v13 (`otp.verifySync`, `otp.generateSync`, `otp.generateSecret`) dans `TotpService` et `UserSecurityService`.
+  - Suppression des options `createDigest: crypto.createHmac` passées incorrectement à `verifySync`/`generateSecret` (propriétés inexistantes dans les types TypeScript v13, causant 6 erreurs `TS2353`).
+  - Le chiffrement des secrets TOTP reste en AES-256-GCM (aucun changement d'algorithme).
+- **Tests unitaires — `totp.service.spec.ts`** :
+  - Mise à jour du mock `jest.mock('otplib')` pour exposer `verifySync` au lieu de `verify` (API v12 disparue).
+  - Correction de toutes les assertions : `otp.verify` → `otp.verifySync`, suppression de l'assertion `createDigest` sur `generateSecret`.
+- **Tests e2e — isolation Redis** :
+  - Remplacement de `redis.flushdb()` par une suppression ciblée par patterns (`ratelimit:*`, `totp:*`, `refresh:*`, `sso:*`, `reset:*`) dans `clearRedis`. L'ancien `flushdb` effaçait les clés internes BullMQ (`bull:*`) provoquant des erreurs `Missing key for job X` dans les workers asynchrones et corrompant l'état de la connexion ioredis en cours de test.
+  - Correction de `jest-e2e.json` : remplacement de l'option invalide `"runInBand": true` (ignorée silencieusement, option CLI uniquement) par `"maxWorkers": 1`, forçant réellement l'exécution sérielle des suites e2e qui partagent Redis et PostgreSQL.
+- **Tests e2e — rate limiting** :
+  - Robustification du test de rate limiting : la boucle de 10 tentatives accepte désormais `[401, 429]` (le verrou par compte peut se déclencher avant la fin de la boucle) ; seule la 11ème tentative exige strictement `429`.
+- **Tests e2e — `users.e2e-spec.ts`** :
+  - Correction d'une `ReferenceError: otp is not defined` dans le test `should change email` : ajout du `require('otplib')` au niveau module.
+  - Suppression des options `createDigest: crypto.createHmac` des appels `otp.generateSync` (non requises en v13).
+
+### Added
+- **Module Events — implémentation complète** :
+  - `EventsController` : 30+ endpoints REST couvrant CRUD événements, gestion des médias, billetterie, modération, signalements, swipes, liste d'attente, et paiement Stripe.
+  - `EventsService` : orchestration principale avec pagination, filtrage géospatial, et synchronisation Neo4j.
+  - `EventContentService` : gestion du contenu riche MongoDB (description HTML, documents).
+  - `EventMediaService` : téléversement et suppression d'images WebP via pipeline `UploadPipeline`.
+  - `EventStateMachineService` : machine d'états (`draft → open → in_progress → closed/cancelled`) avec verrous optimistes.
+  - `EventTicketService` : réservation de places avec gestion de la liste d'attente et promotion automatique via BullMQ `waitlist-promote`.
+  - `EventReportService` & `EventModerationService` : flux de signalement et modération admin/modérateur.
+  - `EventsStripeController` : webhook Stripe sécurisé pour la confirmation des paiements de billetterie.
+  - DTOs complets avec validation `class-validator` pour toutes les routes.
+- **Module Users — sous-services manquants** :
+  - `UserPreferencesService` : gestion de la locale, thème, et préférences de notification.
+  - `UserSocialService` : graphe social complet — follows, friendships, blocks, swipes, listes de découverte.
+  - Complétion de `UserSecurityService` : changement d'email avec TOTP, export JSON RGPD, suppression de compte.
+  - `UserDiscoveryService` : scores de compatibilité Neo4j et géolocalisation.
+  - Câblage complet dans `UsersModule` de tous les sous-services et leurs dépendances.
+- **Worker email BullMQ** :
+  - Implémentation du worker `email` (`@Processor('email')`) traitant les jobs d'envoi d'e-mail (réinitialisation de mot de passe, notifications).
+- **Tests E2E — nouveaux suites** :
+  - `test/auth.e2e-spec.ts` : 6 tests couvrant le flux SSO QR, la réinitialisation de mot de passe (non-divulgation d'e-mail), le rate limiting par compte, et la désactivation TOTP.
+  - `test/users.e2e-spec.ts` : 4 tests couvrant la locale, le changement d'e-mail avec TOTP, et le graphe social (follow/unfollow, block/unblock).
+  - `test/utils/e2e-setup.ts` : utilitaires partagés (`createTestingApp`, `clearDatabase`, `clearRedis`).
+  - `test/utils/test-factories.ts` : factories `createTestUser`, `loginUser` réutilisables.
+  - `test/utils/jest-setup.ts` : timeout global à 30s pour le bootstrapping NestJS.
+
+### Changed
+- **`RateLimitService`** : ajout de `incrementLoginAttemptByUserId` — verrou par compte (10 tentatives / 15 min) déclenché dans `AuthService.login` après identification de l'utilisateur, indépendamment du rate limit IP du `RateLimitGuard`.
+- **`AuthController`** : ajout des routes `POST /auth/password/forgot`, `POST /auth/password/reset`, et `GET /auth/sso/qr` ; délégation aux nouveaux `SsoService` et `UserSecurityService`.
+- **`neo4j-sync.worker.ts`** : amélioration de la gestion d'erreurs avec distinction des erreurs transitoires/permanentes et logging structuré via `QueueFailureListener`.
+- **`QueueModule`** : enregistrement du worker email et ajout de la configuration de concurrence.
+- **`AppModule`** : import du `UsersModule` correctement câblé avec toutes ses dépendances.
+
+### Removed
+- `auth_test_output.txt` (fichier de sortie de test temporaire).
+- `.e2e.env` (variables d'environnement intégrées dans la configuration de test).
+
+---
+
+### Fixed
 - **Sécurité et Authentification** :
   - Sécurisation du serveur WebSocket `ListingsGateway` en remplaçant l'authentification par simple paramètre d'URL `userId` par une validation JWT obligatoire depuis `socket.handshake.auth.token`.
   - Ajout de validations strictes (`@IsEmail`, `@IsString`, `@IsNotEmpty`, `@MaxLength`) sur `LoginDto` pour interdire les payloads invalides à la connexion.
