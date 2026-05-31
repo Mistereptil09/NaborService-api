@@ -1,0 +1,126 @@
+import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { Evenement } from './entities/evenement.entity';
+import { EventParticipant } from './entities/event-participant.entity';
+import { ChatGroup } from '../messaging/entities/chat-group.entity';
+import { EventStatusEnum, ChatGroupTypeEnum, ParticipantStatusEnum, PaymentStatusEnum } from '../../common/enums';
+import { EventsGateway } from './events.gateway';
+
+@Injectable()
+export class EventStateMachineService {
+  constructor(
+    @InjectRepository(Evenement)
+    private readonly eventRepo: Repository<Evenement>,
+    @InjectRepository(EventParticipant)
+    private readonly participantRepo: Repository<EventParticipant>,
+    @InjectRepository(ChatGroup)
+    private readonly chatGroupRepo: Repository<ChatGroup>,
+    @InjectQueue('neo4j-sync') private readonly neo4jSyncQueue: Queue,
+    private readonly eventsGateway: EventsGateway,
+  ) {}
+
+  async publish(eventId: string, organiserId: string) {
+    const event = await this.getEventAndCheckOwner(eventId, organiserId);
+
+    if (event.status !== EventStatusEnum.DRAFT) {
+      throw new ConflictException('Event is not in draft state');
+    }
+
+    event.status = EventStatusEnum.PUBLISHED;
+    event.publishedAt = new Date();
+
+    // Create chat group
+    const chatGroup = this.chatGroupRepo.create({
+      name: `Chat: ${event.title}`,
+      createdBy: organiserId,
+      type: ChatGroupTypeEnum.GROUP_CHAT,
+    });
+    const savedGroup = await this.chatGroupRepo.save(chatGroup);
+    
+    event.groupId = savedGroup.id;
+    await this.eventRepo.save(event);
+
+    // Sync to Neo4j
+    await this.neo4jSyncQueue.add('sync-event', { eventId, action: 'publish' });
+
+    return { success: true };
+  }
+
+  async open(eventId: string, organiserId: string) {
+    const event = await this.getEventAndCheckOwner(eventId, organiserId);
+
+    if (event.status !== EventStatusEnum.PUBLISHED) {
+      throw new ConflictException('Event must be published before opening');
+    }
+
+    event.status = EventStatusEnum.OPEN;
+    await this.eventRepo.save(event);
+
+    return { success: true };
+  }
+
+  async complete(eventId: string, organiserId: string) {
+    const event = await this.getEventAndCheckOwner(eventId, organiserId);
+
+    if (event.status !== EventStatusEnum.OPEN) {
+      throw new ConflictException('Event must be open to be completed');
+    }
+
+    event.status = EventStatusEnum.COMPLETED;
+    event.completedAt = new Date();
+    await this.eventRepo.save(event);
+
+    return { success: true };
+  }
+
+  async cancel(eventId: string, organiserId: string, reason: string) {
+    if (!reason || reason.trim() === '') {
+      throw new BadRequestException('Cancel reason cannot be empty');
+    }
+
+    const event = await this.getEventAndCheckOwner(eventId, organiserId);
+
+    if (event.status === EventStatusEnum.COMPLETED || event.status === EventStatusEnum.CANCELLED) {
+      throw new ConflictException('Cannot cancel a completed or already cancelled event');
+    }
+
+    event.status = EventStatusEnum.CANCELLED;
+    event.cancelledAt = new Date();
+    await this.eventRepo.save(event);
+
+    // Refund logic
+    const participants = await this.participantRepo.find({
+      where: { eventId, status: ParticipantStatusEnum.REGISTERED, paymentStatus: PaymentStatusEnum.COMPLETED },
+    });
+
+    for (const p of participants) {
+      const hoursSinceRegistration = (event.cancelledAt.getTime() - p.registeredAt.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceRegistration <= event.refundDeadlineHours) {
+        // Trigger refund (Mock Stripe integration)
+        p.paymentStatus = PaymentStatusEnum.REFUNDED;
+        p.refundedAt = new Date();
+        p.refundStripeId = `re_mock_${p.userId}_${eventId}`;
+        await this.participantRepo.save(p);
+      }
+    }
+
+    // Emit Socket.io event
+    this.eventsGateway.emitEventCancelled(eventId, reason, event.cancelledAt);
+
+    return { success: true };
+  }
+
+  private async getEventAndCheckOwner(eventId: string, organiserId: string) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+    if (event.creatorId !== organiserId) {
+      throw new ForbiddenException('Only the organiser can perform this action');
+    }
+    return event;
+  }
+}
