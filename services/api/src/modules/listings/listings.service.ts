@@ -11,19 +11,30 @@ import { IsNull, Repository } from 'typeorm';
 import { Listing } from './entities/listing.entity';
 import { CreateListingDto, UpdateListingDto, ListListingsDto } from './dto/listing-routes.dtos';
 import { ListingStatusEnum, ListingTypeEnum } from '../../common/enums';
+import { UserBlock } from '../social/entities/user-block.entity';
 
 @Injectable()
 export class ListingsService {
   constructor(
     @InjectRepository(Listing)
     private readonly listingRepository: Repository<Listing>,
+    @InjectRepository(UserBlock)
+    private readonly blockRepository: Repository<UserBlock>,
     @Inject('BullQueue_neo4j-sync')
     private readonly neo4jSyncQueue: { add: (name: string, data: any) => Promise<any> },
   ) {}
 
-  async list(dto: ListListingsDto): Promise<{ data: Listing[]; total: number }> {
+  async list(userId: string, dto: ListListingsDto): Promise<{ data: Listing[]; total: number }> {
     const query = this.listingRepository.createQueryBuilder('listing')
       .where('listing.deletedAt IS NULL');
+
+    const blocks = await this.blockRepository.find({
+      where: [{ blockerId: userId }, { blockedId: userId }],
+    });
+    const blockedUserIds = blocks.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId));
+    if (blockedUserIds.length > 0) {
+      query.andWhere('listing.creatorId NOT IN (:...blockedUserIds)', { blockedUserIds });
+    }
 
     if (dto.neighbourhood) {
       query.andWhere('listing.neighbourhoodId = :neighbourhood', { neighbourhood: dto.neighbourhood });

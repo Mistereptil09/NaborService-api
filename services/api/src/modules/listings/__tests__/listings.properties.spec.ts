@@ -91,8 +91,8 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
           };
 
           try {
-            const service = new ListingsService(mockRepo, mockQueue as any);
-            const result = await service.list(filters as any);
+            const service = new ListingsService(mockRepo, { find: jest.fn().mockResolvedValue([]) } as any, mockQueue as any);
+            const result = await service.list('test-user-id', filters as any);
 
             // Assertions
             result.data.forEach((listing) => {
@@ -156,8 +156,8 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             createQueryBuilder: jest.fn(() => mockQueryBuilder),
           };
 
-          const service = new ListingsService(mockRepo, mockQueue as any);
-          const result = await service.list({ offset, limit } as any);
+          const service = new ListingsService(mockRepo, { find: jest.fn().mockResolvedValue([]) } as any, mockQueue as any);
+          const result = await service.list('test-user-id', { offset, limit } as any);
 
           // Verify sorted order
           for (let i = 0; i < result.data.length - 1; i++) {
@@ -202,7 +202,7 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             save: jest.fn((data) => Promise.resolve(data)),
           };
 
-          const service = new ListingsService(mockRepo, mockQueue as any);
+          const service = new ListingsService(mockRepo, { find: jest.fn().mockResolvedValue([]) } as any, mockQueue as any);
           const result = await service.create(creatorId, payload);
 
           expect(result.title).toBe(title);
@@ -575,7 +575,9 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
           mockUserRepo,
           mockContractModel,
           mockTxService,
-          mockTotpService as any
+          mockTotpService as any,
+          {} as any,
+          {} as any
         );
 
         try {

@@ -134,8 +134,8 @@ export class ListingsController {
   @ApiOkResponse({ description: 'Liste paginée des annonces correspondantes retournée avec succès' })
   @ApiBadRequestResponse({ description: 'Paramètres de filtre ou de pagination invalides' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async listListings(@Query() query: ListListingsDto) {
-    return this.listingsService.list(query);
+  async listListings(@Query() query: ListListingsDto, @Req() req: any) {
+    return this.listingsService.list(req.user.id, query);
   }
 
   @Post()
