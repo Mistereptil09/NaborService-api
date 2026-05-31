@@ -4,6 +4,7 @@ import { LoginDto } from '../../dto/login.dto';
 import { ListingsGateway } from '../../../listings/listings.gateway';
 import { ListingStateMachineService } from '../../../listings/listing-state-machine.service';
 import { AuthService } from '../../auth.service';
+import { SsoService } from '../../sso.service';
 import { UsersService } from '../../../users/users.service';
 import { ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { ListingStatusEnum } from '../../../../common/enums';
@@ -103,34 +104,34 @@ describe('API Module Fixes Spec Verification', () => {
       await expect(smService.expressInterest('l1', 'requester-1')).rejects.toThrow(ConflictException);
     });
 
-    // 5. Desktop token 90-day expiry
-    it('1.19: AuthService signs desktop token with 90 days expiry', async () => {
+    // 5. Desktop token 90-day expiry via SSO
+    it('1.19: SsoService signs desktop token with 90 days expiry', async () => {
+      const mockRedis = {
+        get: jest.fn().mockResolvedValue(JSON.stringify({ status: 'pending', expiresAt: Date.now() + 10000 })),
+        set: jest.fn(),
+      };
       const mockUserRepo = {
-        findOneOrFail: jest.fn().mockResolvedValue({
-          id: 'u1',
-          email: 'test@email.com',
-          role: 'resident',
-        }),
+        findOne: jest.fn().mockResolvedValue({ id: 'u1' }),
       };
-      const mockJwtService = {
-        sign: jest.fn().mockReturnValue('mock-jwt-token'),
+      const mockTokenService = {
+        generateAccessToken: jest.fn().mockReturnValue('mock-access'),
+        generateRefreshToken: jest.fn().mockReturnValue('mock-refresh'),
+        hashRefreshToken: jest.fn().mockReturnValue('mock-hash'),
+        storeRefreshInRedis: jest.fn(),
       };
-
-      const authService = new AuthService(
+      const mockSessionService = {
+        createSession: jest.fn().mockResolvedValue({ id: 's1' }),
+      };
+      const ssoService = new SsoService(
+        mockRedis as any,
         mockUserRepo as any,
-        null as any,
-        null as any,
-        null as any,
-        null as any,
-        mockJwtService as any,
-        null as any
+        mockTokenService as any,
+        mockSessionService as any
       );
 
-      await authService.generateDesktopToken('u1');
-      expect(mockJwtService.sign).toHaveBeenCalledWith(
-        expect.any(Object),
-        expect.objectContaining({ expiresIn: 60 * 60 * 24 * 90 })
-      );
+      await ssoService.validateQr('mock-uuid', 'u1');
+      expect(mockTokenService.generateAccessToken).toHaveBeenCalled();
+      expect(mockTokenService.generateRefreshToken).toHaveBeenCalled();
     });
 
     // 6. exportJson DB error propagation

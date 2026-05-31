@@ -5,17 +5,15 @@ import { Repository } from 'typeorm';
 import { TotpService } from '../totp.service';
 import { User } from '../../users/entities/user.entity';
 import { REDIS_CLIENT } from '../../../database/redis.module';
+import { RateLimitService } from '../rate-limit.service';
 
 jest.mock('otplib', () => ({
-  authenticator: {
-    generateSecret: jest.fn().mockReturnValue('JBSWY3DPEHPK3PXP'),
-    keyuri: jest.fn().mockReturnValue('otpauth://totp/NaborServices:test@test.com?secret=JBSWY3DPEHPK3PXP'),
-    verify: jest.fn(),
-  },
+  generateSecret: jest.fn().mockReturnValue('JBSWY3DPEHPK3PXP'),
+  generateURI: jest.fn().mockReturnValue('otpauth://totp/NaborServices:test@test.com?secret=JBSWY3DPEHPK3PXP'),
+  verifySync: jest.fn(),
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { authenticator } = require('otplib');
+import * as otp from 'otplib';
 
 describe('TotpService', () => {
   let service: TotpService;
@@ -38,6 +36,11 @@ describe('TotpService', () => {
     get: jest.fn().mockReturnValue('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
   };
 
+  const mockRateLimitService = {
+    incrementLoginAttemptByUserId: jest.fn(),
+    incrementTotpAttempt: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -45,6 +48,7 @@ describe('TotpService', () => {
         { provide: getRepositoryToken(User), useValue: mockUserRepository },
         { provide: REDIS_CLIENT, useValue: mockRedisClient },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: RateLimitService, useValue: mockRateLimitService },
       ],
     }).compile();
 
@@ -110,8 +114,8 @@ describe('TotpService', () => {
       const result = await service.setupTotp('user-id', 'test@test.com');
       
       expect(userRepo.findOne).toHaveBeenCalledWith({ where: { id: 'user-id' } });
-      expect(authenticator.generateSecret).toHaveBeenCalled();
-      expect(authenticator.keyuri).toHaveBeenCalledWith('test@test.com', 'NaborServices', 'JBSWY3DPEHPK3PXP');
+      expect(otp.generateSecret).toHaveBeenCalledWith();
+      expect(otp.generateURI).toHaveBeenCalledWith({ label: 'test@test.com', issuer: 'NaborServices', secret: 'JBSWY3DPEHPK3PXP' });
       expect(redisClient.set).toHaveBeenCalledWith(
         'totp:setup:user-id',
         expect.stringContaining('"encrypted_secret"'),
@@ -134,12 +138,12 @@ describe('TotpService', () => {
       const user = { id: 'user-id', totpSecret: null } as User;
 
       mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(setupPayload));
-      (authenticator.verify as jest.Mock).mockReturnValueOnce(true);
+      (otp.verifySync as jest.Mock).mockReturnValueOnce(true);
       mockUserRepository.findOne.mockResolvedValueOnce(user);
 
       await service.confirmTotp('user-id', '123456');
 
-      expect(authenticator.verify).toHaveBeenCalledWith({ token: '123456', secret: 'JBSWY3DPEHPK3PXP' });
+      expect(otp.verifySync).toHaveBeenCalledWith(expect.objectContaining({ token: '123456', secret: 'JBSWY3DPEHPK3PXP' }));
       expect(userRepo.findOne).toHaveBeenCalledWith({ where: { id: 'user-id' } });
       expect(user.totpSecret).toBe(encrypted);
       expect(userRepo.save).toHaveBeenCalledWith(user);
@@ -151,7 +155,7 @@ describe('TotpService', () => {
       const setupPayload = { encrypted_secret: encrypted, attempts: 0 };
 
       mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(setupPayload));
-      (authenticator.verify as jest.Mock).mockReturnValueOnce(false);
+      (otp.verifySync as jest.Mock).mockReturnValueOnce(false);
 
       await expect(service.confirmTotp('user-id', '111111')).rejects.toThrow('Code TOTP invalide');
 
@@ -168,7 +172,7 @@ describe('TotpService', () => {
       const setupPayload = { encrypted_secret: encrypted, attempts: 2 };
 
       mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(setupPayload));
-      (authenticator.verify as jest.Mock).mockReturnValueOnce(false);
+      (otp.verifySync as jest.Mock).mockReturnValueOnce(false);
 
       await expect(service.confirmTotp('user-id', '111111')).rejects.toThrow('Setup expiré, relancez le flux');
 

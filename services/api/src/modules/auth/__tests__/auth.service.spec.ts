@@ -10,6 +10,7 @@ import { AuthService } from '../auth.service';
 import { SessionService } from '../session.service';
 import { TokenService } from '../token.service';
 import { TotpService } from '../totp.service';
+import { RateLimitService } from '../rate-limit.service';
 
 jest.mock('argon2', () => ({
   hash: jest.fn(),
@@ -45,6 +46,7 @@ describe('AuthService', () => {
   const mockTotpService = {
     isUserBlocked: jest.fn(),
     createChallenge: jest.fn(),
+    createSetupChallenge: jest.fn(),
   };
 
   const mockManager = {
@@ -65,6 +67,11 @@ describe('AuthService', () => {
     get: jest.fn(),
   };
 
+  const mockRateLimitService = {
+    incrementLoginAttemptByUserId: jest.fn(),
+    incrementTotpAttempt: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -76,6 +83,7 @@ describe('AuthService', () => {
         { provide: DataSource, useValue: mockDataSource },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: RateLimitService, useValue: mockRateLimitService },
       ],
     }).compile();
 
@@ -160,21 +168,21 @@ describe('AuthService', () => {
       expect(result).toEqual({ challenge: 'totp_required', challenge_token: 'challenge-token' });
     });
 
-    it('should directly issue tokens if TOTP disabled', async () => {
+    it('should return setup challenge if TOTP disabled (mandatory TOTP)', async () => {
       const dto = { email: 'test@test.com', password: 'password' };
-      const user = { id: 'id', passwordHash: 'hash', deletedAt: null, totpSecret: null } as User;
+      const user = { id: 'id', email: 'test@test.com', passwordHash: 'hash', deletedAt: null, totpSecret: null } as User;
       userRepo.findOne.mockResolvedValueOnce(user);
       (argon2.verify as jest.Mock).mockResolvedValueOnce(true);
-      tokenService.generateAccessToken.mockReturnValueOnce('access-token');
-      tokenService.generateRefreshToken.mockReturnValueOnce('refresh-token');
-      tokenService.hashRefreshToken.mockReturnValueOnce('hash');
-      sessionService.createSession.mockResolvedValueOnce({ id: 'session-id' });
+      totpService.isUserBlocked.mockResolvedValueOnce(false);
+      totpService.createSetupChallenge.mockResolvedValueOnce({
+        challengeToken: 'setup-token',
+        otpauthUrl: 'otpauth://...',
+      });
 
       const result = await service.login(dto);
 
-      expect(result).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
-      expect(sessionService.createSession).toHaveBeenCalled();
-      expect(tokenService.storeRefreshInRedis).toHaveBeenCalled();
+      expect(totpService.createSetupChallenge).toHaveBeenCalledWith('id', 'test@test.com');
+      expect(result).toEqual({ challenge: 'totp_setup_required', challenge_token: 'setup-token', otpauthUrl: 'otpauth://...' });
     });
   });
 });
