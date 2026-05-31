@@ -14,6 +14,9 @@ import { Friendship } from '../social/entities/friendship.entity';
 import { UserBlock } from '../social/entities/user-block.entity';
 import { UserReport } from './entities/user-report.entity';
 import { PaginationDto } from './dto/user-routes.dtos';
+import { ChatGroup } from '../messaging/entities/chat-group.entity';
+import { UsersInGroup } from '../messaging/entities/users-in-group.entity';
+import { ChatGroupTypeEnum, GroupRoleEnum } from '../../common/enums';
 
 @Injectable()
 export class UserSocialService {
@@ -28,9 +31,21 @@ export class UserSocialService {
     private readonly blockRepository: Repository<UserBlock>,
     @InjectRepository(UserReport)
     private readonly reportRepository: Repository<UserReport>,
+    @InjectRepository(ChatGroup)
+    private readonly chatGroupRepository: Repository<ChatGroup>,
+    @InjectRepository(UsersInGroup)
+    private readonly usersInGroupRepository: Repository<UsersInGroup>,
     @Inject('BullQueue_neo4j-sync')
     private readonly neo4jSyncQueue: { add: (name: string, data: any) => Promise<any> },
   ) {}
+
+  async getBlockedUserIds(userId: string): Promise<string[]> {
+    const blocks = await this.blockRepository.find({
+      where: [{ blockerId: userId }, { blockedId: userId }],
+    });
+    const ids = blocks.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId));
+    return [...new Set(ids)];
+  }
 
   async follow(followerId: string, followedId: string): Promise<void> {
     if (followerId === followedId) {
@@ -77,9 +92,28 @@ export class UserSocialService {
       });
 
       if (!existingFriendship) {
+        const chatGroup = this.chatGroupRepository.create({
+          createdBy: u1,
+          type: ChatGroupTypeEnum.DIRECT_MESSAGE,
+        });
+        const savedGroup = await this.chatGroupRepository.save(chatGroup);
+
+        const uig1 = this.usersInGroupRepository.create({
+          userId: u1,
+          groupId: savedGroup.id,
+          roleInGroup: GroupRoleEnum.MESSAGE,
+        });
+        const uig2 = this.usersInGroupRepository.create({
+          userId: u2,
+          groupId: savedGroup.id,
+          roleInGroup: GroupRoleEnum.MESSAGE,
+        });
+        await this.usersInGroupRepository.save([uig1, uig2]);
+
         const friendship = this.friendshipRepository.create({
           user1Id: u1,
           user2Id: u2,
+          groupId: savedGroup.id,
         });
         await this.friendshipRepository.save(friendship);
       } else if (existingFriendship.unfriendedAt) {

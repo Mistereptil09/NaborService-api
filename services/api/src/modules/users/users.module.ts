@@ -28,6 +28,8 @@ import { UserSocialService } from './user-social.service';
 import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
 
+import { MessagingModule } from '../messaging/messaging.module';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -44,6 +46,7 @@ import { MediaModule } from '../media/media.module';
     MongooseModule.forFeature([{ name: UserMedia.name, schema: UserMediaSchema }]),
     AuthModule,
     MediaModule,
+    MessagingModule,
   ],
   controllers: [UsersController, AdminController],
   providers: [

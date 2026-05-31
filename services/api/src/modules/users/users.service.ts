@@ -205,12 +205,43 @@ export class UsersService {
       throw new InternalServerErrorException(`Impossible d'exporter les votes : ${err.message}`);
     }
 
+    let socialGraph;
+    try {
+      const followers = await this.userRepository.manager.query(
+        'SELECT * FROM follows WHERE followed_id = $1',
+        [userId],
+      );
+      const following = await this.userRepository.manager.query(
+        'SELECT * FROM follows WHERE follower_id = $1',
+        [userId],
+      );
+      const blocked = await this.userRepository.manager.query(
+        'SELECT * FROM user_blocks WHERE blocker_id = $1',
+        [userId],
+      );
+      socialGraph = { followers, following, blocked };
+    } catch (err) {
+      throw new InternalServerErrorException(`Impossible d'exporter le graphe social : ${err.message}`);
+    }
+
+    let incidents;
+    try {
+      incidents = await this.userRepository.manager.query(
+        'SELECT * FROM user_reports WHERE reporter_id = $1',
+        [userId],
+      );
+    } catch (err) {
+      throw new InternalServerErrorException(`Impossible d'exporter les incidents : ${err.message}`);
+    }
+
     return {
       profile,
+      socialGraph,
       listings,
       messages,
       eventParticipations,
       votes,
+      incidents,
     };
   }
 
@@ -239,6 +270,22 @@ export class UsersService {
     // 5. Votes
     for (const v of data.votes) {
       csv += `JSON,votes,${v.option_id},"weight: ${v.weight}"\n`;
+    }
+
+    // 6. Social Graph
+    for (const f of data.socialGraph.following) {
+      csv += `JSON,follows,${f.id},"followedId: ${f.followed_id}; followedAt: ${f.created_at}"\n`;
+    }
+    for (const f of data.socialGraph.followers) {
+      csv += `JSON,follows,${f.id},"followerId: ${f.follower_id}; followedAt: ${f.created_at}"\n`;
+    }
+    for (const b of data.socialGraph.blocked) {
+      csv += `JSON,user_blocks,${b.id},"blockedId: ${b.blocked_id}; blockedAt: ${b.created_at}"\n`;
+    }
+
+    // 7. Incidents
+    for (const i of data.incidents) {
+      csv += `JSON,user_reports,${i.id},"reportedId: ${i.reported_id}; reason: ${i.reason}; status: ${i.status}"\n`;
     }
 
     return csv;

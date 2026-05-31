@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, Not, IsNull } from 'typeorm';
+import Redis from 'ioredis';
+import { REDIS_CLIENT } from '../../database/redis.module';
 import { User } from './entities/user.entity';
 import { UserSwipe } from '../social/entities/user-swipe.entity';
 import { UserBlock } from '../social/entities/user-block.entity';
@@ -28,6 +30,8 @@ export class UserDiscoveryService {
     private readonly neo4jService: Neo4jService,
     @Inject('BullQueue_neo4j-sync')
     private readonly neo4jSyncQueue: { add: (name: string, data: any) => Promise<any> },
+    @Inject(REDIS_CLIENT)
+    private readonly redis: Redis,
   ) {}
 
   private async getBlockedUserIds(userId: string): Promise<string[]> {
@@ -73,8 +77,8 @@ export class UserDiscoveryService {
     }
 
     qb.andWhere(
-      '(user.first_name ILike :query OR user.last_name ILike :query)',
-      { query: `%${query}%` },
+      '(user.first_name ILIKE :query OR user.last_name ILIKE :query OR similarity(user.first_name, :rawQuery) > 0.3 OR similarity(user.last_name, :rawQuery) > 0.3)',
+      { query: `%${query}%`, rawQuery: query },
     );
 
     const total = await qb.getCount();
@@ -110,6 +114,12 @@ export class UserDiscoveryService {
     userId: string,
     pagination: PaginationDto = new PaginationDto(),
   ): Promise<{ data: any[]; meta: { total: number; offset: number; limit: number } }> {
+    const cacheKey = `discover:${userId}:offset:${pagination.offset}:limit:${pagination.limit}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const blockedIds = await this.getBlockedUserIds(userId);
     const swiped = await this.swipeRepository.find({
       where: { swiperId: userId },
@@ -178,7 +188,7 @@ export class UserDiscoveryService {
         OPTIONAL MATCH (u)-[:INTERESTED_IN]->(cat:Category)<-[:INTERESTED_IN]-(target)
         WITH target, geoScore, socialScore, count(cat) * 2 as interestScore
         
-        RETURN target.pg_id as pgId, (geoScore + socialScore + interestScore) as score
+        RETURN target.pg_id as pgId, (geoScore * 3 + socialScore + interestScore) as score
         ORDER BY score DESC
       `;
 
@@ -225,7 +235,7 @@ export class UserDiscoveryService {
       score: item.score,
     }));
 
-    return {
+    const result = {
       data,
       meta: {
         total,
@@ -233,6 +243,10 @@ export class UserDiscoveryService {
         limit: pagination.limit,
       },
     };
+
+    await this.redis.set(cacheKey, JSON.stringify(result), 'EX', 600);
+
+    return result;
   }
 
   async swipe(userId: string, targetId: string, dto: SwipeDto): Promise<void> {

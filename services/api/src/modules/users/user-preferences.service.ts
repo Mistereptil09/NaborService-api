@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { UserNotificationPreferences } from '../../common/entities/user-notification-preferences.entity';
 import { UpdateNotifPrefsDto } from './dto/user-routes.dtos';
+import { DataProcessingService } from './data-processing.service';
+import { ESSENTIAL_EMAILS } from './data-processing.constants';
 
 @Injectable()
 export class UserPreferencesService {
@@ -12,6 +14,7 @@ export class UserPreferencesService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserNotificationPreferences)
     private readonly notifPrefsRepository: Repository<UserNotificationPreferences>,
+    private readonly dataProcessingService: DataProcessingService,
   ) {}
 
   async getLocale(userId: string): Promise<{ locale: string }> {
@@ -57,5 +60,30 @@ export class UserPreferencesService {
     prefs.updatedAt = new Date();
 
     return this.notifPrefsRepository.save(prefs);
+  }
+
+  async canReceiveEmail(userId: string, templateName: string): Promise<boolean> {
+    const isEssential = ESSENTIAL_EMAILS.includes(templateName as any);
+    if (isEssential) {
+      return true;
+    }
+
+    const isOptedOut = await this.dataProcessingService.isOptedOut(userId, 'notifications');
+    if (isOptedOut) {
+      return false;
+    }
+
+    const prefs = await this.notifPrefsRepository.findOne({ where: { userId } });
+    if (!prefs) {
+      return true;
+    }
+
+    if (templateName === 'event:waitlist_promoted' && !prefs.notifWaitlist) return false;
+    if (templateName.startsWith('event:') && templateName !== 'event:waitlist_promoted' && !prefs.notifNewEvent) return false;
+    if (templateName === 'new_follower' && !prefs.notifNewFollower) return false;
+    if (templateName === 'new_listing' && !prefs.notifNewListing) return false;
+    if (templateName === 'new_poll' && !prefs.notifNewPoll) return false;
+
+    return true;
   }
 }

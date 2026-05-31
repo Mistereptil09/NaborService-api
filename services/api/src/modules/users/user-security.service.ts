@@ -22,7 +22,7 @@ import { ChangeEmailDto, ChangePasswordDto } from './dto/user-routes.dtos';
 import { TokenService } from '../auth/token.service';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { authenticator } = require('otplib');
+const otp = require('otplib');
 
 @Injectable()
 export class UserSecurityService {
@@ -53,7 +53,7 @@ export class UserSecurityService {
       throw new ForbiddenException('Erreur de déchiffrement du secret');
     }
 
-    const isValid = authenticator.verify({ token: code, secret });
+    const isValid = otp.verifySync({ token: code, secret, createDigest: crypto.createHmac });
     if (!isValid) {
       throw new ForbiddenException('TOTP requis ou invalide');
     }
@@ -122,67 +122,5 @@ export class UserSecurityService {
     }
 
     await this.userRepository.update(userId, { email: dto.newEmail });
-  }
-
-  async requestPasswordReset(email: string): Promise<void> {
-    const rateLimitKey = `rate:password-reset:${email}`;
-    const attempts = await this.redis.get(rateLimitKey);
-    const count = attempts ? parseInt(attempts, 10) : 0;
-
-    if (count >= 3) {
-      throw new HttpException(
-        'Trop de demandes de réinitialisation. Veuillez réessayer dans une heure.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
-    // Increment rate limit counter
-    await this.redis.set(rateLimitKey, (count + 1).toString(), 'EX', 3600);
-
-    const user = await this.userRepository.findOne({ where: { email } });
-    if (!user) {
-      // Return 200 OK without disclosing account existence
-      return;
-    }
-
-    const token = crypto.randomUUID();
-    const tokenKey = `password-reset:${token}`;
-    await this.redis.set(tokenKey, user.id, 'EX', 900); // 15 minutes TTL
-
-    // In a real environment, we'd trigger bull:email queue to dispatch the reset link.
-    // In dev / test, we'll log it.
-    // TODO: Replace console.log with BullMQ email queue job (bull:email) for production
-    console.log(`Password reset link: http://localhost:3000/v1/users/password-reset/confirm?token=${token}`);
-  }
-
-  async confirmPasswordReset(token: string, newPassword: string): Promise<void> {
-    const tokenKey = `password-reset:${token}`;
-    const userId = await this.redis.get(tokenKey);
-
-    if (!userId) {
-      throw new BadRequestException('Token invalide ou expiré');
-    }
-
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw new NotFoundException('Utilisateur introuvable');
-    }
-
-    user.passwordHash = await this.hashPassword(newPassword);
-    user.passwordChangedAt = new Date();
-    await this.userRepository.save(user);
-
-    // Delete token and revoke all user sessions
-    await this.redis.del(tokenKey);
-    await this.sessionRepository.update(
-      {
-        userId,
-        revokedAt: IsNull(),
-        expiresAt: MoreThan(new Date()),
-      },
-      {
-        revokedAt: new Date(),
-      },
-    );
   }
 }

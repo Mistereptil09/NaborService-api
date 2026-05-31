@@ -211,29 +211,10 @@ export class UsersController {
   @ApiNoContentResponse({ description: 'Adresse email mise à jour avec succès' })
   @ApiBadRequestResponse({ description: 'Nouvelle adresse email invalide ou code TOTP incorrect' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async changeEmail(@Req() req: { user: JwtPayload }, @Body() dto: ChangeEmailDto) {
+  async changeEmail(@Req() req: any, @Body() dto: ChangeEmailDto) {
     await this.securityService.changeEmail(req.user.sub, dto);
   }
 
-  @Post('password-reset/request')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Demander une réinitialisation de mot de passe' })
-  @ApiOkResponse({ description: 'Demande enregistrée. Si le compte existe, un email a été envoyé' })
-  @ApiBadRequestResponse({ description: 'Format d\'email invalide' })
-  async requestPasswordReset(@Body() dto: PasswordResetRequestDto) {
-    await this.securityService.requestPasswordReset(dto.email);
-    return { message: 'Si le compte existe, un email a été envoyé' };
-  }
-
-  @Post('password-reset/confirm')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Confirmer la réinitialisation de mot de passe' })
-  @ApiOkResponse({ description: 'Mot de passe réinitialisé avec succès' })
-  @ApiBadRequestResponse({ description: 'Token de réinitialisation invalide, expiré ou mot de passe trop faible' })
-  async confirmPasswordReset(@Body() dto: PasswordResetConfirmDto) {
-    await this.securityService.confirmPasswordReset(dto.token, dto.newPassword);
-    return { message: 'Mot de passe réinitialisé avec succès' };
-  }
 
   // --- Preferences ---
 
@@ -243,7 +224,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Lire la langue active' })
   @ApiOkResponse({ description: 'Langue active de l\'utilisateur retournée' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async getLocale(@Req() req: { user: JwtPayload }) {
+  async getLocale(@Req() req: any) {
     return this.preferencesService.getLocale(req.user.sub);
   }
 
