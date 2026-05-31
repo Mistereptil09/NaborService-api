@@ -17,9 +17,8 @@ import {
   ChallengePayload,
   TotpSetupPayload,
 } from './interfaces/auth.interfaces';
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { authenticator } = require('otplib');
+import { RateLimitService } from './rate-limit.service';
+import * as otp from 'otplib';
 
 @Injectable()
 export class TotpService {
@@ -31,6 +30,7 @@ export class TotpService {
     @Inject(REDIS_CLIENT)
     private readonly redis: Redis,
     private readonly configService: ConfigService,
+    private readonly rateLimitService: RateLimitService,
   ) {
     const key = this.configService.get<string>('AES_MASTER_KEY') || 'default-dev-aes-master-key-must-be-changed';
     
@@ -116,6 +116,9 @@ export class TotpService {
     const payload = JSON.parse(data) as ChallengePayload;
     const userId = payload.user_id;
 
+    // Apply per-user TOTP rate limit
+    await this.rateLimitService.incrementTotpAttempt(userId);
+
     // Check if user is blocked
     if (await this.isUserBlocked(userId)) {
       throw new HttpException(
@@ -139,7 +142,7 @@ export class TotpService {
       throw new UnauthorizedException('Erreur de déchiffrement du secret');
     }
 
-    const isValid = authenticator.verify({ token: code, secret });
+    const isValid = otp.verifySync({ token: code, secret });
 
     if (isValid) {
       await this.redis.del(challengeKey);
@@ -168,6 +171,83 @@ export class TotpService {
   }
 
   /**
+   * Initiates TOTP setup during login using a challenge token
+   */
+  async createSetupChallenge(userId: string, email: string): Promise<{ challengeToken: string, otpauthUrl: string }> {
+    const secret = otp.generateSecret();
+    const otpauthUrl = otp.generateURI({ label: email, issuer: 'NaborServices', secret });
+
+    const encrypted = this.encryptSecret(secret);
+    const challengeToken = crypto.randomUUID();
+    const setupKey = `totp:setup:${challengeToken}`;
+    const payload: TotpSetupPayload = {
+      user_id: userId,
+      encrypted_secret: encrypted,
+      attempts: 0,
+    };
+
+    await this.redis.set(setupKey, JSON.stringify(payload), 'EX', 600); // 10 minutes TTL
+    return { challengeToken, otpauthUrl };
+  }
+
+  /**
+   * Confirms TOTP setup using a challenge token and returns the user ID
+   */
+  async verifySetupChallenge(challengeToken: string, code: string): Promise<string> {
+    const setupKey = `totp:setup:${challengeToken}`;
+    const data = await this.redis.get(setupKey);
+
+    if (!data) {
+      throw new UnauthorizedException('Setup expiré ou non initié');
+    }
+
+    const payload = JSON.parse(data) as TotpSetupPayload;
+    if (!payload.user_id) {
+      throw new UnauthorizedException('Invalid setup payload');
+    }
+
+    // Apply per-user TOTP rate limit
+    await this.rateLimitService.incrementTotpAttempt(payload.user_id);
+
+    let secret: string;
+    try {
+      secret = this.decryptSecret(payload.encrypted_secret);
+    } catch {
+      throw new UnauthorizedException('Erreur de déchiffrement du secret');
+    }
+
+    const isValid = otp.verifySync({ token: code, secret });
+
+    if (isValid) {
+      const user = await this.userRepository.findOne({
+        where: { id: payload.user_id },
+      });
+      if (!user) {
+        throw new UnauthorizedException('Utilisateur introuvable');
+      }
+
+      user.totpSecret = payload.encrypted_secret;
+      await this.userRepository.save(user);
+      await this.redis.del(setupKey);
+      return user.id;
+    }
+
+    const attempts = payload.attempts + 1;
+    if (attempts >= 3) {
+      await this.redis.del(setupKey);
+      throw new HttpException(
+        'Setup expiré, relancez le flux',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    payload.attempts = attempts;
+    await this.redis.set(setupKey, JSON.stringify(payload), 'EX', 600);
+
+    throw new UnauthorizedException('Code TOTP invalide');
+  }
+
+  /**
    * Initiates TOTP setup for a user
    */
   async setupTotp(userId: string, email: string): Promise<{ otpauthUrl: string }> {
@@ -183,8 +263,8 @@ export class TotpService {
       throw new ConflictException('TOTP déjà configuré');
     }
 
-    const secret = authenticator.generateSecret();
-    const otpauthUrl = authenticator.keyuri(email, 'NaborServices', secret);
+    const secret = otp.generateSecret();
+    const otpauthUrl = otp.generateURI({ label: email, issuer: 'NaborServices', secret });
 
     const encrypted = this.encryptSecret(secret);
     const setupKey = `totp:setup:${userId}`;
@@ -216,7 +296,7 @@ export class TotpService {
       throw new UnauthorizedException('Erreur de déchiffrement du secret');
     }
 
-    const isValid = authenticator.verify({ token: code, secret });
+    const isValid = otp.verifySync({ token: code, secret });
 
     if (isValid) {
       const user = await this.userRepository.findOne({
@@ -245,5 +325,37 @@ export class TotpService {
     await this.redis.set(setupKey, JSON.stringify(payload), 'EX', 600);
 
     throw new UnauthorizedException('Code TOTP invalide');
+  }
+
+  /**
+   * Disables TOTP for a user after verifying a code
+   */
+  async disableTotp(userId: string, code: string): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId, deletedAt: IsNull() },
+    });
+
+    if (!user || !user.totpSecret) {
+      throw new UnauthorizedException('TOTP non configuré');
+    }
+
+    // Apply per-user TOTP rate limit
+    await this.rateLimitService.incrementTotpAttempt(userId);
+
+    let secret: string;
+    try {
+      secret = this.decryptSecret(user.totpSecret);
+    } catch {
+      throw new UnauthorizedException('Erreur de déchiffrement du secret');
+    }
+
+    const isValid = otp.verifySync({ token: code, secret });
+
+    if (!isValid) {
+      throw new UnauthorizedException('Code TOTP invalide');
+    }
+
+    user.totpSecret = null;
+    await this.userRepository.save(user);
   }
 }

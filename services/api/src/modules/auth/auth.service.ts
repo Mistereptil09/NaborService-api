@@ -19,6 +19,7 @@ import { UserDataProcessing } from '../users/entities/user-data-processing.entit
 import { SessionService } from './session.service';
 import { TokenService } from './token.service';
 import { TotpService } from './totp.service';
+import { RateLimitService } from './rate-limit.service';
 
 @Injectable()
 export class AuthService {
@@ -31,6 +32,7 @@ export class AuthService {
     private readonly dataSource: DataSource,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly rateLimitService: RateLimitService,
   ) {}
 
   /**
@@ -99,10 +101,7 @@ export class AuthService {
     dto: LoginDto,
     ip: string | null = null,
     userAgent: string | null = null,
-  ): Promise<
-    | { challenge: string; challenge_token: string }
-    | { accessToken: string; refreshToken: string }
-  > {
+  ): Promise<{ challenge: string; challenge_token: string; otpauthUrl?: string }> {
     const user = await this.userRepository.findOne({
       where: { email: dto.email },
     });
@@ -117,6 +116,9 @@ export class AuthService {
       );
       throw new UnauthorizedException('Identifiants invalides');
     }
+
+    // Apply per-user rate limit now that we know the account exists
+    await this.rateLimitService.incrementLoginAttemptByUserId(user.id);
 
     const passwordValid = await argon2.verify(user.passwordHash, dto.password);
     if (!passwordValid) {
@@ -144,63 +146,17 @@ export class AuthService {
       };
     }
 
-    // TOTP not enabled: directly issue tokens and create session
-    const accessToken = this.tokenService.generateAccessToken(user);
-    const refreshToken = this.tokenService.generateRefreshToken();
-    const refreshTokenHash = this.tokenService.hashRefreshToken(refreshToken);
-
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days session expiry
-
-    // Save session in PostgreSQL
-    const session = await this.sessionService.createSession({
-      userId: user.id,
-      refreshTokenHash,
-      deviceName: null,
-      ipAddress: ip,
-      userAgent,
-      expiresAt,
-    });
-
-    // Save refresh token fast-path in Redis
-    await this.tokenService.storeRefreshInRedis(
-      refreshTokenHash,
+    // TOTP not enabled (mandatory setup at registration/first login)
+    const { challengeToken, otpauthUrl } = await this.totpService.createSetupChallenge(
       user.id,
-      session.id,
-      expiresAt,
+      user.email,
     );
-
-    // Update user last login
-    user.lastLoginAt = new Date();
-    await this.userRepository.save(user);
-
+    
     return {
-      accessToken,
-      refreshToken,
+      challenge: 'totp_setup_required',
+      challenge_token: challengeToken,
+      otpauthUrl,
     };
   }
 
-  /**
-   * Generates a desktop token for SSO with the Java Desktop client.
-   * Kept for backwards compatibility as per spec scope.
-   */
-  async generateDesktopToken(
-    userId: string,
-  ): Promise<{ desktopToken: string }> {
-    const user = await this.userRepository.findOneOrFail({
-      where: { id: userId, deletedAt: IsNull() },
-    });
-
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      type: 'desktop',
-    };
-    const desktopToken = this.jwtService.sign(payload, {
-      expiresIn: 60 * 60 * 24 * 90, // 90 days
-    });
-
-    return { desktopToken };
-  }
 }

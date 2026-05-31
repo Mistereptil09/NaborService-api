@@ -17,6 +17,9 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { TokenService } from './token.service';
 import { TotpService } from './totp.service';
 
+import { SsoService } from './sso.service';
+import { UserSecurityService } from './user-security.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -42,6 +45,8 @@ import { TotpService } from './totp.service';
     SessionService,
     RateLimitService,
     TotpService,
+    SsoService,
+    UserSecurityService,
     JwtStrategy,
     JwtAuthGuard,
     RateLimitGuard,

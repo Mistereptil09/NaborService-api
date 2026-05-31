@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import { RateLimitResult } from './interfaces/auth.interfaces';
@@ -49,5 +49,27 @@ export class RateLimitService {
       remaining,
       retryAfter,
     };
+  }
+
+  /**
+   * Tracks and enforces per-account login attempts.
+   */
+  async incrementLoginAttemptByUserId(userId: string): Promise<void> {
+    const key = `ratelimit:login:${userId}`;
+    const result = await this.check(key, 10, 900);
+    if (!result.allowed) {
+      throw new HttpException('Trop de tentatives pour ce compte', HttpStatus.TOO_MANY_REQUESTS);
+    }
+  }
+
+  /**
+   * Tracks and enforces per-account TOTP attempts.
+   */
+  async incrementTotpAttempt(userId: string): Promise<void> {
+    const key = `ratelimit:totp:${userId}`;
+    const result = await this.check(key, 3, 300);
+    if (!result.allowed) {
+      throw new HttpException('Trop de tentatives TOTP pour ce compte', HttpStatus.TOO_MANY_REQUESTS);
+    }
   }
 }

@@ -40,6 +40,10 @@ import { RateLimitGuard } from './guards/rate-limit.guard';
 import { SessionService } from './session.service';
 import { TokenService } from './token.service';
 import { TotpService } from './totp.service';
+import { SsoService } from './sso.service';
+import { UserSecurityService } from './user-security.service';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -50,6 +54,8 @@ export class AuthController {
     private readonly tokenService: TokenService,
     private readonly sessionService: SessionService,
     private readonly totpService: TotpService,
+    private readonly ssoService: SsoService,
+    private readonly userSecurityService: UserSecurityService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
@@ -79,13 +85,64 @@ export class AuthController {
     const userAgent = req.headers['user-agent'] || null;
 
     const result = await this.authService.login(dto, ip, userAgent);
+    return result;
+  }
 
-    if ('challenge' in result) {
-      return result;
-    }
+  @Post('totp/confirm-setup')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Confirmer la configuration TOTP obligatoire et activer la session' })
+  @ApiOkResponse({ description: 'TOTP configuré avec succès, session démarrée' })
+  @ApiUnauthorizedResponse({ description: 'Code TOTP ou token de setup invalide/expiré' })
+  @ApiBadRequestResponse({ description: 'Données de validation invalides' })
+  async confirmSetup(
+    @Body() dto: TotpVerifyDto, // Reuse the same DTO since it has challenge_token and code
+    @Req() req: Express.Request,
+    @Res({ passthrough: true }) res: Express.Response,
+  ) {
+    const ip = req.ip || this.getIpAddress(req);
+    const userAgent = req.headers['user-agent'] || null;
 
-    // Set refresh token in HttpOnly cookie
-    res.cookie('refresh_token', result.refreshToken, {
+    const userId = await this.totpService.verifySetupChallenge(
+      dto.challenge_token,
+      dto.code,
+    );
+
+    const user = await this.userRepository.findOneOrFail({
+      where: { id: userId },
+    });
+
+    // Generate tokens
+    const accessToken = this.tokenService.generateAccessToken(user);
+    const refreshToken = this.tokenService.generateRefreshToken();
+    const refreshTokenHash = this.tokenService.hashRefreshToken(refreshToken);
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    // Save session in PostgreSQL
+    const session = await this.sessionService.createSession({
+      userId: user.id,
+      refreshTokenHash,
+      deviceName: null,
+      ipAddress: ip,
+      userAgent,
+      expiresAt,
+    });
+
+    // Save refresh token in Redis
+    await this.tokenService.storeRefreshInRedis(
+      refreshTokenHash,
+      user.id,
+      session.id,
+      expiresAt,
+    );
+
+    // Update user last login
+    user.lastLoginAt = new Date();
+    await this.userRepository.save(user);
+
+    // Set refresh token cookie
+    res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: true,
       sameSite: 'strict',
@@ -93,7 +150,7 @@ export class AuthController {
       maxAge: 2592000 * 1000, // 30 days
     });
 
-    return { access_token: result.accessToken };
+    return { access_token: accessToken };
   }
 
   @Post('totp/verify')
@@ -367,15 +424,75 @@ export class AuthController {
     return { message: 'TOTP activé' };
   }
 
-  @Post('desktop-token')
+  @Post('totp/disable')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "Générer un token SSO pour l'app Java" })
-  @ApiOkResponse({ description: 'Token SSO généré avec succès' })
+  @ApiOperation({ summary: 'Désactiver la MFA (TOTP)' })
+  @ApiOkResponse({ description: 'TOTP désactivé avec succès' })
+  @ApiBadRequestResponse({ description: 'Code TOTP fourni invalide' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  desktopToken(@Req() req: { user: { sub: string } }) {
-    // TODO: Replace with full QR-based Device Authorization Flow (CDC UC-04) in a future iteration
-    return this.authService.generateDesktopToken(req.user.sub);
+  async disableTotp(
+    @Req() req: { user: { sub: string } },
+    @Body() dto: TotpConfirmDto,
+  ) {
+    await this.totpService.disableTotp(req.user.sub, dto.code);
+    return { message: 'TOTP désactivé' };
+  }
+
+  @Post('sso/qr/generate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Générer un QR Code SSO pour Java Desktop' })
+  @ApiOkResponse({ description: 'QR Code généré avec succès' })
+  @ApiBadRequestResponse({ description: 'Trop de requêtes' })
+  async generateSsoQr(@Req() req: Express.Request) {
+    const ip = req.ip || this.getIpAddress(req);
+    const qrDataUri = await this.ssoService.generateQr(ip);
+    return { qr_code: qrDataUri };
+  }
+
+  @Post('sso/qr/validate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Valider un QR Code SSO' })
+  @ApiOkResponse({ description: 'Session SSO validée avec succès' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
+  @ApiNotFoundResponse({ description: 'Session SSO introuvable ou expirée' })
+  async validateSsoQr(
+    @Req() req: Express.Request & { user: { sub: string } },
+    @Body('token_uuid') tokenUuid: string,
+  ) {
+    const userAgent = req.headers['user-agent'] || null;
+    await this.ssoService.validateQr(tokenUuid, req.user.sub, userAgent);
+    return { message: 'Session SSO validée' };
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @RateLimit('forgot-password', 5, 900)
+  @ApiOperation({ summary: 'Demander une réinitialisation de mot de passe' })
+  @ApiOkResponse({ description: 'Email de réinitialisation envoyé si le compte existe' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.userSecurityService.forgotPassword(dto.email);
+    return { message: 'Si un compte existe, un email a été envoyé' };
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Réinitialiser le mot de passe' })
+  @ApiOkResponse({ description: 'Mot de passe réinitialisé avec succès' })
+  @ApiBadRequestResponse({ description: 'Token invalide ou expiré' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.userSecurityService.resetPassword(dto.token, dto.password);
+    return { message: 'Mot de passe réinitialisé' };
+  }
+
+  @Get('sso/qr/:token_uuid/status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Vérifier le statut d\'une session SSO' })
+  @ApiOkResponse({ description: 'Statut de la session SSO' })
+  async checkSsoStatus(@Param('token_uuid') tokenUuid: string) {
+    return this.ssoService.checkStatus(tokenUuid);
   }
 
   private getIpAddress(request: Express.Request): string {

@@ -29,6 +29,7 @@ export interface ChallengePayload {
  * TTL: 10 min (600s).
  */
 export interface TotpSetupPayload {
+  user_id?: string;
   encrypted_secret: string;
   attempts: number;
 }
