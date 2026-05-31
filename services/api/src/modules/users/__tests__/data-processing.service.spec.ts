@@ -79,7 +79,7 @@ describe('DataProcessingService Unit Tests', () => {
 
   describe('createDefault', () => {
     it('should create default entity and save it', async () => {
-      const defaultEntity = { userId: 'user-1', optOuts: [], isRestricted: false } as UserDataProcessing;
+      const defaultEntity = { userId: 'user-1', optOuts: [], isRestricted: false } as unknown as UserDataProcessing;
       mockRepo.create.mockReturnValue(defaultEntity);
       mockRepo.save.mockResolvedValue(defaultEntity);
 
@@ -94,7 +94,7 @@ describe('DataProcessingService Unit Tests', () => {
     });
 
     it('should use custom transaction manager when provided', async () => {
-      const defaultEntity = { userId: 'user-1', optOuts: [], isRestricted: false } as UserDataProcessing;
+      const defaultEntity = { userId: 'user-1', optOuts: [], isRestricted: false } as unknown as UserDataProcessing;
       const mockManagerRepo = {
         create: jest.fn().mockReturnValue(defaultEntity),
         save: jest.fn().mockResolvedValue(defaultEntity),

@@ -45,7 +45,7 @@ describe('Feature: rgpd-data-processing-table, Property Tests for DataProcessing
           if (!isValidType) {
             expect(result).toBe(false);
           } else {
-            const expected = isRestricted || optOuts.includes(processingType);
+            const expected = isRestricted || optOuts.includes(processingType as any);
             expect(result).toBe(expected);
           }
         },

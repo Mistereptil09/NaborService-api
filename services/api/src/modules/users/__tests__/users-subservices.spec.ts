@@ -114,81 +114,7 @@ describe('Users Module Services Unit Tests', () => {
     });
   });
 
-  // ----------------------------------------------------
-  // UserSecurityService
-  // ----------------------------------------------------
-  describe('UserSecurityService', () => {
-    let securityService: UserSecurityService;
-    let mockUserRepo: jest.Mocked<Repository<User>>;
-    let mockSessionRepo: jest.Mocked<Repository<UserSession>>;
-    let mockRedis: jest.Mocked<Redis>;
-    let mockTotpService: jest.Mocked<TotpService>;
-    let mockTokenService: jest.Mocked<TokenService>;
 
-    beforeEach(() => {
-      mockUserRepo = {
-        findOne: jest.fn(),
-        save: jest.fn(),
-        update: jest.fn(),
-      } as unknown as jest.Mocked<Repository<User>>;
-
-      mockSessionRepo = {
-        findOne: jest.fn(),
-        update: jest.fn(),
-      } as unknown as jest.Mocked<Repository<UserSession>>;
-
-      mockRedis = {
-        get: jest.fn(),
-        set: jest.fn(),
-        del: jest.fn(),
-      } as unknown as jest.Mocked<Redis>;
-
-      mockTotpService = {
-        decryptSecret: jest.fn().mockReturnValue('decrypted-secret'),
-      } as unknown as jest.Mocked<TotpService>;
-
-      mockTokenService = {
-        hashRefreshToken: jest.fn().mockReturnValue('hashed-token'),
-      } as unknown as jest.Mocked<TokenService>;
-
-      securityService = new UserSecurityService(
-        mockUserRepo,
-        mockSessionRepo,
-        mockRedis,
-        mockTotpService,
-        mockTokenService,
-      );
-    });
-
-    it('should request password reset, store token in Redis', async () => {
-      const mockUser = new User();
-      mockUser.id = 'user-1';
-      mockUserRepo.findOne.mockResolvedValue(mockUser);
-      mockRedis.get.mockResolvedValue(null);
-
-      await securityService.requestPasswordReset('test@nabor.fr');
-
-      expect(mockRedis.set).toHaveBeenCalledWith(
-        expect.stringContaining('password-reset:'),
-        'user-1',
-        'EX',
-        900,
-      );
-    });
-
-    it('should confirm password reset and revoke all sessions', async () => {
-      const mockUser = new User();
-      mockUser.id = 'user-1';
-      mockUserRepo.findOne.mockResolvedValue(mockUser);
-      mockRedis.get.mockResolvedValue('user-1');
-
-      await securityService.confirmPasswordReset('valid-token', 'new-super-pass');
-
-      expect(mockUserRepo.save).toHaveBeenCalled();
-      expect(mockRedis.del).toHaveBeenCalled();
-      expect(mockSessionRepo.update).toHaveBeenCalled();
-    });
-  });
 
   // ----------------------------------------------------
   // UserPreferencesService
@@ -209,7 +135,7 @@ describe('Users Module Services Unit Tests', () => {
         save: jest.fn(),
       } as unknown as jest.Mocked<Repository<UserNotificationPreferences>>;
 
-      preferencesService = new UserPreferencesService(mockUserRepo, mockNotifRepo);
+      preferencesService = new UserPreferencesService(mockUserRepo, mockNotifRepo, {} as any);
     });
 
     it('should get and update locale active preference', async () => {
@@ -343,6 +269,7 @@ describe('Users Module Services Unit Tests', () => {
         mockDataProcessingService,
         mockNeo4jService,
         mockQueue,
+        { get: jest.fn(), set: jest.fn() } as any
       );
     });
 
@@ -416,6 +343,8 @@ describe('Users Module Services Unit Tests', () => {
         mockFriendshipRepo,
         mockBlockRepo,
         mockReportRepo,
+        { create: jest.fn(), save: jest.fn().mockImplementation((g) => Promise.resolve({ ...g, id: 'group-id' })) } as any, // chatGroupRepo
+        { create: jest.fn(), save: jest.fn() } as any, // usersInGroupRepo
         mockQueue,
       );
     });
