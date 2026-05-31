@@ -161,6 +161,15 @@ export class Neo4jSyncService {
     await this.neo4jService.run(cypher, { followerPgId, followedPgId });
   }
 
+  async createSwipe(swiperPgId: string, swipedPgId: string, direction: string): Promise<void> {
+    const cypher = `
+      MATCH (u1:User { pg_id: $swiperPgId }), (u2:User { pg_id: $swipedPgId })
+      MERGE (u1)-[r:SWIPED { direction: $direction }]->(u2)
+      ON CREATE SET r.at = datetime()
+    `;
+    await this.neo4jService.run(cypher, { swiperPgId, swipedPgId, direction });
+  }
+
   async createFriendsWith(userPgId1: string, userPgId2: string): Promise<void> {
     const cypher = `
       MATCH (u1:User { pg_id: $userPgId1 }), (u2:User { pg_id: $userPgId2 })

@@ -26,7 +26,10 @@ import { QueueModule } from './queue/queue.module';
 @Module({
   imports: [
     QueueModule,
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: process.env.NODE_ENV === 'test' ? '.e2e.env' : '.env',
+    }),
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync(postgresConfig),
     MongooseModule.forRootAsync(mongoConfig),

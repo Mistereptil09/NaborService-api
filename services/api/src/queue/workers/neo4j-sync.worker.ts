@@ -23,7 +23,8 @@ export class Neo4jSyncWorker extends WorkerHost {
 
   async process(job: Job<Neo4jSyncJobPayload>): Promise<any> {
     try {
-      const { operation, data } = job.data;
+      const operation = job.name || (job.data as any).operation;
+      const data = (job.data as any).data || job.data;
       
       switch (operation) {
         case 'upsert-user':
@@ -54,6 +55,42 @@ export class Neo4jSyncWorker extends WorkerHost {
           if (data.entityType === 'event' && data.status) {
             await this.neo4jSyncService.updateEventStatus(data.pgId, data.status);
           }
+          break;
+        case 'user.follows.create':
+          await this.neo4jSyncService.createFollows(data.followerId, data.followedId);
+          break;
+        case 'user.follows.delete':
+          await this.neo4jSyncService.deleteFollows(data.followerId, data.followedId);
+          break;
+        case 'user.friends_with.create':
+          await this.neo4jSyncService.createFriendsWith(data.userId1, data.userId2);
+          break;
+        case 'user.friends_with.delete':
+          await this.neo4jSyncService.deleteFriendsWith(data.userId1, data.userId2);
+          break;
+        case 'user.swipe':
+          await this.neo4jSyncService.createSwipe(data.swiperId, data.swipedId, data.direction);
+          break;
+        case 'user.blocks.create':
+          await this.neo4jSyncService.createBlocks(data.blockerId, data.blockedId);
+          break;
+        case 'user.blocks.delete':
+          await this.neo4jSyncService.deleteBlocks(data.blockerId, data.blockedId);
+          break;
+        case 'user.lives_in.update':
+          await this.neo4jSyncService.deleteLivesIn(data.userId);
+          if (data.neighbourhoodId) {
+            await this.neo4jSyncService.createLivesIn(data.userId, data.neighbourhoodId);
+          }
+          break;
+        case 'user.soft_delete':
+          await this.neo4jSyncService.softDeleteUser(data.userId, new Date(data.deletedAt));
+          break;
+        case 'delete-listing':
+          await this.neo4jSyncService.deleteListing(data.id);
+          break;
+        case 'create-posted-in':
+          await this.neo4jSyncService.createPostedIn(data.listingId, data.neighbourhoodId);
           break;
         default:
           throw new Error(`Unknown operation: ${operation}`);

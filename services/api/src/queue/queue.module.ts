@@ -10,6 +10,7 @@ import { WaitlistPromoteWorker } from './workers/waitlist-promote.worker';
 import { RgpdAnonymiseWorker } from './workers/rgpd-anonymise.worker';
 import { CryptoRotationWorker } from './workers/crypto-rotation.worker';
 import { EventsModule } from '../modules/events/events.module';
+import { UsersModule } from '../modules/users/users.module';
 import { MongoSchemasModule } from '../database/mongo-schemas/mongo-schemas.module';
 import { QueueHealthService } from './queue-health.service';
 import { QueueHealthController } from './queue-health.controller';
@@ -28,15 +29,13 @@ const queues = [
   'contract-expiration',
 ];
 
-const queueProviders = queues.map((queue) => ({
-  provide: `BullQueue_${queue}`,
-  useExisting: getQueueToken(queue),
-}));
+// queueProviders removed since BullModule.registerQueue automatically provides the getQueueToken() injection tokens
 
 @Global()
 @Module({
   imports: [
     EventsModule,
+    UsersModule,
     MongoSchemasModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
@@ -63,8 +62,8 @@ const queueProviders = queues.map((queue) => ({
     ),
   ],
   controllers: [QueueHealthController],
-  providers: [...queueProviders, Neo4jSyncWorker, EmailWorker, StripeWebhookWorker, EventRegisterWorker, WaitlistPromoteWorker, RgpdAnonymiseWorker, CryptoRotationWorker, QueueHealthService, QueueFailureListener],
-  exports: [BullModule, ...queueProviders],
+  providers: [Neo4jSyncWorker, EmailWorker, StripeWebhookWorker, EventRegisterWorker, WaitlistPromoteWorker, RgpdAnonymiseWorker, CryptoRotationWorker, QueueHealthService, QueueFailureListener],
+  exports: [BullModule],
 })
 export class QueueModule implements OnModuleInit {
   private readonly logger = new Logger(QueueModule.name);
