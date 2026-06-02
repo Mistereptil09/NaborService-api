@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Patch,
   Param,
@@ -34,6 +35,12 @@ export class NeighbourhoodAdminController {
       success: true,
       message: `Reconciliation triggered for the last ${lookback} hours.`,
     };
+  }
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  async listNeighbourhoods() {
+    return this.neo4jGeoService.listNeighbourhoodPolygons();
   }
 
   @Post()

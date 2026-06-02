@@ -5,6 +5,7 @@ import { Neo4jGeoService } from './neo4j-geo.service';
 import { GeoPipelineProcessor } from './geo-pipeline.processor';
 import { GeoReconciliationService } from './geo-reconciliation.service';
 import { NeighbourhoodAdminController } from './neighbourhood-admin.controller';
+import { GeoController } from './geo.controller';
 import { Neo4jModule } from '../../database/neo4j/neo4j.module';
 import { User } from '../users/entities/user.entity';
 import { Listing } from '../listings/entities/listing.entity';
@@ -18,7 +19,7 @@ import { HttpRetryModule } from '../../common/http-retry/http-retry.module';
     TypeOrmModule.forFeature([User, Listing, Evenement]),
     HttpRetryModule,
   ],
-  controllers: [NeighbourhoodAdminController],
+  controllers: [NeighbourhoodAdminController, GeoController],
   providers: [
     BanService,
     Neo4jGeoService,

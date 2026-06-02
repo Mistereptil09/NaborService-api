@@ -12,6 +12,13 @@ export interface GeocodingResult {
   confidence: number;
 }
 
+export interface AutocompleteResult {
+  label: string;
+  latitude: number;
+  longitude: number;
+  score: number;
+}
+
 export class BanUnavailableException extends Error {}
 export class BanTimeoutException extends Error {}
 export class BanServerException extends Error {}
@@ -77,6 +84,47 @@ export class BanService {
       throw new BanUnavailableException(
         `BAN API unavailable: ${error.message}`,
       );
+    }
+  }
+
+  async autocomplete(address: string, limit: number = 5): Promise<AutocompleteResult[]> {
+    this.validateAddress(address);
+    const trimmedAddress = address.trim();
+    const encodedAddress = encodeURIComponent(trimmedAddress);
+
+    let url = `${this.baseUrl}?q=${encodedAddress}`;
+    const safeLimit =
+      Number.isInteger(limit) && limit >= 1 && limit <= 20 ? limit : 5;
+    url += `&limit=${safeLimit}`;
+
+    try {
+      const response = await this.httpRetryService.fetchWithRetry(url, {}, {
+        maxAttempts: 4,
+        backoffs: [1000, 2000, 4000],
+        timeoutMs: 5000,
+      });
+
+      const data = await response.json();
+      const parsed = parseFeatureCollection(data);
+      return parsed
+        .filter((item) => Boolean(item.label))
+        .map((item) => ({
+          label: item.label!,
+          latitude: item.latitude,
+          longitude: item.longitude,
+          score: item.score,
+        }));
+    } catch (error) {
+      if (error instanceof BanParseException) {
+        throw error;
+      }
+      if (error instanceof HttpRequestTimeoutException) {
+        throw new BanTimeoutException(`BAN API timed out after 4 attempts`);
+      }
+      if (error instanceof HttpRequestFailedException) {
+        throw new BanServerException(`BAN API returned ${error.status}`);
+      }
+      throw new BanUnavailableException(`BAN API unavailable: ${error.message}`);
     }
   }
 

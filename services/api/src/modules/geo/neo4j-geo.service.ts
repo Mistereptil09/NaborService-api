@@ -30,11 +30,27 @@ export interface NeighbourhoodWithAdjacencies {
   adjacent_pg_ids: string[];
 }
 
+export interface NeighbourhoodPolygon {
+  pg_id: string;
+  name: string;
+  city: string;
+  zip_code: string;
+  country: string;
+  centroid: { latitude: number; longitude: number } | null;
+  area_m2: number | null;
+  geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon;
+}
+
 @Injectable()
 export class Neo4jGeoService {
   private readonly logger = new Logger(Neo4jGeoService.name);
 
   constructor(private readonly neo4jService: Neo4jService) {}
+
+  private toNumber(value: any): number | null {
+    if (value === null || value === undefined) return null;
+    return typeof value.toNumber === 'function' ? value.toNumber() : Number(value);
+  }
 
   async assignNeighbourhood(
     lat: number,
@@ -47,10 +63,13 @@ export class Neo4jGeoService {
 
     for (const record of result.records) {
       const pgId = record.get('pg_id');
-      const geometryStr = record.get('geometry');
-      if (!geometryStr) continue;
+      const geometryRaw = record.get('geometry');
+      if (!geometryRaw) continue;
       try {
-        const geometry = JSON.parse(geometryStr);
+        const geometry =
+          typeof geometryRaw === 'string'
+            ? JSON.parse(geometryRaw)
+            : geometryRaw;
         if (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon') {
           continue;
         }
@@ -83,6 +102,61 @@ export class Neo4jGeoService {
     }
 
     return null;
+  }
+
+  async listNeighbourhoodPolygons(): Promise<NeighbourhoodPolygon[]> {
+    const query = `
+      MATCH (n:Neighbourhood)
+      RETURN 
+        n.pg_id AS pg_id,
+        n.name AS name,
+        n.city AS city,
+        n.zip_code AS zip_code,
+        n.country AS country,
+        n.centroid AS centroid,
+        n.area_m2 AS area_m2,
+        n.geometry AS geometry
+      ORDER BY n.name ASC
+    `;
+    const result = await this.neo4jService.run(query, {});
+    const items: NeighbourhoodPolygon[] = [];
+
+    for (const record of result.records) {
+      const geometryRaw = record.get('geometry');
+      if (!geometryRaw) continue;
+      try {
+        const geometry =
+          typeof geometryRaw === 'string'
+            ? JSON.parse(geometryRaw)
+            : geometryRaw;
+        if (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon') {
+          continue;
+        }
+        const centroid = record.get('centroid');
+        const centroidValue = centroid
+          ? {
+              latitude: centroid.y ?? centroid.latitude,
+              longitude: centroid.x ?? centroid.longitude,
+            }
+          : null;
+        items.push({
+          pg_id: record.get('pg_id'),
+          name: record.get('name'),
+          city: record.get('city'),
+          zip_code: record.get('zip_code'),
+          country: record.get('country'),
+          centroid: centroidValue,
+          area_m2: this.toNumber(record.get('area_m2')),
+          geometry,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Failed to parse geometry for neighbourhood ${record.get('pg_id')}`,
+        );
+      }
+    }
+
+    return items;
   }
 
   async computeGeoScore(
