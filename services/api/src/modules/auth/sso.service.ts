@@ -15,6 +15,7 @@ import { REDIS_CLIENT } from '../../database/redis.module';
 import { User } from '../users/entities/user.entity';
 import { SessionService } from './session.service';
 import { TokenService } from './token.service';
+import { SsoGateway } from './sso.gateway';
 
 interface SsoSessionPayload {
   status: 'pending' | 'validated';
@@ -34,6 +35,7 @@ export class SsoService {
     private readonly userRepository: Repository<User>,
     private readonly tokenService: TokenService,
     private readonly sessionService: SessionService,
+    private readonly ssoGateway: SsoGateway,
   ) {}
 
   /**
@@ -155,8 +157,7 @@ export class SsoService {
     // Keep it valid in Redis for another 60 seconds so the client can retrieve it
     await this.redis.set(ssoKey, JSON.stringify(payload), 'EX', 60);
 
-    // TODO: Emit Socket.io event `sso:qr_validated { access_token, refresh_token }`
-    // Requires injecting a gateway
+    this.ssoGateway.emitQrValidated(tokenUuid, accessToken, refreshToken);
   }
 
   /**

@@ -142,7 +142,8 @@ export class TotpService {
       throw new UnauthorizedException('Erreur de déchiffrement du secret');
     }
 
-    const isValid = otp.verifySync({ token: code, secret });
+    const result = otp.verifySync({ token: code, secret });
+    const isValid = result?.valid === true;
 
     if (isValid) {
       await this.redis.del(challengeKey);
@@ -216,7 +217,8 @@ export class TotpService {
       throw new UnauthorizedException('Erreur de déchiffrement du secret');
     }
 
-    const isValid = otp.verifySync({ token: code, secret });
+    const result = otp.verifySync({ token: code, secret });
+    const isValid = result?.valid === true;
 
     if (isValid) {
       const user = await this.userRepository.findOne({
@@ -296,7 +298,8 @@ export class TotpService {
       throw new UnauthorizedException('Erreur de déchiffrement du secret');
     }
 
-    const isValid = otp.verifySync({ token: code, secret });
+    const result = otp.verifySync({ token: code, secret });
+    const isValid = result?.valid === true;
 
     if (isValid) {
       const user = await this.userRepository.findOne({
@@ -349,7 +352,8 @@ export class TotpService {
       throw new UnauthorizedException('Erreur de déchiffrement du secret');
     }
 
-    const isValid = otp.verifySync({ token: code, secret });
+    const result = otp.verifySync({ token: code, secret });
+    const isValid = result?.valid === true;
 
     if (!isValid) {
       throw new UnauthorizedException('Code TOTP invalide');

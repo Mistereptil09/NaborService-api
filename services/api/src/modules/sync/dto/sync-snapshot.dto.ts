@@ -61,4 +61,22 @@ export class SnapshotResponseDto {
 
   @ApiPropertyOptional()
   neighbourhoods?: any[];
+
+  @ApiPropertyOptional()
+  listings?: any[];
+
+  @ApiPropertyOptional()
+  events?: any[];
+
+  @ApiPropertyOptional()
+  chat_groups?: any[];
+
+  @ApiPropertyOptional()
+  votes?: any[];
+
+  @ApiPropertyOptional()
+  polls?: any[];
+
+  @ApiPropertyOptional()
+  listing_transactions?: any[];
 }

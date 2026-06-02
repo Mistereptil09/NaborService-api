@@ -19,6 +19,7 @@ import { TotpService } from './totp.service';
 
 import { SsoService } from './sso.service';
 import { UserSecurityService } from './user-security.service';
+import { SsoGateway } from './sso.gateway';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { UserSecurityService } from './user-security.service';
     RateLimitService,
     TotpService,
     SsoService,
+    SsoGateway,
     UserSecurityService,
     JwtStrategy,
     JwtAuthGuard,

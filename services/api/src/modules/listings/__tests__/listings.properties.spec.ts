@@ -128,7 +128,7 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
         fc.array(
           fc.record({
             id: fc.uuid(),
-            createdAt: fc.date(),
+            createdAt: fc.date().filter(d => !isNaN(d.getTime())),
             deletedAt: fc.constant(null),
             status: fc.constant(ListingStatusEnum.OPEN),
           }),

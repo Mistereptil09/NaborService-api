@@ -126,7 +126,8 @@ describe('API Module Fixes Spec Verification', () => {
         mockRedis as any,
         mockUserRepo as any,
         mockTokenService as any,
-        mockSessionService as any
+        mockSessionService as any,
+        { emitQrValidated: jest.fn() } as any
       );
 
       await ssoService.validateQr('mock-uuid', 'u1');

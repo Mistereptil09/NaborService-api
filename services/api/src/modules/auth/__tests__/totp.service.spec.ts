@@ -138,7 +138,7 @@ describe('TotpService', () => {
       const user = { id: 'user-id', totpSecret: null } as User;
 
       mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(setupPayload));
-      (otp.verifySync as jest.Mock).mockReturnValueOnce(true);
+      (otp.verifySync as jest.Mock).mockReturnValueOnce({ valid: true, delta: 0 });
       mockUserRepository.findOne.mockResolvedValueOnce(user);
 
       await service.confirmTotp('user-id', '123456');
@@ -155,7 +155,7 @@ describe('TotpService', () => {
       const setupPayload = { encrypted_secret: encrypted, attempts: 0 };
 
       mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(setupPayload));
-      (otp.verifySync as jest.Mock).mockReturnValueOnce(false);
+      (otp.verifySync as jest.Mock).mockReturnValueOnce({ valid: false });
 
       await expect(service.confirmTotp('user-id', '111111')).rejects.toThrow('Code TOTP invalide');
 
@@ -172,7 +172,7 @@ describe('TotpService', () => {
       const setupPayload = { encrypted_secret: encrypted, attempts: 2 };
 
       mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(setupPayload));
-      (otp.verifySync as jest.Mock).mockReturnValueOnce(false);
+      (otp.verifySync as jest.Mock).mockReturnValueOnce({ valid: false });
 
       await expect(service.confirmTotp('user-id', '111111')).rejects.toThrow('Setup expiré, relancez le flux');
 

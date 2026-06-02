@@ -16,6 +16,10 @@ import { ListingModerationAction } from '../listings/entities/listing-moderation
 import { EventModerationAction } from '../events/entities/event-moderation-action.entity';
 import { ListingReport } from '../listings/entities/listing-report.entity';
 import { EventReport } from '../events/entities/event-report.entity';
+import { ListingTransaction } from '../listings/entities/listing-transaction.entity';
+import { ChatGroup } from '../messaging/entities/chat-group.entity';
+import { Poll } from '../polls/entities/poll.entity';
+import { Vote } from '../polls/entities/vote.entity';
 
 @Injectable()
 export class SyncService {
@@ -30,6 +34,10 @@ export class SyncService {
     @InjectRepository(EventModerationAction) private readonly emaRepository: Repository<EventModerationAction>,
     @InjectRepository(ListingReport) private readonly lReportRepository: Repository<ListingReport>,
     @InjectRepository(EventReport) private readonly eReportRepository: Repository<EventReport>,
+    @InjectRepository(ListingTransaction) private readonly ltRepository: Repository<ListingTransaction>,
+    @InjectRepository(ChatGroup) private readonly chatGroupRepository: Repository<ChatGroup>,
+    @InjectRepository(Poll) private readonly pollRepository: Repository<Poll>,
+    @InjectRepository(Vote) private readonly voteRepository: Repository<Vote>,
   ) {}
 
   async getSnapshot(dto: GetSnapshotQueryDto): Promise<SnapshotResponseDto> {
@@ -47,6 +55,12 @@ export class SyncService {
       event_reports: [],
       users_raw: [],
       neighbourhoods: [],
+      listings: [],
+      events: [],
+      chat_groups: [],
+      votes: [],
+      polls: [],
+      listing_transactions: [],
     };
 
     const fetchDelta = async (repo: Repository<any>, relations: string[] = []) => {
@@ -73,6 +87,12 @@ export class SyncService {
     response.listing_reports = await fetchDelta(this.lReportRepository);
     response.event_reports = await fetchDelta(this.eReportRepository);
     response.users_raw = await fetchDelta(this.userRepository);
+    response.listings = await fetchDelta(this.listingRepository);
+    response.events = await fetchDelta(this.eventRepository);
+    response.chat_groups = await fetchDelta(this.chatGroupRepository);
+    response.votes = await fetchDelta(this.voteRepository);
+    response.polls = await fetchDelta(this.pollRepository);
+    response.listing_transactions = await fetchDelta(this.ltRepository);
 
     if (remaining > 0) {
       const cypher = `

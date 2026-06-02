@@ -14,7 +14,7 @@ describe('Neo4jInitService', () => {
     } as unknown as jest.Mocked<Driver>;
 
     mockNeo4jService = {
-      run: jest.fn().mockResolvedValue({ records: [] }),
+      run: jest.fn().mockResolvedValue({ records: [], summary: {} as any }),
     } as unknown as jest.Mocked<Neo4jService>;
 
     service = new Neo4jInitService(mockDriver, mockNeo4jService);
@@ -44,7 +44,7 @@ describe('Neo4jInitService', () => {
     };
 
     mockNeo4jService.run
-      .mockResolvedValue({ records: [] }) // default resolve
+      .mockResolvedValue({ records: [], summary: {} as any }) // default resolve
       .mockRejectedValueOnce(skipError) // first index already exists
       .mockRejectedValueOnce(skipError); // second index already exists
 

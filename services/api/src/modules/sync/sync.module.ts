@@ -12,6 +12,10 @@ import { ListingModerationAction } from '../listings/entities/listing-moderation
 import { EventModerationAction } from '../events/entities/event-moderation-action.entity';
 import { ListingReport } from '../listings/entities/listing-report.entity';
 import { EventReport } from '../events/entities/event-report.entity';
+import { ListingTransaction } from '../listings/entities/listing-transaction.entity';
+import { ChatGroup } from '../messaging/entities/chat-group.entity';
+import { Poll } from '../polls/entities/poll.entity';
+import { Vote } from '../polls/entities/vote.entity';
 
 @Module({
   imports: [
@@ -24,6 +28,10 @@ import { EventReport } from '../events/entities/event-report.entity';
       EventModerationAction,
       ListingReport,
       EventReport,
+      ListingTransaction,
+      ChatGroup,
+      Poll,
+      Vote,
     ]),
   ],
   controllers: [SyncController],

@@ -33,13 +33,13 @@ describe('Feature: neo4j-init-service, Property 2: Retry with exponential backof
 
           // Setup mocked run implementations
           let calls = 0;
-          mockSession.run.mockImplementation(async () => {
+          mockSession.run.mockImplementation((async () => {
             if (calls < failuresBeforeSuccess) {
               calls++;
               throw transientError;
             }
-            return { records: [] };
-          });
+            return { records: [], summary: {} as any };
+          }) as any);
 
           const runPromise = service.run('RETURN 1');
           runPromise.catch(() => {});

@@ -1,1 +1,2 @@
-jest.setTimeout(30000); // Increase timeout to 30s for heavy NestJS E2E bootstrapping
+jest.setTimeout(60000); // Increase timeout to 60s for heavy NestJS E2E bootstrapping
+

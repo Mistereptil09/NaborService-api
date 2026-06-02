@@ -6,7 +6,7 @@ describe('Property 3: Address Input Validation', () => {
   let banService: BanService;
 
   beforeEach(() => {
-    banService = new BanService();
+    banService = new BanService(null as any);
     global.fetch = jest.fn();
   });
 

@@ -53,7 +53,8 @@ export class UserSecurityService {
       throw new ForbiddenException('Erreur de déchiffrement du secret');
     }
 
-    const isValid = otp.verifySync({ token: code, secret, createDigest: crypto.createHmac });
+    const result = otp.verifySync({ token: code, secret });
+    const isValid = result?.valid === true;
     if (!isValid) {
       throw new ForbiddenException('TOTP requis ou invalide');
     }

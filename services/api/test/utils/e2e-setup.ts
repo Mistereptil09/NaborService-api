@@ -3,6 +3,8 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../../src/app.module';
 import cookieParser from 'cookie-parser';
 import { DataSource } from 'typeorm';
+import { getQueueToken } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 // To be called in beforeAll of each test suite
 export async function createTestingApp(): Promise<INestApplication> {
@@ -46,6 +48,30 @@ export async function clearDatabase(app: INestApplication) {
   }
 }
 
+export async function clearQueues(app: INestApplication) {
+  const queues = [
+    'neo4j-sync',
+    'email',
+    'pdf-generation',
+    'stripe-webhook',
+    'waitlist-promote',
+    'rgpd-anonymise',
+    'crypto-rotation',
+    'event-register',
+    'contract-expiration',
+  ];
+  for (const queueName of queues) {
+    try {
+      const queue = app.get<Queue>(getQueueToken(queueName), { strict: false });
+      if (queue) {
+        await queue.drain(true);
+      }
+    } catch {
+      // Ignore if queue not found
+    }
+  }
+}
+
 /**
  * Clears only application-specific Redis keys (rate limits, TOTP, sessions, SSO).
  * Does NOT use flushdb — that would wipe BullMQ's internal job-tracking keys,
@@ -53,6 +79,7 @@ export async function clearDatabase(app: INestApplication) {
  */
 export async function clearRedis(app: INestApplication) {
   try {
+    await clearQueues(app);
     const redis = app.get('REDIS_CLIENT', { strict: false });
     if (!redis || typeof redis.keys !== 'function') return;
 

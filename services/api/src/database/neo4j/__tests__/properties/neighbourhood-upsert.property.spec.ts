@@ -43,9 +43,9 @@ describe('Feature: neo4j-init-service, Property 6: Neighbourhood upsert preserve
           expect(cypher).toContain('n.updated_at = datetime()');
 
           // Parameter matching
-          expect(params.pgId).toBe(dto.pgId);
-          expect(params.latitude).toBe(dto.latitude);
-          expect(params.longitude).toBe(dto.longitude);
+          expect(params!.pgId).toBe(dto.pgId);
+          expect(params!.latitude).toBe(dto.latitude);
+          expect(params!.longitude).toBe(dto.longitude);
         },
       ),
       { numRuns: 100 },

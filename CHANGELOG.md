@@ -25,6 +25,47 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - **Tests e2e — `users.e2e-spec.ts`** :
   - Correction d'une `ReferenceError: otp is not defined` dans le test `should change email` : ajout du `require('otplib')` au niveau module.
   - Suppression des options `createDigest: crypto.createHmac` des appels `otp.generateSync` (non requises en v13).
+- **SSO Gateway & Real-Time Validation Flow** :
+  - Création de `SsoGateway` ([sso.gateway.ts](file:///c:/Users/root/Documents/_Mine/Ecole/PA/NaborService-api/services/api/src/modules/auth/sso.gateway.ts)) pour la communication temps réel en WebSocket via Socket.io. La passerelle gère les salles (`sso:qr:<token_uuid>`) pour notifier instantanément les clients Java Desktop (`sso:qr_validated`) lors de la validation du QR code.
+  - Intégration de la passerelle dans `SsoService.validateQr` pour l'émission temps réel des tokens d'accès et de rafraîchissement à la validation.
+  - Création de tests unitaires complets pour `SsoService` dans [sso.service.spec.ts](file:///c:/Users/root/Documents/_Mine/Ecole/PA/NaborService-api/services/api/src/modules/auth/__tests__/sso.service.spec.ts).
+- **Extension du Snapshot de Synchronisation Hors Ligne** :
+  - Ajout du transfert des tables principales (`listings`, `events`, `chat_groups`, `votes`, `polls`, `listing_transactions`) dans la réponse de `GET /sync/snapshot` pour permettre leur réplication locale SQLite sur le client lourd Java, à l'exception des relations d'amitié (friendship).
+  - Mise à jour du schéma de réponse dans `SnapshotResponseDto` et importation/enregistrement des entités correspondantes dans `SyncModule`.
+  - Mise à jour de la documentation fonctionnelle dans le cahier des charges ([cahier_des_charges_nabor3.md](file:///c:/Users/root/Documents/_Mine/Ecole/PA/NaborService-api/cahier_des_charges_nabor3.md)).
+- **Bypass de sécurité TOTP (otplib v13)** :
+  - Correction d'une faille critique où `verifySync` (qui renvoie un objet `{ valid: boolean }` en otplib v13 et non un simple booléen) était traité comme une valeur booléenne brute, rendant n'importe quel code TOTP valide car les objets sont toujours évalués à vrai (`truthy`) en JavaScript.
+  - Correction des 5 sites d'appel dans `TotpService` et `UserSecurityService` pour vérifier explicitement `result?.valid === true`.
+  - Correction des mocks Jest associés dans `totp.service.spec.ts` pour retourner la structure d'objet attendue.
+- **Timeouts d'exécution E2E et blocages de Teardown** :
+  - Ajout d'une fonction `clearQueues` dans `e2e-setup.ts` pour vider et drainer toutes les files d'attente BullMQ (`neo4j-sync`, `email`, etc.) avant la fermeture de l'application NestJS, évitant ainsi les hangs et timeouts de 30s/60s dans les hooks `afterAll` causés par des workers BullMQ actifs.
+  - Augmentation du timeout global Jest E2E à 60s dans `jest-setup.ts`.
+- **Erreurs de Compilation TypeScript dans les Tests** :
+  - Résolution de 11 erreurs de compilation TypeScript dans les fichiers de spécifications et de propriétés (Fast-check), assurant un build 100% propre via `npx tsc --noEmit`.
+  - Correction des types de retour de mock Neo4j (ajout du champ requis `summary`).
+  - Ajout d'assertions de non-nullité (`!`) sur les propriétés générées par Fast-check et correction des imports relatifs.
+- **Sécurité et Authentification** :
+  - Sécurisation du serveur WebSocket `ListingsGateway` en remplaçant l'authentification par simple paramètre d'URL `userId` par une validation JWT obligatoire depuis `socket.handshake.auth.token`.
+  - Ajout de validations strictes (`@IsEmail`, `@IsString`, `@IsNotEmpty`, `@MaxLength`) sur `LoginDto` pour interdire les payloads invalides à la connexion.
+  - Remplacement des vérifications manuelles de rôles dans `ListingsController` par un garde et décorateur unifié `@Roles('moderator', 'admin')` avec un `RolesGuard`.
+  - Augmentation de la durée d'expiration du token SSO Desktop de 30 jours à 90 jours conformément aux spécifications CDC pour les sessions Java Desktop.
+- **Robustesse et Intégrité Fonctionnelle** :
+  - Résolution d'un leak dans `ListingsGateway` en restreignant l'événement de changement de statut d'annonce aux seules salles concernées (`listing:${listingId}`) au lieu d'une diffusion globale.
+  - Résolution de la création de transactions dupliquées en vérifiant l'existence d'une transaction active pour l'annonce via `expressInterest` (lève un `ConflictException`).
+  - Propagation correcte des erreurs de base de données dans `UsersService.exportJson` au lieu d'un retour silencieux de tableau vide, assurant une information précise en cas d'échec.
+  - Modification de la route `DELETE /users/me/data-processing/opt-out` pour recevoir le paramètre `processingType` via query parameters au lieu de request body.
+- **Modifications d'Infrastructure et Configuration** :
+  - Activation globale de `ValidationPipe` (avec `whitelist`, `forbidNonWhitelisted`, `transform`) dans `src/main.ts` pour appliquer systématiquement les validations de DTO.
+  - Configuration du préfixe d'API global `/v1/` dans `src/main.ts` pour toutes les routes.
+  - Intégration du middleware `cookie-parser` dans `src/main.ts` et bascule des contrôleurs d'authentification/utilisateurs vers `req.cookies` au lieu d'un parsing manuel fragile.
+  - Création de la route d'administration `DELETE /admin/users/:user_id/totp` permettant de réinitialiser le TOTP d'un utilisateur en tant qu'administrateur.
+- **Consolidation Structurelle et Nettoyage** :
+  - Consolidation des entités dupliquées conflictuelles `UserSession` et `UserNotificationPreferences` dans `src/common/entities/`, suppression des doublons obsolètes dans `auth/entities` et `users/entities`, et mise à jour de tous les imports associés.
+  - Correction de l'ordre d'importation de `ListingsController` dans `ListingsModule` pour prévenir les dépendances circulaires à l'initialisation.
+  - Ajout du décorateur `@ApiTags('Listings')` sur `ListingsController` pour corriger le regroupement Swagger/OpenAPI.
+- **Documentation et Améliorations** :
+  - Ajout de commentaires explicatifs (TODO/deviations) documentant les choix techniques et évolutions (intégration BullMQ e-mail, SSO Desktop Device Authorization QR-code, déviation du routage TOTP).
+  - Création de tests de propriétés `fast-check` robustes dans `api-module-fixes.property.spec.ts` pour valider la robustesse de ces corrections, avec 541 tests passants à 100%.
 
 ### Added
 - **Module Events — implémentation complète** :
@@ -51,45 +92,6 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   - `test/utils/e2e-setup.ts` : utilitaires partagés (`createTestingApp`, `clearDatabase`, `clearRedis`).
   - `test/utils/test-factories.ts` : factories `createTestUser`, `loginUser` réutilisables.
   - `test/utils/jest-setup.ts` : timeout global à 30s pour le bootstrapping NestJS.
-
-### Changed
-- **`RateLimitService`** : ajout de `incrementLoginAttemptByUserId` — verrou par compte (10 tentatives / 15 min) déclenché dans `AuthService.login` après identification de l'utilisateur, indépendamment du rate limit IP du `RateLimitGuard`.
-- **`AuthController`** : ajout des routes `POST /auth/password/forgot`, `POST /auth/password/reset`, et `GET /auth/sso/qr` ; délégation aux nouveaux `SsoService` et `UserSecurityService`.
-- **`neo4j-sync.worker.ts`** : amélioration de la gestion d'erreurs avec distinction des erreurs transitoires/permanentes et logging structuré via `QueueFailureListener`.
-- **`QueueModule`** : enregistrement du worker email et ajout de la configuration de concurrence.
-- **`AppModule`** : import du `UsersModule` correctement câblé avec toutes ses dépendances.
-
-### Removed
-- `auth_test_output.txt` (fichier de sortie de test temporaire).
-- `.e2e.env` (variables d'environnement intégrées dans la configuration de test).
-
----
-
-### Fixed
-- **Sécurité et Authentification** :
-  - Sécurisation du serveur WebSocket `ListingsGateway` en remplaçant l'authentification par simple paramètre d'URL `userId` par une validation JWT obligatoire depuis `socket.handshake.auth.token`.
-  - Ajout de validations strictes (`@IsEmail`, `@IsString`, `@IsNotEmpty`, `@MaxLength`) sur `LoginDto` pour interdire les payloads invalides à la connexion.
-  - Remplacement des vérifications manuelles de rôles dans `ListingsController` par un garde et décorateur unifié `@Roles('moderator', 'admin')` avec un `RolesGuard`.
-  - Augmentation de la durée d'expiration du token SSO Desktop de 30 jours à 90 jours conformément aux spécifications CDC pour les sessions Java Desktop.
-- **Robustesse et Intégrité Fonctionnelle** :
-  - Résolution d'un leak dans `ListingsGateway` en restreignant l'événement de changement de statut d'annonce aux seules salles concernées (`listing:${listingId}`) au lieu d'une diffusion globale.
-  - Résolution de la création de transactions dupliquées en vérifiant l'existence d'une transaction active pour l'annonce via `expressInterest` (lève un `ConflictException`).
-  - Propagation correcte des erreurs de base de données dans `UsersService.exportJson` au lieu d'un retour silencieux de tableau vide, assurant une information précise en cas d'échec.
-  - Modification de la route `DELETE /users/me/data-processing/opt-out` pour recevoir le paramètre `processingType` via query parameters au lieu de request body.
-- **Modifications d'Infrastructure et Configuration** :
-  - Activation globale de `ValidationPipe` (avec `whitelist`, `forbidNonWhitelisted`, `transform`) dans `src/main.ts` pour appliquer systématiquement les validations de DTO.
-  - Configuration du préfixe d'API global `/v1/` dans `src/main.ts` pour toutes les routes.
-  - Intégration du middleware `cookie-parser` dans `src/main.ts` et bascule des contrôleurs d'authentification/utilisateurs vers `req.cookies` au lieu d'un parsing manuel fragile.
-  - Création de la route d'administration `DELETE /admin/users/:user_id/totp` permettant de réinitialiser le TOTP d'un utilisateur en tant qu'administrateur.
-- **Consolidation Structurelle et Nettoyage** :
-  - Consolidation des entités dupliquées conflictuelles `UserSession` et `UserNotificationPreferences` dans `src/common/entities/`, suppression des doublons obsolètes dans `auth/entities` et `users/entities`, et mise à jour de tous les imports associés.
-  - Correction de l'ordre d'importation de `ListingsController` dans `ListingsModule` pour prévenir les dépendances circulaires à l'initialisation.
-  - Ajout du décorateur `@ApiTags('Listings')` sur `ListingsController` pour corriger le regroupement Swagger/OpenAPI.
-- **Documentation et Améliorations** :
-  - Ajout de commentaires explicatifs (TODO/deviations) documentant les choix techniques et évolutions (intégration BullMQ e-mail, SSO Desktop Device Authorization QR-code, déviation du routage TOTP).
-  - Création de tests de propriétés `fast-check` robustes dans `api-module-fixes.property.spec.ts` pour valider la robustesse de ces corrections, avec 541 tests passants à 100%.
-
-### Added
 - **Intégration BullMQ et File d'Attente Distribuée** :
   - Installation et configuration de `@nestjs/bullmq`, `bullmq`, et `ioredis` pour la gestion asynchrone des tâches avec résilience et retry (backoff exponentiel plafonné à 30s).
   - Implémentation du `RedisIoAdapter` pour le support pub/sub des WebSockets (Socket.io) sur un déploiement horizontalement scalable.
@@ -148,6 +150,11 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Fichier `.dockerignore` dans `services/api` pour optimiser le build Docker en ignorant `node_modules` et `dist`.
 
 ### Changed
+- **`RateLimitService`** : ajout de `incrementLoginAttemptByUserId` — verrou par compte (10 tentatives / 15 min) déclenché dans `AuthService.login` après identification de l'utilisateur, indépendamment du rate limit IP du `RateLimitGuard`.
+- **`AuthController`** : ajout des routes `POST /auth/password/forgot`, `POST /auth/password/reset`, et `GET /auth/sso/qr` ; délégation aux nouveaux `SsoService` et `UserSecurityService`.
+- **`neo4j-sync.worker.ts`** : amélioration de la gestion d'erreurs avec distinction des erreurs transitoires/permanentes et logging structuré via `QueueFailureListener`.
+- **`QueueModule`** : enregistrement du worker email et ajout de la configuration de concurrence.
+- **`AppModule`** : import du `UsersModule` correctement câblé avec toutes ses dépendances.
 - **Infrastructure de connexion aux bases de données** :
   - Création de `src/database/database.utils.ts` avec utilitaires partagés : `requireEnv()` (validation d'env vars avec message clair par service), `connectWithRetry()` (retry générique avec logging uniforme), et `DB_RETRY_CONFIG` (5 tentatives, 3s de délai).
   - Refactorisation de `postgres.config.ts` : utilisation de `connectWithRetry` via `dataSourceFactory` pour un retry contrôlé à l'initialisation TypeORM.
@@ -184,6 +191,8 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - `docker-compose.yml` renommé en `compose.yml` (convention Docker Compose v2)
 
 ### Removed
+- `auth_test_output.txt` (fichier de sortie de test temporaire).
+- `.e2e.env` (variables d'environnement intégrées dans la configuration de test).
 - `docker-compose.yml` (remplacé par `compose.yml`)
 - `test-chat.html` (fichier de test temporaire)
 - Module `chat/` (remplacé par `MessagingModule` avec entités CDC)

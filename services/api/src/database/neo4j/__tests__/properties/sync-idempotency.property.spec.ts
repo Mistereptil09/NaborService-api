@@ -36,7 +36,7 @@ describe('Feature: neo4j-init-service, Property 5: Sync upsert idempotency', () 
           expect(mockNeo4jService.run).toHaveBeenCalledTimes(1);
           const [cypher, params] = mockNeo4jService.run.mock.calls[0];
           expect(cypher).toContain('MERGE (u:User { pg_id: $pgId })');
-          expect(params.pgId).toBe(dto.pgId);
+          expect(params!.pgId).toBe(dto.pgId);
         },
       ),
       { numRuns: 100 },
@@ -61,7 +61,7 @@ describe('Feature: neo4j-init-service, Property 5: Sync upsert idempotency', () 
           expect(mockNeo4jService.run).toHaveBeenCalledTimes(1);
           const [cypher, params] = mockNeo4jService.run.mock.calls[0];
           expect(cypher).toContain('MERGE (l:Listing { pg_id: $pgId })');
-          expect(params.pgId).toBe(dto.pgId);
+          expect(params!.pgId).toBe(dto.pgId);
         },
       ),
       { numRuns: 100 },
@@ -86,7 +86,7 @@ describe('Feature: neo4j-init-service, Property 5: Sync upsert idempotency', () 
           expect(mockNeo4jService.run).toHaveBeenCalledTimes(1);
           const [cypher, params] = mockNeo4jService.run.mock.calls[0];
           expect(cypher).toContain('MERGE (e:Event { pg_id: $pgId })');
-          expect(params.pgId).toBe(dto.pgId);
+          expect(params!.pgId).toBe(dto.pgId);
         },
       ),
       { numRuns: 100 },

@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { Neo4jGeoService } from '../../neo4j-geo.service';
-import { Neo4jService } from '../../../../neo4j/neo4j.service';
+import { Neo4jService } from '../../../../database/neo4j/neo4j.service';
 
 // Feature: geographical-pipeline, Property 13: Invalid Polygon Rejection
 describe('Property 13: Invalid Polygon Rejection', () => {

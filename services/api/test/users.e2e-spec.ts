@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { createTestingApp, clearDatabase, clearRedis } from './utils/e2e-setup';
+import { createTestingApp, clearDatabase, clearRedis, clearQueues } from './utils/e2e-setup';
 import { createTestUser, loginUser } from './utils/test-factories';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const otp = require('otplib');
@@ -14,6 +14,7 @@ describe('Users & Social Modules (e2e)', () => {
 
   afterAll(async () => {
     if (app) {
+      await clearQueues(app);
       await app.close();
     }
   });
