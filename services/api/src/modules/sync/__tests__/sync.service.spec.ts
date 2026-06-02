@@ -1,10 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { SyncService } from '../sync.service';
-import {
-  EntityPatchHandler,
-  PatchResult,
-} from '../handlers/entity-patch.handler';
+import { EntityPatchHandler, PatchResult } from '../handlers/entity-patch.handler';
 import { REDIS_CLIENT } from '../../../database/redis.module';
 import { SyncConflict } from '../entities/sync-conflict.entity';
 import { SyncUpdatesBatchDto, SyncUpdateItemDto } from '../dto/sync-push.dto';
@@ -48,34 +45,16 @@ describe('SyncService', () => {
           provide: EntityPatchHandler,
           useValue: { handlePatch: jest.fn() },
         },
-        {
-          provide: getRepositoryToken(SyncConflict),
-          useFactory: mockRepository,
-        },
+        { provide: getRepositoryToken(SyncConflict), useFactory: mockRepository },
         { provide: getRepositoryToken(User), useFactory: mockRepository },
         { provide: getRepositoryToken(Incident), useFactory: mockRepository },
         { provide: getRepositoryToken(Listing), useFactory: mockRepository },
         { provide: getRepositoryToken(Evenement), useFactory: mockRepository },
-        {
-          provide: getRepositoryToken(ListingModerationAction),
-          useFactory: mockRepository,
-        },
-        {
-          provide: getRepositoryToken(EventModerationAction),
-          useFactory: mockRepository,
-        },
-        {
-          provide: getRepositoryToken(ListingReport),
-          useFactory: mockRepository,
-        },
-        {
-          provide: getRepositoryToken(EventReport),
-          useFactory: mockRepository,
-        },
-        {
-          provide: getRepositoryToken(ListingTransaction),
-          useFactory: mockRepository,
-        },
+        { provide: getRepositoryToken(ListingModerationAction), useFactory: mockRepository },
+        { provide: getRepositoryToken(EventModerationAction), useFactory: mockRepository },
+        { provide: getRepositoryToken(ListingReport), useFactory: mockRepository },
+        { provide: getRepositoryToken(EventReport), useFactory: mockRepository },
+        { provide: getRepositoryToken(ListingTransaction), useFactory: mockRepository },
         { provide: getRepositoryToken(ChatGroup), useFactory: mockRepository },
         { provide: getRepositoryToken(Poll), useFactory: mockRepository },
         { provide: getRepositoryToken(Vote), useFactory: mockRepository },
