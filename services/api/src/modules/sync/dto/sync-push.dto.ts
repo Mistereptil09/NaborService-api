@@ -3,9 +3,9 @@ import { Type } from 'class-transformer';
 import { IsArray, IsDateString, IsIn, IsObject, IsString, IsUUID, ValidateNested } from 'class-validator';
 
 export class SyncUpdateItemDto {
-  @ApiProperty({ enum: ['user', 'listing', 'event', 'neighbourhood', 'incident'] })
-  @IsIn(['user', 'listing', 'event', 'neighbourhood', 'incident'])
-  entity_type: 'user' | 'listing' | 'event' | 'neighbourhood' | 'incident';
+  @ApiProperty({ enum: ['user', 'listing', 'event', 'incident'] })
+  @IsIn(['user', 'listing', 'event', 'incident'])
+  entity_type: 'user' | 'listing' | 'event' | 'incident';
 
   @ApiProperty()
   @IsString()
