@@ -26,16 +26,22 @@ describe('Feature: neo4j-init-service, Property 7: Neighbourhood deletion guard'
           const mockRecord = {
             get: () => residentCount,
           };
-          mockNeo4jService.run.mockResolvedValueOnce({ records: [mockRecord] } as any); // first query: check
+          mockNeo4jService.run.mockResolvedValueOnce({
+            records: [mockRecord],
+          } as any); // first query: check
           mockNeo4jService.run.mockResolvedValueOnce({ records: [] } as any); // second query: delete
 
           if (residentCount > 0) {
-            await expect(service.delete('hood_123')).rejects.toThrow(ConflictException);
+            await expect(service.delete('hood_123')).rejects.toThrow(
+              ConflictException,
+            );
             expect(mockNeo4jService.run).toHaveBeenCalledTimes(1); // stopped at check
           } else {
             await service.delete('hood_123');
             expect(mockNeo4jService.run).toHaveBeenCalledTimes(2); // check + delete
-            expect(mockNeo4jService.run.mock.calls[1][0]).toContain('DETACH DELETE n');
+            expect(mockNeo4jService.run.mock.calls[1][0]).toContain(
+              'DETACH DELETE n',
+            );
           }
         },
       ),

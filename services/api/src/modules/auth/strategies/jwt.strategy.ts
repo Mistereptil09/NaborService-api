@@ -39,7 +39,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // If password was changed after token issuance, invalidate the token.
       // We compare timestamps to avoid small precision mismatches.
       if (user.passwordChangedAt.getTime() > iatDate.getTime()) {
-        throw new UnauthorizedException('Mot de passe changé, veuillez vous reconnecter');
+        throw new UnauthorizedException(
+          'Mot de passe changé, veuillez vous reconnecter',
+        );
       }
     }
 
@@ -50,4 +52,3 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     };
   }
 }
-

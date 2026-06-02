@@ -15,12 +15,14 @@ export class EventsStripeController {
     @Headers('stripe-signature') signature: string,
   ) {
     // Mock webhook handler for Stripe
-    this.logger.log(`Received Stripe webhook: ${req.body?.type || 'unknown type'}`);
+    this.logger.log(
+      `Received Stripe webhook: ${req.body?.type || 'unknown type'}`,
+    );
 
     try {
       // Typically we would verify the signature here using stripe.webhooks.constructEvent
       // const event = stripe.webhooks.constructEvent(req.rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET);
-      
+
       const event = req.body;
 
       if (event.type === 'checkout.session.completed') {

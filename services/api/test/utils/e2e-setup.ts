@@ -12,7 +12,9 @@ export async function createTestingApp(): Promise<INestApplication> {
   // we require tests to run against nabor_db_test.
   // The test runner (jest) should set POSTGRES_DB=nabor_db_test.
   if (process.env.POSTGRES_DB !== 'nabor_db_test') {
-    console.warn('Warning: Tests are not running against nabor_db_test. Wiping dev DB!');
+    console.warn(
+      'Warning: Tests are not running against nabor_db_test. Wiping dev DB!',
+    );
   }
 
   const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -20,9 +22,9 @@ export async function createTestingApp(): Promise<INestApplication> {
   }).compile();
 
   const app = moduleFixture.createNestApplication();
-  
+
   app.setGlobalPrefix('v1');
-  
+
   // Apply the same global middleware and pipes as main.ts
   app.use(cookieParser());
   app.useGlobalPipes(
@@ -42,7 +44,9 @@ export async function clearDatabase(app: INestApplication) {
   const dataSource = app.get(DataSource);
   const entities = dataSource.entityMetadatas;
 
-  const tableNames = entities.map((entity) => `"${entity.tableName}"`).join(', ');
+  const tableNames = entities
+    .map((entity) => `"${entity.tableName}"`)
+    .join(', ');
   if (tableNames.length > 0) {
     await dataSource.query(`TRUNCATE TABLE ${tableNames} CASCADE;`);
   }
@@ -84,13 +88,7 @@ export async function clearRedis(app: INestApplication) {
     if (!redis || typeof redis.keys !== 'function') return;
 
     // Only delete app-specific key namespaces, not bull:* (BullMQ job data)
-    const patterns = [
-      'ratelimit:*',
-      'totp:*',
-      'refresh:*',
-      'sso:*',
-      'reset:*',
-    ];
+    const patterns = ['ratelimit:*', 'totp:*', 'refresh:*', 'sso:*', 'reset:*'];
 
     for (const pattern of patterns) {
       const keys: string[] = await redis.keys(pattern);

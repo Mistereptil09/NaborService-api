@@ -72,7 +72,9 @@ export class EventsController {
   @Get('reported')
   @Roles('moderator', 'admin')
   @UseGuards(RolesGuard)
-  @ApiOperation({ summary: 'Lister les évènements signalés (Modérateur/Admin)' })
+  @ApiOperation({
+    summary: 'Lister les évènements signalés (Modérateur/Admin)',
+  })
   async getReportedEvents(@Query() query: ListEventsDto) {
     return this.reportService.getReportedEvents(query);
   }
@@ -80,7 +82,9 @@ export class EventsController {
   @Get('moderated_actions')
   @Roles('moderator', 'admin')
   @UseGuards(RolesGuard)
-  @ApiOperation({ summary: 'Lister toutes les actions de modération (Modérateur/Admin)' })
+  @ApiOperation({
+    summary: 'Lister toutes les actions de modération (Modérateur/Admin)',
+  })
   async getAllModerationActions(@Query() query: ListEventsDto) {
     return this.moderationService.getAllModerationActions(query);
   }
@@ -101,7 +105,10 @@ export class EventsController {
   @Get(':event_id/moderation')
   @Roles('moderator', 'admin')
   @UseGuards(RolesGuard)
-  @ApiOperation({ summary: 'Consulter l\'historique de modération d\'un évènement (Modérateur/Admin)' })
+  @ApiOperation({
+    summary:
+      "Consulter l'historique de modération d'un évènement (Modérateur/Admin)",
+  })
   async getModerationHistory(@Param('event_id') id: string) {
     return this.moderationService.getModerationHistory(id);
   }
@@ -121,7 +128,7 @@ export class EventsController {
   }
 
   @Get(':event_id')
-  @ApiOperation({ summary: 'Consulter les détails d\'un évènement' })
+  @ApiOperation({ summary: "Consulter les détails d'un évènement" })
   async getEvent(@Param('event_id') id: string) {
     return this.eventsService.findOne(id);
   }
@@ -139,7 +146,9 @@ export class EventsController {
   @Delete(':event_id')
   @ApiOperation({ summary: 'Supprimer un évènement (soft delete)' })
   async deleteEvent(@Param('event_id') id: string, @Req() req: any) {
-    const isModerator = req.user.role === UserRoleEnum.MODERATOR || req.user.role === UserRoleEnum.ADMIN;
+    const isModerator =
+      req.user.role === UserRoleEnum.MODERATOR ||
+      req.user.role === UserRoleEnum.ADMIN;
     await this.eventsService.softDelete(req.user.id, id, isModerator);
     return { success: true };
   }
@@ -147,13 +156,13 @@ export class EventsController {
   // --- Content & Media (MongoDB) ---
 
   @Get(':event_id/content')
-  @ApiOperation({ summary: 'Lire le contenu enrichi HTML d\'un évènement' })
+  @ApiOperation({ summary: "Lire le contenu enrichi HTML d'un évènement" })
   async getContent(@Param('event_id') id: string) {
     return this.contentService.getContent(id);
   }
 
   @Patch(':event_id/content')
-  @ApiOperation({ summary: 'Modifier le contenu enrichi HTML d\'un évènement' })
+  @ApiOperation({ summary: "Modifier le contenu enrichi HTML d'un évènement" })
   async updateContent(
     @Param('event_id') id: string,
     @Body() dto: UpdateContentDto,
@@ -175,7 +184,7 @@ export class EventsController {
   }
 
   @Delete(':event_id/media/:media_id')
-  @ApiOperation({ summary: 'Supprimer un média d\'un évènement' })
+  @ApiOperation({ summary: "Supprimer un média d'un évènement" })
   async deleteMedia(
     @Param('event_id') id: string,
     @Param('media_id') mediaId: string,
@@ -219,7 +228,7 @@ export class EventsController {
 
   @Post(':event_id/register')
   @HttpCode(HttpStatus.ACCEPTED)
-  @ApiOperation({ summary: 'S\'inscrire à un évènement (async, 202)' })
+  @ApiOperation({ summary: "S'inscrire à un évènement (async, 202)" })
   async register(@Param('event_id') id: string, @Req() req: any) {
     return this.eventsService.register(id, req.user.id);
   }
@@ -238,7 +247,7 @@ export class EventsController {
   }
 
   @Get(':event_id/waitlist')
-  @ApiOperation({ summary: 'Lister les participants sur liste d\'attente' })
+  @ApiOperation({ summary: "Lister les participants sur liste d'attente" })
   async getWaitlist(@Param('event_id') id: string, @Req() req: any) {
     return this.eventsService.getWaitlist(id, req.user.id);
   }
@@ -254,7 +263,10 @@ export class EventsController {
   ) {
     const doc = await this.ticketService.getTicketStream(id, req.user.id);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="ticket_${id}.pdf"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="ticket_${id}.pdf"`,
+    );
     doc.stream.pipe(res);
   }
 
@@ -284,7 +296,9 @@ export class EventsController {
   }
 
   @Get(':event_id/chat')
-  @ApiOperation({ summary: 'Obtenir le groupe de discussion lié à l\'évènement' })
+  @ApiOperation({
+    summary: "Obtenir le groupe de discussion lié à l'évènement",
+  })
   async getChat(@Param('event_id') id: string, @Req() req: any) {
     return this.eventsService.getChatGroup(id, req.user.id);
   }

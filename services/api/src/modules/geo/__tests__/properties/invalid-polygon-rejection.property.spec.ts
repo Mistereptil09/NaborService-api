@@ -15,19 +15,41 @@ describe('Property 13: Invalid Polygon Rejection', () => {
       fc.asyncProperty(
         fc.oneof(
           // Not a polygon
-          fc.constant({ type: 'Point', coordinates: [0,0] }),
+          fc.constant({ type: 'Point', coordinates: [0, 0] }),
           // Too few positions (< 4)
-          fc.constant({ type: 'Polygon', coordinates: [[[0,0], [1,1], [0,0]]] }),
+          fc.constant({
+            type: 'Polygon',
+            coordinates: [
+              [
+                [0, 0],
+                [1, 1],
+                [0, 0],
+              ],
+            ],
+          }),
           // Unclosed ring
-          fc.constant({ type: 'Polygon', coordinates: [[[0,0], [1,0], [1,1], [0,1]]] })
+          fc.constant({
+            type: 'Polygon',
+            coordinates: [
+              [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 1],
+              ],
+            ],
+          }),
         ),
         async (invalidPoly: any) => {
           await expect(
-            neo4jGeoService.createNeighbourhood(invalidPoly as GeoJSON.Polygon, {} as any)
+            neo4jGeoService.createNeighbourhood(
+              invalidPoly as GeoJSON.Polygon,
+              {} as any,
+            ),
           ).rejects.toThrow();
-        }
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

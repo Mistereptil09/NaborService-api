@@ -6,7 +6,8 @@ import { Incident } from './entities/incident.entity';
 @Injectable()
 export class IncidentsService {
   constructor(
-    @InjectRepository(Incident) private readonly incidentRepository: Repository<Incident>,
+    @InjectRepository(Incident)
+    private readonly incidentRepository: Repository<Incident>,
   ) {}
 
   // --- CRUD basique ---

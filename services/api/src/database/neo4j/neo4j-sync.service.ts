@@ -128,7 +128,10 @@ export class Neo4jSyncService {
   // RELATIONSHIP OPERATIONS
   // ==========================================
 
-  async createLivesIn(userPgId: string, neighbourhoodPgId: string): Promise<void> {
+  async createLivesIn(
+    userPgId: string,
+    neighbourhoodPgId: string,
+  ): Promise<void> {
     const cypher = `
       MATCH (u:User { pg_id: $userPgId }), (n:Neighbourhood { pg_id: $neighbourhoodPgId })
       MERGE (u)-[:LIVES_IN]->(n)
@@ -144,7 +147,10 @@ export class Neo4jSyncService {
     await this.neo4jService.run(cypher, { userPgId });
   }
 
-  async createFollows(followerPgId: string, followedPgId: string): Promise<void> {
+  async createFollows(
+    followerPgId: string,
+    followedPgId: string,
+  ): Promise<void> {
     const cypher = `
       MATCH (u1:User { pg_id: $followerPgId }), (u2:User { pg_id: $followedPgId })
       MERGE (u1)-[r:FOLLOWS]->(u2)
@@ -153,7 +159,10 @@ export class Neo4jSyncService {
     await this.neo4jService.run(cypher, { followerPgId, followedPgId });
   }
 
-  async deleteFollows(followerPgId: string, followedPgId: string): Promise<void> {
+  async deleteFollows(
+    followerPgId: string,
+    followedPgId: string,
+  ): Promise<void> {
     const cypher = `
       MATCH (u1:User { pg_id: $followerPgId })-[r:FOLLOWS]->(u2:User { pg_id: $followedPgId })
       DELETE r
@@ -161,7 +170,11 @@ export class Neo4jSyncService {
     await this.neo4jService.run(cypher, { followerPgId, followedPgId });
   }
 
-  async createSwipe(swiperPgId: string, swipedPgId: string, direction: string): Promise<void> {
+  async createSwipe(
+    swiperPgId: string,
+    swipedPgId: string,
+    direction: string,
+  ): Promise<void> {
     const cypher = `
       MATCH (u1:User { pg_id: $swiperPgId }), (u2:User { pg_id: $swipedPgId })
       MERGE (u1)-[r:SWIPED { direction: $direction }]->(u2)
@@ -203,7 +216,10 @@ export class Neo4jSyncService {
     await this.neo4jService.run(cypher, { blockerPgId, blockedPgId });
   }
 
-  async createPostedIn(listingPgId: string, neighbourhoodPgId: string): Promise<void> {
+  async createPostedIn(
+    listingPgId: string,
+    neighbourhoodPgId: string,
+  ): Promise<void> {
     const cypher = `
       MATCH (l:Listing { pg_id: $listingPgId }), (n:Neighbourhood { pg_id: $neighbourhoodPgId })
       MERGE (l)-[:POSTED_IN]->(n)
@@ -211,7 +227,10 @@ export class Neo4jSyncService {
     await this.neo4jService.run(cypher, { listingPgId, neighbourhoodPgId });
   }
 
-  async createHostedIn(eventPgId: string, neighbourhoodPgId: string): Promise<void> {
+  async createHostedIn(
+    eventPgId: string,
+    neighbourhoodPgId: string,
+  ): Promise<void> {
     const cypher = `
       MATCH (e:Event { pg_id: $eventPgId }), (n:Neighbourhood { pg_id: $neighbourhoodPgId })
       MERGE (e)-[:HOSTED_IN]->(n)
@@ -219,7 +238,10 @@ export class Neo4jSyncService {
     await this.neo4jService.run(cypher, { eventPgId, neighbourhoodPgId });
   }
 
-  async createLikedListing(userPgId: string, listingPgId: string): Promise<void> {
+  async createLikedListing(
+    userPgId: string,
+    listingPgId: string,
+  ): Promise<void> {
     const cypher = `
       MATCH (u:User { pg_id: $userPgId }), (l:Listing { pg_id: $listingPgId })
       MERGE (u)-[r:LIKED_LISTING]->(l)
@@ -237,7 +259,10 @@ export class Neo4jSyncService {
     await this.neo4jService.run(cypher, { userPgId, eventPgId });
   }
 
-  async createAttendedEvent(userPgId: string, eventPgId: string): Promise<void> {
+  async createAttendedEvent(
+    userPgId: string,
+    eventPgId: string,
+  ): Promise<void> {
     const cypher = `
       MATCH (u:User { pg_id: $userPgId }), (e:Event { pg_id: $eventPgId })
       MERGE (u)-[r:ATTENDED_EVENT]->(e)
@@ -246,7 +271,10 @@ export class Neo4jSyncService {
     await this.neo4jService.run(cypher, { userPgId, eventPgId });
   }
 
-  async mergeInterestedIn(userPgId: string, categoryPgId: number): Promise<void> {
+  async mergeInterestedIn(
+    userPgId: string,
+    categoryPgId: number,
+  ): Promise<void> {
     const cypher = `
       MATCH (u:User { pg_id: $userPgId }), (c:Category { pg_id: $categoryPgId })
       MERGE (u)-[r:INTERESTED_IN]->(c)

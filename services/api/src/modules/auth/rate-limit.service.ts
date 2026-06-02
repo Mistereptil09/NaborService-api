@@ -5,9 +5,7 @@ import { RateLimitResult } from './interfaces/auth.interfaces';
 
 @Injectable()
 export class RateLimitService {
-  constructor(
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
-  ) {}
+  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
   /**
    * Checks if a request is allowed under the rate limit configuration.
@@ -19,7 +17,7 @@ export class RateLimitService {
     windowSeconds: number,
   ): Promise<RateLimitResult> {
     const current = await this.redis.get(key);
-    
+
     if (current && parseInt(current, 10) >= limit) {
       const ttl = await this.redis.ttl(key);
       const retryAfter = ttl > 0 ? ttl : windowSeconds;
@@ -37,7 +35,7 @@ export class RateLimitService {
 
     const allowed = count <= limit;
     const remaining = Math.max(0, limit - count);
-    
+
     let retryAfter = 0;
     if (!allowed) {
       const ttl = await this.redis.ttl(key);
@@ -58,7 +56,10 @@ export class RateLimitService {
     const key = `ratelimit:login:${userId}`;
     const result = await this.check(key, 10, 900);
     if (!result.allowed) {
-      throw new HttpException('Trop de tentatives pour ce compte', HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException(
+        'Trop de tentatives pour ce compte',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
   }
 
@@ -69,7 +70,10 @@ export class RateLimitService {
     const key = `ratelimit:totp:${userId}`;
     const result = await this.check(key, 3, 300);
     if (!result.allowed) {
-      throw new HttpException('Trop de tentatives TOTP pour ce compte', HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException(
+        'Trop de tentatives TOTP pour ce compte',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
   }
 }

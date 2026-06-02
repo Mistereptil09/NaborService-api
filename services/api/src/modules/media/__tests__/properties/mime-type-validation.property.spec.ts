@@ -17,7 +17,10 @@ describe('Feature: gridfs-media-storage, Property 4: MIME Type Validation', () =
     fc.assert(
       fc.property(
         fc.string({ minLength: 1, maxLength: 20 }), // mime type
-        fc.array(fc.string({ minLength: 1, maxLength: 20 }), { minLength: 1, maxLength: 10 }), // allowed mime types list
+        fc.array(fc.string({ minLength: 1, maxLength: 20 }), {
+          minLength: 1,
+          maxLength: 10,
+        }), // allowed mime types list
         (mimeType, allowedTypes) => {
           const file = {
             buffer: Buffer.from('abc'),
@@ -35,15 +38,17 @@ describe('Feature: gridfs-media-storage, Property 4: MIME Type Validation', () =
           const isAllowed = allowedTypes.includes(mimeType);
 
           if (isAllowed) {
-            expect(() => (uploadPipeline as any).validateFile(file, context)).not.toThrow();
+            expect(() =>
+              (uploadPipeline as any).validateFile(file, context),
+            ).not.toThrow();
           } else {
-            expect(() => (uploadPipeline as any).validateFile(file, context)).toThrow(
-              UnsupportedMediaTypeException,
-            );
+            expect(() =>
+              (uploadPipeline as any).validateFile(file, context),
+            ).toThrow(UnsupportedMediaTypeException);
           }
-        }
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

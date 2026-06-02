@@ -20,7 +20,11 @@ describe('Feature: neo4j-init-service, Property 5: Sync upsert idempotency', () 
         fc.record({
           pgId: fc.string({ minLength: 1 }),
           neighbourhoodId: fc.option(fc.string({ minLength: 1 })),
-          visibility: fc.oneof(fc.constant('public'), fc.constant('friends'), fc.constant('private')),
+          visibility: fc.oneof(
+            fc.constant('public'),
+            fc.constant('friends'),
+            fc.constant('private'),
+          ),
           role: fc.oneof(
             fc.constant('resident'),
             fc.constant('neighbourhood_rep'),
@@ -51,7 +55,9 @@ describe('Feature: neo4j-init-service, Property 5: Sync upsert idempotency', () 
           listingType: fc.oneof(fc.constant('offer'), fc.constant('request')),
           status: fc.string({ minLength: 1 }),
           neighbourhoodId: fc.option(fc.string({ minLength: 1 })),
-          createdAt: fc.integer({ min: 1600000000000, max: 1900000000000 }).map(t => new Date(t)),
+          createdAt: fc
+            .integer({ min: 1600000000000, max: 1900000000000 })
+            .map((t) => new Date(t)),
         }),
         async (dto) => {
           mockNeo4jService.run.mockClear();
@@ -75,7 +81,9 @@ describe('Feature: neo4j-init-service, Property 5: Sync upsert idempotency', () 
           pgId: fc.string({ minLength: 1 }),
           status: fc.string({ minLength: 1 }),
           neighbourhoodId: fc.option(fc.string({ minLength: 1 })),
-          startsAt: fc.integer({ min: 1600000000000, max: 1900000000000 }).map(t => new Date(t)),
+          startsAt: fc
+            .integer({ min: 1600000000000, max: 1900000000000 })
+            .map((t) => new Date(t)),
           costCents: fc.integer(),
         }),
         async (dto) => {

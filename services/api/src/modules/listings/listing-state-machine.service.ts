@@ -26,27 +26,41 @@ export class ListingStateMachineService {
     private readonly transactionService: ListingTransactionService,
     private readonly listingsGateway: ListingsGateway,
     @Inject('BullQueue_neo4j-sync')
-    private readonly neo4jSyncQueue: { add: (name: string, data: any) => Promise<any> },
+    private readonly neo4jSyncQueue: {
+      add: (name: string, data: any) => Promise<any>;
+    },
     @Inject('BullQueue_pdf-generation')
-    private readonly pdfGenerationQueue: { add: (name: string, data: any) => Promise<any> },
+    private readonly pdfGenerationQueue: {
+      add: (name: string, data: any) => Promise<any>;
+    },
     @Inject('BullQueue_contract-expiration')
-    private readonly contractExpirationQueue: { add: (name: string, data: any, options?: any) => Promise<any> },
+    private readonly contractExpirationQueue: {
+      add: (name: string, data: any, options?: any) => Promise<any>;
+    },
   ) {}
 
-  async expressInterest(listingId: string, requesterId: string): Promise<{ listing: Listing; transaction: ListingTransaction }> {
+  async expressInterest(
+    listingId: string,
+    requesterId: string,
+  ): Promise<{ listing: Listing; transaction: ListingTransaction }> {
     const listing = await this.listingsService.findOne(listingId);
 
     if (listing.creatorId === requesterId) {
-      throw new ForbiddenException('Le créateur ne peut pas exprimer d\'intérêt sur sa propre annonce');
+      throw new ForbiddenException(
+        "Le créateur ne peut pas exprimer d'intérêt sur sa propre annonce",
+      );
     }
 
     if (listing.status !== ListingStatusEnum.OPEN) {
-      throw new ConflictException('L\'annonce n\'est plus ouverte');
+      throw new ConflictException("L'annonce n'est plus ouverte");
     }
 
-    const existingTransaction = await this.transactionService.findOneByListingId(listingId);
+    const existingTransaction =
+      await this.transactionService.findOneByListingId(listingId);
     if (existingTransaction) {
-      throw new ConflictException('Une transaction existe déjà pour cette annonce');
+      throw new ConflictException(
+        'Une transaction existe déjà pour cette annonce',
+      );
     }
 
     // Create transaction
@@ -65,7 +79,7 @@ export class ListingStateMachineService {
     );
 
     if (result.affected === 0) {
-      throw new ConflictException('L\'annonce n\'est plus ouverte');
+      throw new ConflictException("L'annonce n'est plus ouverte");
     }
 
     const updatedListing = await this.listingsService.findOne(listingId);
@@ -81,8 +95,16 @@ export class ListingStateMachineService {
     });
 
     // Gateway Room and Status change
-    this.listingsGateway.joinPartiesToRoom(listingId, listing.creatorId, requesterId);
-    this.listingsGateway.emitStatusChanged(listingId, ListingStatusEnum.PENDING, updatedListing.updatedAt || new Date());
+    this.listingsGateway.joinPartiesToRoom(
+      listingId,
+      listing.creatorId,
+      requesterId,
+    );
+    this.listingsGateway.emitStatusChanged(
+      listingId,
+      ListingStatusEnum.PENDING,
+      updatedListing.updatedAt || new Date(),
+    );
 
     return { listing: updatedListing, transaction };
   }
@@ -95,7 +117,9 @@ export class ListingStateMachineService {
     }
 
     if (listing.status !== ListingStatusEnum.PENDING) {
-      throw new ConflictException('L\'annonce n\'est pas en attente d\'acceptation');
+      throw new ConflictException(
+        "L'annonce n'est pas en attente d'acceptation",
+      );
     }
 
     const result = await this.listingRepository.update(
@@ -104,11 +128,14 @@ export class ListingStateMachineService {
     );
 
     if (result.affected === 0) {
-      throw new ConflictException('L\'annonce n\'est plus en attente d\'acceptation');
+      throw new ConflictException(
+        "L'annonce n'est plus en attente d'acceptation",
+      );
     }
 
     const updatedListing = await this.listingsService.findOne(listingId);
-    const transaction = await this.transactionService.findByListingId(listingId);
+    const transaction =
+      await this.transactionService.findByListingId(listingId);
 
     // Enqueue PDF contract generation
     await this.pdfGenerationQueue.add('generate-contract', {
@@ -133,18 +160,26 @@ export class ListingStateMachineService {
     });
 
     // Gateway status change
-    this.listingsGateway.emitStatusChanged(listingId, ListingStatusEnum.IN_PROGRESS, updatedListing.updatedAt || new Date());
+    this.listingsGateway.emitStatusChanged(
+      listingId,
+      ListingStatusEnum.IN_PROGRESS,
+      updatedListing.updatedAt || new Date(),
+    );
 
     return updatedListing;
   }
 
-  async confirmExecution(listingId: string, userId: string): Promise<ListingTransaction> {
-    const transaction = await this.transactionService.findByListingId(listingId);
+  async confirmExecution(
+    listingId: string,
+    userId: string,
+  ): Promise<ListingTransaction> {
+    const transaction =
+      await this.transactionService.findByListingId(listingId);
     await this.transactionService.verifyPartyAccess(userId, transaction);
 
     const listing = await this.listingsService.findOne(listingId);
     if (listing.status !== ListingStatusEnum.IN_PROGRESS) {
-      throw new ConflictException('L\'annonce n\'est pas en cours');
+      throw new ConflictException("L'annonce n'est pas en cours");
     }
 
     if (transaction.providerId === userId) {
@@ -162,14 +197,21 @@ export class ListingStateMachineService {
     let savedTransaction = await this.transactionService.save(transaction);
 
     // If both confirmed, close listing
-    if (savedTransaction.providerConfirmedAt && savedTransaction.requesterConfirmedAt) {
+    if (
+      savedTransaction.providerConfirmedAt &&
+      savedTransaction.requesterConfirmedAt
+    ) {
       const result = await this.listingRepository.update(
         { id: listingId, status: ListingStatusEnum.IN_PROGRESS },
-        { status: ListingStatusEnum.CLOSED, closedAt: new Date(), updatedAt: new Date() },
+        {
+          status: ListingStatusEnum.CLOSED,
+          closedAt: new Date(),
+          updatedAt: new Date(),
+        },
       );
 
       if (result.affected === 0) {
-        throw new ConflictException('L\'annonce n\'est plus en cours');
+        throw new ConflictException("L'annonce n'est plus en cours");
       }
 
       savedTransaction.status = TransactionStatusEnum.COMPLETED;
@@ -194,21 +236,29 @@ export class ListingStateMachineService {
       });
 
       // Emit gateway
-      this.listingsGateway.emitStatusChanged(listingId, ListingStatusEnum.CLOSED, updatedListing.updatedAt || new Date());
+      this.listingsGateway.emitStatusChanged(
+        listingId,
+        ListingStatusEnum.CLOSED,
+        updatedListing.updatedAt || new Date(),
+      );
     }
 
     return savedTransaction;
   }
 
-  async cancel(listingId: string, userId: string, reason: string): Promise<Listing> {
+  async cancel(
+    listingId: string,
+    userId: string,
+    reason: string,
+  ): Promise<Listing> {
     if (!reason || reason.trim() === '') {
-      throw new BadRequestException('Le motif d\'annulation est obligatoire');
+      throw new BadRequestException("Le motif d'annulation est obligatoire");
     }
 
     const listing = await this.listingsService.findOne(listingId);
 
     if (listing.status === ListingStatusEnum.CLOSED) {
-      throw new ConflictException('Impossible d\'annuler une annonce clôturée');
+      throw new ConflictException("Impossible d'annuler une annonce clôturée");
     }
 
     let transaction: ListingTransaction | null = null;
@@ -224,7 +274,10 @@ export class ListingStateMachineService {
         throw new ForbiddenException('Action non autorisée');
       }
     } else if (transaction) {
-      if (transaction.providerId !== userId && transaction.requesterId !== userId) {
+      if (
+        transaction.providerId !== userId &&
+        transaction.requesterId !== userId
+      ) {
         throw new ForbiddenException('Action non autorisée');
       }
     } else {
@@ -259,7 +312,11 @@ export class ListingStateMachineService {
     });
 
     // Gateway
-    this.listingsGateway.emitStatusChanged(listingId, ListingStatusEnum.CANCELLED, updatedListing.updatedAt || new Date());
+    this.listingsGateway.emitStatusChanged(
+      listingId,
+      ListingStatusEnum.CANCELLED,
+      updatedListing.updatedAt || new Date(),
+    );
 
     return updatedListing;
   }

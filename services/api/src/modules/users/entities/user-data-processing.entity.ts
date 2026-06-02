@@ -19,7 +19,12 @@ export class UserDataProcessing {
   })
   optOuts: string[];
 
-  @Column({ name: 'is_restricted', type: 'boolean', nullable: false, default: false })
+  @Column({
+    name: 'is_restricted',
+    type: 'boolean',
+    nullable: false,
+    default: false,
+  })
   isRestricted: boolean;
 
   @Column({ name: 'restricted_at', type: 'timestamptz', nullable: true })

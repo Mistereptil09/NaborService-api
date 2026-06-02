@@ -12,7 +12,11 @@ import { Listing } from './entities/listing.entity';
 import { ListingReport } from './entities/listing-report.entity';
 import { ListingTransaction } from './entities/listing-transaction.entity';
 import { ModerateListingDto, ListListingsDto } from './dto/listing-routes.dtos';
-import { ListingStatusEnum, TransactionStatusEnum, ModerationActionEnum } from '../../common/enums';
+import {
+  ListingStatusEnum,
+  TransactionStatusEnum,
+  ModerationActionEnum,
+} from '../../common/enums';
 import { ListingsService } from './listings.service';
 import { ListingTransactionService } from './listing-transaction.service';
 
@@ -29,13 +33,24 @@ export class ListingModerationService {
     private readonly listingsService: ListingsService,
     private readonly transactionService: ListingTransactionService,
     @Inject('BullQueue_neo4j-sync')
-    private readonly neo4jSyncQueue: { add: (name: string, data: any) => Promise<any> },
+    private readonly neo4jSyncQueue: {
+      add: (name: string, data: any) => Promise<any>;
+    },
     @Inject('BullQueue_email')
-    private readonly emailQueue: { add: (name: string, data: any) => Promise<any> },
+    private readonly emailQueue: {
+      add: (name: string, data: any) => Promise<any>;
+    },
   ) {}
 
-  async moderate(moderatorId: string, listingId: string, dto: ModerateListingDto): Promise<void> {
-    if (!dto.action || !['cancelled', 'warned', 'restored'].includes(dto.action)) {
+  async moderate(
+    moderatorId: string,
+    listingId: string,
+    dto: ModerateListingDto,
+  ): Promise<void> {
+    if (
+      !dto.action ||
+      !['cancelled', 'warned', 'restored'].includes(dto.action)
+    ) {
       throw new BadRequestException('Action de modération invalide');
     }
     if (!dto.reason || dto.reason.trim() === '') {
@@ -64,10 +79,11 @@ export class ListingModerationService {
     const oldStatus = listing.status;
     if (dto.action === 'cancelled') {
       listing.status = ListingStatusEnum.CANCELLED;
-      
+
       if (oldStatus === ListingStatusEnum.IN_PROGRESS) {
         try {
-          const transaction = await this.transactionService.findByListingId(listingId);
+          const transaction =
+            await this.transactionService.findByListingId(listingId);
           transaction.status = TransactionStatusEnum.CANCELLED;
           transaction.cancelledAt = new Date();
           await this.transactionService.save(transaction);
@@ -102,7 +118,9 @@ export class ListingModerationService {
     });
   }
 
-  async getModerationHistory(listingId: string): Promise<ListingModerationAction[]> {
+  async getModerationHistory(
+    listingId: string,
+  ): Promise<ListingModerationAction[]> {
     await this.listingsService.findOne(listingId); // verify listing exists
 
     return this.moderationRepository.find({
@@ -111,7 +129,9 @@ export class ListingModerationService {
     });
   }
 
-  async getAllModerationActions(dto: ListListingsDto): Promise<{ data: ListingModerationAction[]; total: number }> {
+  async getAllModerationActions(
+    dto: ListListingsDto,
+  ): Promise<{ data: ListingModerationAction[]; total: number }> {
     const [data, total] = await this.moderationRepository.findAndCount({
       order: { createdAt: 'DESC' },
       skip: dto.offset,

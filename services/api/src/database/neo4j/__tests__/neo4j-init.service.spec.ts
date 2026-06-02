@@ -28,7 +28,9 @@ describe('Neo4jInitService', () => {
   });
 
   it('should fail fast on startup if driver connectivity fails', async () => {
-    mockDriver.verifyConnectivity.mockRejectedValueOnce(new Error('Connection failed'));
+    mockDriver.verifyConnectivity.mockRejectedValueOnce(
+      new Error('Connection failed'),
+    );
 
     await expect(service.onModuleInit()).rejects.toThrow(
       'Neo4j connection failed during initialization',

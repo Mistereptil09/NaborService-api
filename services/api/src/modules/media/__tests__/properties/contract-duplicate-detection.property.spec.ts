@@ -49,12 +49,12 @@ describe('Feature: gridfs-media-storage, Property 13: Contract Duplicate Detecti
             sha256_hash: 'some-hash',
           });
 
-          await expect(mediaService.upload(file, 'contract', 'trans-123')).rejects.toThrow(
-            ConflictException,
-          );
-        }
+          await expect(
+            mediaService.upload(file, 'contract', 'trans-123'),
+          ).rejects.toThrow(ConflictException);
+        },
       ),
-      { numRuns: 50 }
+      { numRuns: 50 },
     );
   });
 });

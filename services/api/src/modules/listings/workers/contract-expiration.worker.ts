@@ -5,10 +5,16 @@ import { Job, Queue } from 'bullmq';
 import { Model } from 'mongoose';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Contract, ContractDocument } from '../../../database/mongo-schemas/schemas/contract.schema';
+import {
+  Contract,
+  ContractDocument,
+} from '../../../database/mongo-schemas/schemas/contract.schema';
 import { ListingTransaction } from '../entities/listing-transaction.entity';
 import { Listing } from '../entities/listing.entity';
-import { ListingStatusEnum, TransactionStatusEnum } from '../../../common/enums';
+import {
+  ListingStatusEnum,
+  TransactionStatusEnum,
+} from '../../../common/enums';
 import { ListingsGateway } from '../listings.gateway';
 import { ContractExpirationJobPayload } from '../../../queue/interfaces/job-payloads';
 import { classifyAndThrow } from '../../../queue/utils/error-classifier';
@@ -18,7 +24,9 @@ import { getBackoffDelay } from '../../../queue/utils/backoff-strategy';
   concurrency: 1,
   settings: {
     backoffStrategy: (attemptsMade: number, type: string) => {
-      return type === 'custom' ? getBackoffDelay('contract-expiration', attemptsMade) : 1000;
+      return type === 'custom'
+        ? getBackoffDelay('contract-expiration', attemptsMade)
+        : 1000;
     },
   },
 })
@@ -50,18 +58,25 @@ export class ContractExpirationWorker extends WorkerHost {
       where: { id: data.transactionId },
     });
     if (!transaction) {
-      throw new NotFoundException(`Transaction ${data.transactionId} non trouvée`);
+      throw new NotFoundException(
+        `Transaction ${data.transactionId} non trouvée`,
+      );
     }
 
     const listing = await this.listingRepository.findOne({
       where: { id: transaction.listingId },
     });
     if (!listing) {
-      throw new NotFoundException(`Annonce pour la transaction ${data.transactionId} non trouvée`);
+      throw new NotFoundException(
+        `Annonce pour la transaction ${data.transactionId} non trouvée`,
+      );
     }
 
     // Only cancel if listing is not already closed or cancelled
-    if (listing.status !== ListingStatusEnum.IN_PROGRESS && listing.status !== ListingStatusEnum.PENDING) {
+    if (
+      listing.status !== ListingStatusEnum.IN_PROGRESS &&
+      listing.status !== ListingStatusEnum.PENDING
+    ) {
       return;
     }
 
@@ -90,7 +105,11 @@ export class ContractExpirationWorker extends WorkerHost {
       });
 
       // Emit Gateway Status Changed
-      this.listingsGateway.emitStatusChanged(listing.id, ListingStatusEnum.CANCELLED, listing.updatedAt);
+      this.listingsGateway.emitStatusChanged(
+        listing.id,
+        ListingStatusEnum.CANCELLED,
+        listing.updatedAt,
+      );
     }
   }
 }

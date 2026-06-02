@@ -1,10 +1,21 @@
-import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Evenement } from './entities/evenement.entity';
 import { EventParticipant } from './entities/event-participant.entity';
 import { ChatGroup } from '../messaging/entities/chat-group.entity';
-import { EventStatusEnum, ChatGroupTypeEnum, ParticipantStatusEnum, PaymentStatusEnum } from '../../common/enums';
+import {
+  EventStatusEnum,
+  ChatGroupTypeEnum,
+  ParticipantStatusEnum,
+  PaymentStatusEnum,
+} from '../../common/enums';
 import { EventsGateway } from './events.gateway';
 
 @Injectable()
@@ -36,7 +47,7 @@ export class EventStateMachineService {
       type: ChatGroupTypeEnum.GROUP_CHAT,
     });
     const savedGroup = await this.chatGroupRepo.save(chatGroup);
-    
+
     event.groupId = savedGroup.id;
     await this.eventRepo.save(event);
 
@@ -77,8 +88,13 @@ export class EventStateMachineService {
 
     const event = await this.getEventAndCheckOwner(eventId, organiserId);
 
-    if (event.status === EventStatusEnum.COMPLETED || event.status === EventStatusEnum.CANCELLED) {
-      throw new ConflictException('Cannot cancel a completed or already cancelled event');
+    if (
+      event.status === EventStatusEnum.COMPLETED ||
+      event.status === EventStatusEnum.CANCELLED
+    ) {
+      throw new ConflictException(
+        'Cannot cancel a completed or already cancelled event',
+      );
     }
 
     event.status = EventStatusEnum.CANCELLED;
@@ -87,11 +103,17 @@ export class EventStateMachineService {
 
     // Refund logic
     const participants = await this.participantRepo.find({
-      where: { eventId, status: ParticipantStatusEnum.REGISTERED, paymentStatus: PaymentStatusEnum.COMPLETED },
+      where: {
+        eventId,
+        status: ParticipantStatusEnum.REGISTERED,
+        paymentStatus: PaymentStatusEnum.COMPLETED,
+      },
     });
 
     for (const p of participants) {
-      const hoursSinceRegistration = (event.cancelledAt.getTime() - p.registeredAt.getTime()) / (1000 * 60 * 60);
+      const hoursSinceRegistration =
+        (event.cancelledAt.getTime() - p.registeredAt.getTime()) /
+        (1000 * 60 * 60);
       if (hoursSinceRegistration <= event.refundDeadlineHours) {
         // Trigger refund (Mock Stripe integration)
         p.paymentStatus = PaymentStatusEnum.REFUNDED;
@@ -113,7 +135,9 @@ export class EventStateMachineService {
       throw new NotFoundException('Event not found');
     }
     if (event.creatorId !== organiserId) {
-      throw new ForbiddenException('Only the organiser can perform this action');
+      throw new ForbiddenException(
+        'Only the organiser can perform this action',
+      );
     }
     return event;
   }

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -38,13 +43,19 @@ export class EventsService {
     const blocks = await this.blockRepo.find({
       where: [{ blockerId: userId }, { blockedId: userId }],
     });
-    const blockedUserIds = blocks.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId));
+    const blockedUserIds = blocks.map((b) =>
+      b.blockerId === userId ? b.blockedId : b.blockerId,
+    );
     if (blockedUserIds.length > 0) {
-      qb.andWhere('event.creatorId NOT IN (:...blockedUserIds)', { blockedUserIds });
+      qb.andWhere('event.creatorId NOT IN (:...blockedUserIds)', {
+        blockedUserIds,
+      });
     }
 
     if (query.neighbourhood) {
-      qb.andWhere('event.neighbourhoodId = :neighbourhood', { neighbourhood: query.neighbourhood });
+      qb.andWhere('event.neighbourhoodId = :neighbourhood', {
+        neighbourhood: query.neighbourhood,
+      });
     }
     if (query.category) {
       qb.andWhere('event.categoryId = :category', { category: query.category });
@@ -90,20 +101,39 @@ export class EventsService {
       throw new ForbiddenException('Only the owner can update this event');
     }
 
-    if (event.status !== EventStatusEnum.DRAFT && event.status !== EventStatusEnum.PUBLISHED) {
-      throw new ConflictException('Event can only be updated in draft or published state');
+    if (
+      event.status !== EventStatusEnum.DRAFT &&
+      event.status !== EventStatusEnum.PUBLISHED
+    ) {
+      throw new ConflictException(
+        'Event can only be updated in draft or published state',
+      );
     }
 
     Object.assign(event, {
       ...dto,
       ...(dto.cost_cents !== undefined && { costCents: dto.cost_cents }),
-      ...(dto.refund_deadline_hours !== undefined && { refundDeadlineHours: dto.refund_deadline_hours }),
-      ...(dto.invite_code !== undefined && { inviteCode: dto.invite_code || null }),
-      ...(dto.category_id !== undefined && { categoryId: dto.category_id || null }),
-      ...(dto.neighbourhood_id !== undefined && { neighbourhoodId: dto.neighbourhood_id || null }),
-      ...(dto.starts_at !== undefined && { startsAt: dto.starts_at ? new Date(dto.starts_at) : null }),
-      ...(dto.ends_at !== undefined && { endsAt: dto.ends_at ? new Date(dto.ends_at) : null }),
-      ...(dto.max_participants !== undefined && { maxParticipants: dto.max_participants || null }),
+      ...(dto.refund_deadline_hours !== undefined && {
+        refundDeadlineHours: dto.refund_deadline_hours,
+      }),
+      ...(dto.invite_code !== undefined && {
+        inviteCode: dto.invite_code || null,
+      }),
+      ...(dto.category_id !== undefined && {
+        categoryId: dto.category_id || null,
+      }),
+      ...(dto.neighbourhood_id !== undefined && {
+        neighbourhoodId: dto.neighbourhood_id || null,
+      }),
+      ...(dto.starts_at !== undefined && {
+        startsAt: dto.starts_at ? new Date(dto.starts_at) : null,
+      }),
+      ...(dto.ends_at !== undefined && {
+        endsAt: dto.ends_at ? new Date(dto.ends_at) : null,
+      }),
+      ...(dto.max_participants !== undefined && {
+        maxParticipants: dto.max_participants || null,
+      }),
     });
 
     event.updatedAt = new Date();
@@ -127,7 +157,11 @@ export class EventsService {
     await this.registerQueue.add(
       'register',
       { eventId: id, userId },
-      { jobId: `${id}_${userId}`, attempts: 3, backoff: { type: 'exponential', delay: 500 } }
+      {
+        jobId: `${id}_${userId}`,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 500 },
+      },
     );
     return { success: true };
   }
@@ -137,8 +171,13 @@ export class EventsService {
       where: { eventId: id, userId },
     });
 
-    if (!participant || participant.status === ParticipantStatusEnum.CANCELLED) {
-      throw new NotFoundException('Registration not found or already cancelled');
+    if (
+      !participant ||
+      participant.status === ParticipantStatusEnum.CANCELLED
+    ) {
+      throw new NotFoundException(
+        'Registration not found or already cancelled',
+      );
     }
 
     participant.status = ParticipantStatusEnum.CANCELLED;
@@ -181,7 +220,9 @@ export class EventsService {
       throw new ConflictException('Cannot swipe on your own event');
     }
 
-    let swipe = await this.swipeRepo.findOne({ where: { eventId: id, userId } });
+    let swipe = await this.swipeRepo.findOne({
+      where: { eventId: id, userId },
+    });
     if (swipe) {
       swipe.direction = direction as any;
       swipe.swipedAt = new Date();
@@ -204,7 +245,11 @@ export class EventsService {
     // Check if participant is registered or owner
     if (event.creatorId !== userId) {
       const participant = await this.participantRepo.findOne({
-        where: { eventId: id, userId, status: ParticipantStatusEnum.REGISTERED },
+        where: {
+          eventId: id,
+          userId,
+          status: ParticipantStatusEnum.REGISTERED,
+        },
       });
       if (!participant) {
         throw new ForbiddenException('Not a registered participant');

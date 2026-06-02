@@ -32,8 +32,10 @@ export class TotpService {
     private readonly configService: ConfigService,
     private readonly rateLimitService: RateLimitService,
   ) {
-    const key = this.configService.get<string>('AES_MASTER_KEY') || 'default-dev-aes-master-key-must-be-changed';
-    
+    const key =
+      this.configService.get<string>('AES_MASTER_KEY') ||
+      'default-dev-aes-master-key-must-be-changed';
+
     // Parse key: if hex 64 chars -> Buffer from hex, otherwise scrypt
     if (/^[0-9a-fA-F]{64}$/.test(key)) {
       this.keyBuffer = Buffer.from(key, 'hex');
@@ -49,7 +51,10 @@ export class TotpService {
   encryptSecret(secret: string): string {
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', this.keyBuffer, iv);
-    const ciphertext = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);
+    const ciphertext = Buffer.concat([
+      cipher.update(secret, 'utf8'),
+      cipher.final(),
+    ]);
     const authTag = cipher.getAuthTag();
 
     return `${iv.toString('base64')}:${authTag.toString('base64')}:${ciphertext.toString('base64')}`;
@@ -71,7 +76,10 @@ export class TotpService {
     const decipher = crypto.createDecipheriv('aes-256-gcm', this.keyBuffer, iv);
     decipher.setAuthTag(authTag);
 
-    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    const decrypted = Buffer.concat([
+      decipher.update(ciphertext),
+      decipher.final(),
+    ]);
     return decrypted.toString('utf8');
   }
 
@@ -90,7 +98,7 @@ export class TotpService {
   async createChallenge(userId: string, context: string): Promise<string> {
     const challengeToken = crypto.randomUUID();
     const key = `totp:pending:${challengeToken}`;
-    
+
     const payload: ChallengePayload = {
       user_id: userId,
       context,
@@ -108,7 +116,7 @@ export class TotpService {
   async verifyChallenge(challengeToken: string, code: string): Promise<string> {
     const challengeKey = `totp:pending:${challengeToken}`;
     const data = await this.redis.get(challengeKey);
-    
+
     if (!data) {
       throw new UnauthorizedException('Challenge expiré ou invalide');
     }
@@ -174,9 +182,16 @@ export class TotpService {
   /**
    * Initiates TOTP setup during login using a challenge token
    */
-  async createSetupChallenge(userId: string, email: string): Promise<{ challengeToken: string, otpauthUrl: string }> {
+  async createSetupChallenge(
+    userId: string,
+    email: string,
+  ): Promise<{ challengeToken: string; otpauthUrl: string }> {
     const secret = otp.generateSecret();
-    const otpauthUrl = otp.generateURI({ label: email, issuer: 'NaborServices', secret });
+    const otpauthUrl = otp.generateURI({
+      label: email,
+      issuer: 'NaborServices',
+      secret,
+    });
 
     const encrypted = this.encryptSecret(secret);
     const challengeToken = crypto.randomUUID();
@@ -194,7 +209,10 @@ export class TotpService {
   /**
    * Confirms TOTP setup using a challenge token and returns the user ID
    */
-  async verifySetupChallenge(challengeToken: string, code: string): Promise<string> {
+  async verifySetupChallenge(
+    challengeToken: string,
+    code: string,
+  ): Promise<string> {
     const setupKey = `totp:setup:${challengeToken}`;
     const data = await this.redis.get(setupKey);
 
@@ -252,7 +270,10 @@ export class TotpService {
   /**
    * Initiates TOTP setup for a user
    */
-  async setupTotp(userId: string, email: string): Promise<{ otpauthUrl: string }> {
+  async setupTotp(
+    userId: string,
+    email: string,
+  ): Promise<{ otpauthUrl: string }> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
@@ -266,7 +287,11 @@ export class TotpService {
     }
 
     const secret = otp.generateSecret();
-    const otpauthUrl = otp.generateURI({ label: email, issuer: 'NaborServices', secret });
+    const otpauthUrl = otp.generateURI({
+      label: email,
+      issuer: 'NaborServices',
+      secret,
+    });
 
     const encrypted = this.encryptSecret(secret);
     const setupKey = `totp:setup:${userId}`;

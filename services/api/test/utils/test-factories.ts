@@ -2,7 +2,10 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
 
-export async function createTestUser(app: INestApplication, emailPrefix = 'test') {
+export async function createTestUser(
+  app: INestApplication,
+  emailPrefix = 'test',
+) {
   const email = `${emailPrefix}_${uuidv4()}@example.com`;
   const password = 'Password123!';
   const dto = {
@@ -18,11 +21,15 @@ export async function createTestUser(app: INestApplication, emailPrefix = 'test'
     .expect(201);
   const userRepository = app.get('UserRepository');
   const dbUser = await userRepository.findOne({ where: { email } });
-  
+
   return { email, password, user: { id: dbUser?.id, ...res.body } };
 }
 
-export async function loginUser(app: INestApplication, email: string, password: string) {
+export async function loginUser(
+  app: INestApplication,
+  email: string,
+  password: string,
+) {
   const res = await request(app.getHttpServer())
     .post('/v1/auth/login')
     .send({ email, password });

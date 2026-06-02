@@ -5,7 +5,8 @@ describe('Contract Schema', () => {
   let ContractModel: mongoose.Model<any>;
 
   beforeAll(() => {
-    ContractModel = mongoose.models.Contract || mongoose.model('Contract', ContractSchema);
+    ContractModel =
+      mongoose.models.Contract || mongoose.model('Contract', ContractSchema);
   });
 
   it('should have the correct collection name', () => {
@@ -15,18 +16,18 @@ describe('Contract Schema', () => {
   it('should have the correct indexes defined', () => {
     const indexes = ContractSchema.indexes();
 
-    const pgTxIdx = indexes.find(idx => idx[0].pg_transaction_id === 1);
+    const pgTxIdx = indexes.find((idx) => idx[0].pg_transaction_id === 1);
     expect(pgTxIdx).toBeDefined();
     expect(pgTxIdx?.[1]?.unique).toBe(true);
 
-    const shaIdx = indexes.find(idx => idx[0].sha256_hash === 1);
+    const shaIdx = indexes.find((idx) => idx[0].sha256_hash === 1);
     expect(shaIdx).toBeDefined();
     expect(shaIdx?.[1]?.unique).toBe(true);
 
-    const signedIdx = indexes.find(idx => idx[0].signed_at === -1);
+    const signedIdx = indexes.find((idx) => idx[0].signed_at === -1);
     expect(signedIdx).toBeDefined();
 
-    const anonymisedIdx = indexes.find(idx => idx[0].anonymised_at === 1);
+    const anonymisedIdx = indexes.find((idx) => idx[0].anonymised_at === 1);
     expect(anonymisedIdx).toBeDefined();
   });
 

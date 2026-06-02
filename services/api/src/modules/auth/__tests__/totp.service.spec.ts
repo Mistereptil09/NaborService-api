@@ -9,7 +9,11 @@ import { RateLimitService } from '../rate-limit.service';
 
 jest.mock('otplib', () => ({
   generateSecret: jest.fn().mockReturnValue('JBSWY3DPEHPK3PXP'),
-  generateURI: jest.fn().mockReturnValue('otpauth://totp/NaborServices:test@test.com?secret=JBSWY3DPEHPK3PXP'),
+  generateURI: jest
+    .fn()
+    .mockReturnValue(
+      'otpauth://totp/NaborServices:test@test.com?secret=JBSWY3DPEHPK3PXP',
+    ),
   verifySync: jest.fn(),
 }));
 
@@ -33,7 +37,11 @@ describe('TotpService', () => {
   };
 
   const mockConfigService = {
-    get: jest.fn().mockReturnValue('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
+    get: jest
+      .fn()
+      .mockReturnValue(
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      ),
   };
 
   const mockRateLimitService = {
@@ -69,7 +77,7 @@ describe('TotpService', () => {
     it('should encrypt and decrypt a secret successfully', () => {
       const secret = 'JBSWY3DPEHPK3PXP';
       const encrypted = service.encryptSecret(secret);
-      
+
       expect(encrypted).toContain(':');
       expect(encrypted.split(':')).toHaveLength(3);
 
@@ -108,28 +116,43 @@ describe('TotpService', () => {
 
   describe('setupTotp', () => {
     it('should initiate setup and return otpauthUrl', async () => {
-      const user = { id: 'user-id', email: 'test@test.com', totpSecret: null } as User;
+      const user = {
+        id: 'user-id',
+        email: 'test@test.com',
+        totpSecret: null,
+      } as User;
       mockUserRepository.findOne.mockResolvedValueOnce(user);
 
       const result = await service.setupTotp('user-id', 'test@test.com');
-      
-      expect(userRepo.findOne).toHaveBeenCalledWith({ where: { id: 'user-id' } });
+
+      expect(userRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 'user-id' },
+      });
       expect(otp.generateSecret).toHaveBeenCalledWith();
-      expect(otp.generateURI).toHaveBeenCalledWith({ label: 'test@test.com', issuer: 'NaborServices', secret: 'JBSWY3DPEHPK3PXP' });
+      expect(otp.generateURI).toHaveBeenCalledWith({
+        label: 'test@test.com',
+        issuer: 'NaborServices',
+        secret: 'JBSWY3DPEHPK3PXP',
+      });
       expect(redisClient.set).toHaveBeenCalledWith(
         'totp:setup:user-id',
         expect.stringContaining('"encrypted_secret"'),
         'EX',
         600,
       );
-      expect(result).toEqual({ otpauthUrl: 'otpauth://totp/NaborServices:test@test.com?secret=JBSWY3DPEHPK3PXP' });
+      expect(result).toEqual({
+        otpauthUrl:
+          'otpauth://totp/NaborServices:test@test.com?secret=JBSWY3DPEHPK3PXP',
+      });
     });
   });
 
   describe('confirmTotp', () => {
     it('should throw if setup payload not found in Redis', async () => {
       mockRedisClient.get.mockResolvedValueOnce(null);
-      await expect(service.confirmTotp('user-id', '123456')).rejects.toThrow('Setup expiré ou non initié');
+      await expect(service.confirmTotp('user-id', '123456')).rejects.toThrow(
+        'Setup expiré ou non initié',
+      );
     });
 
     it('should save secret to user when code is valid', async () => {
@@ -138,13 +161,23 @@ describe('TotpService', () => {
       const user = { id: 'user-id', totpSecret: null } as User;
 
       mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(setupPayload));
-      (otp.verifySync as jest.Mock).mockReturnValueOnce({ valid: true, delta: 0 });
+      (otp.verifySync as jest.Mock).mockReturnValueOnce({
+        valid: true,
+        delta: 0,
+      });
       mockUserRepository.findOne.mockResolvedValueOnce(user);
 
       await service.confirmTotp('user-id', '123456');
 
-      expect(otp.verifySync).toHaveBeenCalledWith(expect.objectContaining({ token: '123456', secret: 'JBSWY3DPEHPK3PXP' }));
-      expect(userRepo.findOne).toHaveBeenCalledWith({ where: { id: 'user-id' } });
+      expect(otp.verifySync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          token: '123456',
+          secret: 'JBSWY3DPEHPK3PXP',
+        }),
+      );
+      expect(userRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 'user-id' },
+      });
       expect(user.totpSecret).toBe(encrypted);
       expect(userRepo.save).toHaveBeenCalledWith(user);
       expect(redisClient.del).toHaveBeenCalledWith('totp:setup:user-id');
@@ -157,7 +190,9 @@ describe('TotpService', () => {
       mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(setupPayload));
       (otp.verifySync as jest.Mock).mockReturnValueOnce({ valid: false });
 
-      await expect(service.confirmTotp('user-id', '111111')).rejects.toThrow('Code TOTP invalide');
+      await expect(service.confirmTotp('user-id', '111111')).rejects.toThrow(
+        'Code TOTP invalide',
+      );
 
       expect(redisClient.set).toHaveBeenCalledWith(
         'totp:setup:user-id',
@@ -174,7 +209,9 @@ describe('TotpService', () => {
       mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(setupPayload));
       (otp.verifySync as jest.Mock).mockReturnValueOnce({ valid: false });
 
-      await expect(service.confirmTotp('user-id', '111111')).rejects.toThrow('Setup expiré, relancez le flux');
+      await expect(service.confirmTotp('user-id', '111111')).rejects.toThrow(
+        'Setup expiré, relancez le flux',
+      );
 
       expect(redisClient.del).toHaveBeenCalledWith('totp:setup:user-id');
     });

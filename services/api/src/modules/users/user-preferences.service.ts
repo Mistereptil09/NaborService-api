@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
@@ -28,9 +32,14 @@ export class UserPreferencesService {
     return { locale: user.locale };
   }
 
-  async updateLocale(userId: string, locale: string): Promise<{ locale: string }> {
+  async updateLocale(
+    userId: string,
+    locale: string,
+  ): Promise<{ locale: string }> {
     if (locale !== 'fr' && locale !== 'en') {
-      throw new BadRequestException('Locale non supporté (fr ou en uniquement)');
+      throw new BadRequestException(
+        'Locale non supporté (fr ou en uniquement)',
+      );
     }
 
     const result = await this.userRepository.update(userId, { locale });
@@ -41,16 +50,25 @@ export class UserPreferencesService {
     return { locale };
   }
 
-  async getNotificationPreferences(userId: string): Promise<UserNotificationPreferences> {
-    const prefs = await this.notifPrefsRepository.findOne({ where: { userId } });
+  async getNotificationPreferences(
+    userId: string,
+  ): Promise<UserNotificationPreferences> {
+    const prefs = await this.notifPrefsRepository.findOne({
+      where: { userId },
+    });
     if (!prefs) {
       throw new NotFoundException('Préférences de notifications introuvables');
     }
     return prefs;
   }
 
-  async updateNotificationPreferences(userId: string, dto: UpdateNotifPrefsDto): Promise<UserNotificationPreferences> {
-    const prefs = await this.notifPrefsRepository.findOne({ where: { userId } });
+  async updateNotificationPreferences(
+    userId: string,
+    dto: UpdateNotifPrefsDto,
+  ): Promise<UserNotificationPreferences> {
+    const prefs = await this.notifPrefsRepository.findOne({
+      where: { userId },
+    });
     if (!prefs) {
       throw new NotFoundException('Préférences de notifications introuvables');
     }
@@ -62,25 +80,40 @@ export class UserPreferencesService {
     return this.notifPrefsRepository.save(prefs);
   }
 
-  async canReceiveEmail(userId: string, templateName: string): Promise<boolean> {
+  async canReceiveEmail(
+    userId: string,
+    templateName: string,
+  ): Promise<boolean> {
     const isEssential = ESSENTIAL_EMAILS.includes(templateName as any);
     if (isEssential) {
       return true;
     }
 
-    const isOptedOut = await this.dataProcessingService.isOptedOut(userId, 'notifications');
+    const isOptedOut = await this.dataProcessingService.isOptedOut(
+      userId,
+      'notifications',
+    );
     if (isOptedOut) {
       return false;
     }
 
-    const prefs = await this.notifPrefsRepository.findOne({ where: { userId } });
+    const prefs = await this.notifPrefsRepository.findOne({
+      where: { userId },
+    });
     if (!prefs) {
       return true;
     }
 
-    if (templateName === 'event:waitlist_promoted' && !prefs.notifWaitlist) return false;
-    if (templateName.startsWith('event:') && templateName !== 'event:waitlist_promoted' && !prefs.notifNewEvent) return false;
-    if (templateName === 'new_follower' && !prefs.notifNewFollower) return false;
+    if (templateName === 'event:waitlist_promoted' && !prefs.notifWaitlist)
+      return false;
+    if (
+      templateName.startsWith('event:') &&
+      templateName !== 'event:waitlist_promoted' &&
+      !prefs.notifNewEvent
+    )
+      return false;
+    if (templateName === 'new_follower' && !prefs.notifNewFollower)
+      return false;
     if (templateName === 'new_listing' && !prefs.notifNewListing) return false;
     if (templateName === 'new_poll' && !prefs.notifNewPoll) return false;
 

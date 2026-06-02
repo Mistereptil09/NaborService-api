@@ -72,14 +72,16 @@ export class UsersController {
     private readonly socialService: UserSocialService,
   ) {}
 
-
   // --- Profile ---
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Consulter son profil complet' })
-  @ApiOkResponse({ description: 'Profil complet de l\'utilisateur connecté retourné avec succès' })
+  @ApiOkResponse({
+    description:
+      "Profil complet de l'utilisateur connecté retourné avec succès",
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async getMe(@Req() req: { user: JwtPayload }) {
     return this.usersService.getProfile(req.user.sub);
@@ -92,7 +94,10 @@ export class UsersController {
   @ApiOkResponse({ description: 'Profil mis à jour avec succès' })
   @ApiBadRequestResponse({ description: 'Données de profil invalides' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async updateMe(@Req() req: { user: JwtPayload }, @Body() dto: UpdateProfileDto) {
+  async updateMe(
+    @Req() req: { user: JwtPayload },
+    @Body() dto: UpdateProfileDto,
+  ) {
     return this.usersService.updateProfile(req.user.sub, dto);
   }
 
@@ -101,10 +106,15 @@ export class UsersController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Supprimer son compte (soft delete)' })
-  @ApiNoContentResponse({ description: 'Compte désactivé et supprimé logiquement avec succès' })
+  @ApiNoContentResponse({
+    description: 'Compte désactivé et supprimé logiquement avec succès',
+  })
   @ApiBadRequestResponse({ description: 'Code TOTP invalide' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async deleteMe(@Req() req: { user: JwtPayload }, @Body('totpCode') totpCode: string) {
+  async deleteMe(
+    @Req() req: { user: JwtPayload },
+    @Body('totpCode') totpCode: string,
+  ) {
     await this.usersService.softDelete(req.user.sub, totpCode);
   }
 
@@ -114,11 +124,17 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Exporter ses données personnelles en JSON' })
-  @ApiOkResponse({ description: 'Fichier JSON contenant toutes les données personnelles de l\'utilisateur' })
+  @ApiOkResponse({
+    description:
+      "Fichier JSON contenant toutes les données personnelles de l'utilisateur",
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async exportJson(@Req() req: { user: JwtPayload }, @Res() res: Response) {
     const data = await this.usersService.exportJson(req.user.sub);
-    res.setHeader('Content-Disposition', `attachment; filename="export-rgpd-${req.user.sub}.json"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="export-rgpd-${req.user.sub}.json"`,
+    );
     res.setHeader('Content-Type', 'application/json');
     res.send(data);
   }
@@ -127,11 +143,17 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Exporter ses données personnelles en CSV' })
-  @ApiOkResponse({ description: 'Archive/Fichier CSV contenant toutes les données personnelles structurées' })
+  @ApiOkResponse({
+    description:
+      'Archive/Fichier CSV contenant toutes les données personnelles structurées',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async exportCsv(@Req() req: { user: JwtPayload }, @Res() res: Response) {
     const csv = await this.usersService.exportCsv(req.user.sub);
-    res.setHeader('Content-Disposition', `attachment; filename="export-rgpd-${req.user.sub}.csv"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="export-rgpd-${req.user.sub}.csv"`,
+    );
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.send(csv);
   }
@@ -144,11 +166,22 @@ export class UsersController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Upload avatar' })
-  @ApiCreatedResponse({ description: 'Avatar téléversé et mis à jour avec succès' })
-  @ApiBadRequestResponse({ description: 'Fichier invalide, trop volumineux ou format non supporté' })
+  @ApiCreatedResponse({
+    description: 'Avatar téléversé et mis à jour avec succès',
+  })
+  @ApiBadRequestResponse({
+    description: 'Fichier invalide, trop volumineux ou format non supporté',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async uploadAvatar(@Req() req: { user: JwtPayload }, @UploadedFile() file: Express.Multer.File) {
-    const mediaId = await this.mediaService.uploadMedia(req.user.sub, file, 'avatar');
+  async uploadAvatar(
+    @Req() req: { user: JwtPayload },
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const mediaId = await this.mediaService.uploadMedia(
+      req.user.sub,
+      file,
+      'avatar',
+    );
     return { profilePictureMongoId: mediaId };
   }
 
@@ -169,11 +202,22 @@ export class UsersController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Upload bannière' })
-  @ApiCreatedResponse({ description: 'Bannière téléversée et mise à jour avec succès' })
-  @ApiBadRequestResponse({ description: 'Fichier invalide, trop volumineux ou format non supporté' })
+  @ApiCreatedResponse({
+    description: 'Bannière téléversée et mise à jour avec succès',
+  })
+  @ApiBadRequestResponse({
+    description: 'Fichier invalide, trop volumineux ou format non supporté',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async uploadBanner(@Req() req: { user: JwtPayload }, @UploadedFile() file: Express.Multer.File) {
-    const mediaId = await this.mediaService.uploadMedia(req.user.sub, file, 'banner');
+  async uploadBanner(
+    @Req() req: { user: JwtPayload },
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const mediaId = await this.mediaService.uploadMedia(
+      req.user.sub,
+      file,
+      'banner',
+    );
     return { bannerMongoId: mediaId };
   }
 
@@ -196,7 +240,10 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Changer de mot de passe' })
   @ApiNoContentResponse({ description: 'Mot de passe mis à jour avec succès' })
-  @ApiBadRequestResponse({ description: 'Ancien mot de passe ou code TOTP invalide, ou mot de passe non sécurisé' })
+  @ApiBadRequestResponse({
+    description:
+      'Ancien mot de passe ou code TOTP invalide, ou mot de passe non sécurisé',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
     const refreshToken = req.cookies?.['refresh_token'];
@@ -208,13 +255,16 @@ export class UsersController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: "Changer d'adresse email" })
-  @ApiNoContentResponse({ description: 'Adresse email mise à jour avec succès' })
-  @ApiBadRequestResponse({ description: 'Nouvelle adresse email invalide ou code TOTP incorrect' })
+  @ApiNoContentResponse({
+    description: 'Adresse email mise à jour avec succès',
+  })
+  @ApiBadRequestResponse({
+    description: 'Nouvelle adresse email invalide ou code TOTP incorrect',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async changeEmail(@Req() req: any, @Body() dto: ChangeEmailDto) {
     await this.securityService.changeEmail(req.user.sub, dto);
   }
-
 
   // --- Preferences ---
 
@@ -222,7 +272,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Lire la langue active' })
-  @ApiOkResponse({ description: 'Langue active de l\'utilisateur retournée' })
+  @ApiOkResponse({ description: "Langue active de l'utilisateur retournée" })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async getLocale(@Req() req: any) {
     return this.preferencesService.getLocale(req.user.sub);
@@ -235,7 +285,10 @@ export class UsersController {
   @ApiOkResponse({ description: 'Langue active mise à jour avec succès' })
   @ApiBadRequestResponse({ description: 'Langue demandée non prise en charge' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async updateLocale(@Req() req: { user: JwtPayload }, @Body() dto: UpdateLocaleDto) {
+  async updateLocale(
+    @Req() req: { user: JwtPayload },
+    @Body() dto: UpdateLocaleDto,
+  ) {
     return this.preferencesService.updateLocale(req.user.sub, dto.locale);
   }
 
@@ -243,7 +296,9 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Lire ses préférences de notifications' })
-  @ApiOkResponse({ description: 'Préférences de notifications retournées avec succès' })
+  @ApiOkResponse({
+    description: 'Préférences de notifications retournées avec succès',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async getNotifPrefs(@Req() req: { user: JwtPayload }) {
     return this.preferencesService.getNotificationPreferences(req.user.sub);
@@ -253,11 +308,19 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Modifier ses préférences de notifications' })
-  @ApiOkResponse({ description: 'Préférences de notifications mises à jour avec succès' })
+  @ApiOkResponse({
+    description: 'Préférences de notifications mises à jour avec succès',
+  })
   @ApiBadRequestResponse({ description: 'Données de préférences invalides' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async updateNotifPrefs(@Req() req: { user: JwtPayload }, @Body() dto: UpdateNotifPrefsDto) {
-    return this.preferencesService.updateNotificationPreferences(req.user.sub, dto);
+  async updateNotifPrefs(
+    @Req() req: { user: JwtPayload },
+    @Body() dto: UpdateNotifPrefsDto,
+  ) {
+    return this.preferencesService.updateNotificationPreferences(
+      req.user.sub,
+      dto,
+    );
   }
 
   // --- RGPD Right of Rectification / Restriction / Opposition ---
@@ -267,10 +330,17 @@ export class UsersController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Rectifier ses données personnelles' })
-  @ApiNoContentResponse({ description: 'Données personnelles rectifiées avec succès' })
-  @ApiBadRequestResponse({ description: 'Données fournies ou code TOTP invalides' })
+  @ApiNoContentResponse({
+    description: 'Données personnelles rectifiées avec succès',
+  })
+  @ApiBadRequestResponse({
+    description: 'Données fournies ou code TOTP invalides',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async rectifyPersonalData(@Req() req: { user: JwtPayload }, @Body() dto: RectifyDataDto) {
+  async rectifyPersonalData(
+    @Req() req: { user: JwtPayload },
+    @Body() dto: RectifyDataDto,
+  ) {
     await this.rgpdService.rectifyPersonalData(req.user.sub, dto);
   }
 
@@ -279,8 +349,10 @@ export class UsersController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "S'opposer à un traitement" })
-  @ApiOkResponse({ description: 'Droit d\'opposition enregistré avec succès' })
-  @ApiBadRequestResponse({ description: 'Type de traitement inconnu ou non modifiable' })
+  @ApiOkResponse({ description: "Droit d'opposition enregistré avec succès" })
+  @ApiBadRequestResponse({
+    description: 'Type de traitement inconnu ou non modifiable',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async addOptOut(@Req() req: { user: JwtPayload }, @Body() dto: OptOutDto) {
     await this.rgpdService.addOptOut(req.user.sub, dto.processingType);
@@ -303,10 +375,15 @@ export class UsersController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Retirer une opposition' })
-  @ApiNoContentResponse({ description: 'Droit d\'opposition révoqué avec succès (traitement réactivé)' })
+  @ApiNoContentResponse({
+    description: "Droit d'opposition révoqué avec succès (traitement réactivé)",
+  })
   @ApiBadRequestResponse({ description: 'Type de traitement invalide' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async removeOptOut(@Req() req: { user: JwtPayload }, @Query() dto: OptOutDto) {
+  async removeOptOut(
+    @Req() req: { user: JwtPayload },
+    @Query() dto: OptOutDto,
+  ) {
     await this.rgpdService.removeOptOut(req.user.sub, dto.processingType);
   }
 
@@ -315,7 +392,9 @@ export class UsersController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Activer la limitation du traitement' })
-  @ApiOkResponse({ description: 'Limitation du traitement activée (données gelées)' })
+  @ApiOkResponse({
+    description: 'Limitation du traitement activée (données gelées)',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async restrict(@Req() req: { user: JwtPayload }) {
     await this.rgpdService.activateRestriction(req.user.sub);
@@ -339,8 +418,12 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Rechercher des utilisateurs' })
-  @ApiOkResponse({ description: 'Résultats de la recherche d\'utilisateurs retournés' })
-  @ApiBadRequestResponse({ description: 'Paramètres de recherche ou de pagination invalides' })
+  @ApiOkResponse({
+    description: "Résultats de la recherche d'utilisateurs retournés",
+  })
+  @ApiBadRequestResponse({
+    description: 'Paramètres de recherche ou de pagination invalides',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async search(
     @Req() req: { user: JwtPayload },
@@ -348,16 +431,26 @@ export class UsersController {
     @Query('neighbourhood') neighbourhood?: string,
     @Query() pagination?: PaginationDto,
   ) {
-    return this.discoveryService.search(req.user.sub, query, neighbourhood, pagination);
+    return this.discoveryService.search(
+      req.user.sub,
+      query,
+      neighbourhood,
+      pagination,
+    );
   }
 
   @Get('discover')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Fil de découverte' })
-  @ApiOkResponse({ description: 'Liste des profils à découvrir à proximité retournée' })
+  @ApiOkResponse({
+    description: 'Liste des profils à découvrir à proximité retournée',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async discover(@Req() req: { user: JwtPayload }, @Query() pagination?: PaginationDto) {
+  async discover(
+    @Req() req: { user: JwtPayload },
+    @Query() pagination?: PaginationDto,
+  ) {
     return this.discoveryService.getDiscoverFeed(req.user.sub, pagination);
   }
 
@@ -365,9 +458,14 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Historique des swipes' })
-  @ApiOkResponse({ description: 'Historique complet des swipes effectués retourné' })
+  @ApiOkResponse({
+    description: 'Historique complet des swipes effectués retourné',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async getSwipes(@Req() req: { user: JwtPayload }, @Query() pagination?: PaginationDto) {
+  async getSwipes(
+    @Req() req: { user: JwtPayload },
+    @Query() pagination?: PaginationDto,
+  ) {
     return this.discoveryService.getSwipeHistory(req.user.sub, pagination);
   }
 
@@ -375,9 +473,15 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Liste des utilisateurs bloqués' })
-  @ApiOkResponse({ description: 'Liste des utilisateurs bloqués par le compte connecté retournée' })
+  @ApiOkResponse({
+    description:
+      'Liste des utilisateurs bloqués par le compte connecté retournée',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async getBlocks(@Req() req: { user: JwtPayload }, @Query() pagination?: PaginationDto) {
+  async getBlocks(
+    @Req() req: { user: JwtPayload },
+    @Query() pagination?: PaginationDto,
+  ) {
     return this.socialService.getBlocked(req.user.sub, pagination);
   }
 
@@ -385,10 +489,15 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Consulter le profil d'un tiers" })
-  @ApiOkResponse({ description: 'Profil public de l\'utilisateur cible retourné' })
+  @ApiOkResponse({
+    description: "Profil public de l'utilisateur cible retourné",
+  })
   @ApiNotFoundResponse({ description: 'Utilisateur cible introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async getPublicProfile(@Req() req: { user: JwtPayload }, @Param('user_id') targetId: string) {
+  async getPublicProfile(
+    @Req() req: { user: JwtPayload },
+    @Param('user_id') targetId: string,
+  ) {
     return this.usersService.getPublicProfile(req.user.sub, targetId);
   }
 
@@ -397,7 +506,9 @@ export class UsersController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Swipe de profil' })
-  @ApiOkResponse({ description: 'Swipe enregistré avec succès (avec potentiel Match)' })
+  @ApiOkResponse({
+    description: 'Swipe enregistré avec succès (avec potentiel Match)',
+  })
   @ApiBadRequestResponse({ description: 'Direction du swipe invalide' })
   @ApiNotFoundResponse({ description: 'Utilisateur cible introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
@@ -418,7 +529,10 @@ export class UsersController {
   @ApiOkResponse({ description: 'Abonnement enregistré avec succès' })
   @ApiNotFoundResponse({ description: 'Utilisateur cible introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async follow(@Req() req: { user: JwtPayload }, @Param('user_id') targetId: string) {
+  async follow(
+    @Req() req: { user: JwtPayload },
+    @Param('user_id') targetId: string,
+  ) {
     await this.socialService.follow(req.user.sub, targetId);
     return { message: 'Utilisateur suivi' };
   }
@@ -428,10 +542,15 @@ export class UsersController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Ne plus suivre un utilisateur' })
-  @ApiNoContentResponse({ description: 'Désabonnement pris en compte avec succès' })
+  @ApiNoContentResponse({
+    description: 'Désabonnement pris en compte avec succès',
+  })
   @ApiNotFoundResponse({ description: 'Utilisateur cible introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async unfollow(@Req() req: { user: JwtPayload }, @Param('user_id') targetId: string) {
+  async unfollow(
+    @Req() req: { user: JwtPayload },
+    @Param('user_id') targetId: string,
+  ) {
     await this.socialService.unfollow(req.user.sub, targetId);
   }
 
@@ -439,7 +558,9 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Liste des followers' })
-  @ApiOkResponse({ description: 'Liste des followers de l\'utilisateur cible retournée' })
+  @ApiOkResponse({
+    description: "Liste des followers de l'utilisateur cible retournée",
+  })
   @ApiNotFoundResponse({ description: 'Utilisateur cible introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async getFollowers(
@@ -454,7 +575,9 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Liste des following' })
-  @ApiOkResponse({ description: 'Liste des abonnements de l\'utilisateur cible retournée' })
+  @ApiOkResponse({
+    description: "Liste des abonnements de l'utilisateur cible retournée",
+  })
   @ApiNotFoundResponse({ description: 'Utilisateur cible introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async getFollowing(
@@ -469,7 +592,9 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Liste des amis (follow mutuel)' })
-  @ApiOkResponse({ description: 'Liste des abonnements mutuels (amis) retournée avec succès' })
+  @ApiOkResponse({
+    description: 'Liste des abonnements mutuels (amis) retournée avec succès',
+  })
   @ApiNotFoundResponse({ description: 'Utilisateur cible introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async getFriends(
@@ -488,7 +613,10 @@ export class UsersController {
   @ApiOkResponse({ description: 'Utilisateur bloqué avec succès' })
   @ApiNotFoundResponse({ description: 'Utilisateur cible introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async block(@Req() req: { user: JwtPayload }, @Param('user_id') targetId: string) {
+  async block(
+    @Req() req: { user: JwtPayload },
+    @Param('user_id') targetId: string,
+  ) {
     await this.socialService.block(req.user.sub, targetId);
     return { message: 'Utilisateur bloqué' };
   }
@@ -501,7 +629,10 @@ export class UsersController {
   @ApiNoContentResponse({ description: 'Utilisateur débloqué avec succès' })
   @ApiNotFoundResponse({ description: 'Utilisateur cible introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async unblock(@Req() req: { user: JwtPayload }, @Param('user_id') targetId: string) {
+  async unblock(
+    @Req() req: { user: JwtPayload },
+    @Param('user_id') targetId: string,
+  ) {
     await this.socialService.unblock(req.user.sub, targetId);
   }
 
@@ -510,8 +641,12 @@ export class UsersController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Signaler un utilisateur' })
-  @ApiOkResponse({ description: 'Signalement enregistré et envoyé à la modération' })
-  @ApiBadRequestResponse({ description: 'Raison de signalement manquante ou invalide' })
+  @ApiOkResponse({
+    description: 'Signalement enregistré et envoyé à la modération',
+  })
+  @ApiBadRequestResponse({
+    description: 'Raison de signalement manquante ou invalide',
+  })
   @ApiNotFoundResponse({ description: 'Utilisateur cible introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async report(

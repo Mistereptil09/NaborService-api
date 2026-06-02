@@ -9,13 +9,15 @@ describe('Property 4: Per-item binary size enforcement', () => {
 
   beforeAll(() => {
     ListingDocumentModel =
-      mongoose.models.ListingDocument || mongoose.model('ListingDocument', ListingDocumentSchema);
-    MessageModel = mongoose.models.Message || mongoose.model('Message', MessageSchema);
+      mongoose.models.ListingDocument ||
+      mongoose.model('ListingDocument', ListingDocumentSchema);
+    MessageModel =
+      mongoose.models.Message || mongoose.model('Message', MessageSchema);
   });
 
   it('should accept size_bytes of any size on ListingDocument schema level (validation delegated to service)', () => {
     fc.assert(
-      fc.property(fc.integer({ min: 0, max: 4_000_000 }), size_bytes => {
+      fc.property(fc.integer({ min: 0, max: 4_000_000 }), (size_bytes) => {
         const doc = new ListingDocumentModel({
           pg_listing_id: 'lst_123',
           body_html: '<p>test</p>',
@@ -42,7 +44,7 @@ describe('Property 4: Per-item binary size enforcement', () => {
 
   it('should enforce per-attachment size limit (4.5 MB) on Message', () => {
     fc.assert(
-      fc.property(fc.integer({ min: 0, max: 8_000_000 }), size_bytes => {
+      fc.property(fc.integer({ min: 0, max: 8_000_000 }), (size_bytes) => {
         const doc = new MessageModel({
           pg_message_id: 'msg_123',
           pg_group_id: 'grp_123',

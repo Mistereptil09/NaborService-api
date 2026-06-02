@@ -1,6 +1,11 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { createTestingApp, clearDatabase, clearRedis, clearQueues } from './utils/e2e-setup';
+import {
+  createTestingApp,
+  clearDatabase,
+  clearRedis,
+  clearQueues,
+} from './utils/e2e-setup';
 import { createTestUser, loginUser } from './utils/test-factories';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const otp = require('otplib');
@@ -24,21 +29,24 @@ describe('Users & Social Modules (e2e)', () => {
     await clearRedis(app);
   });
 
-  async function loginAndGetToken(email: string, password: string): Promise<{ token: string, secret: string }> {
+  async function loginAndGetToken(
+    email: string,
+    password: string,
+  ): Promise<{ token: string; secret: string }> {
     const loginRes = await loginUser(app, email, password);
     let token = loginRes.body.access_token;
     let secret = '';
-    
+
     if (!token && loginRes.body.challenge === 'totp_setup_required') {
       const otpauthUrl = loginRes.body.otpauthUrl;
       secret = otpauthUrl.match(/secret=([^&]+)/)[1];
       const code = otp.generateSync({ secret });
-      
+
       const setupRes = await request(app.getHttpServer())
         .post('/v1/auth/totp/confirm-setup')
         .send({ challenge_token: loginRes.body.challenge_token, code })
         .expect(200);
-        
+
       token = setupRes.body.access_token;
     }
     return { token, secret };
@@ -54,7 +62,7 @@ describe('Users & Social Modules (e2e)', () => {
         .get('/v1/users/me/locale')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
-      
+
       expect(getRes.body.locale).toBe('fr'); // Default is 'fr' according to entity
 
       // PATCH locale
@@ -70,7 +78,7 @@ describe('Users & Social Modules (e2e)', () => {
     it('should change email', async () => {
       const { email, password } = await createTestUser(app);
       const { token, secret } = await loginAndGetToken(email, password);
-      
+
       const code = otp.generateSync({ secret });
 
       // PATCH email
@@ -87,7 +95,10 @@ describe('Users & Social Modules (e2e)', () => {
       const user1 = await createTestUser(app, 'user1');
       const user2 = await createTestUser(app, 'user2');
 
-      const { token: token1 } = await loginAndGetToken(user1.email, user1.password);
+      const { token: token1 } = await loginAndGetToken(
+        user1.email,
+        user1.password,
+      );
       const targetId = user2.user.id;
 
       // Follow
@@ -101,8 +112,10 @@ describe('Users & Social Modules (e2e)', () => {
         .get(`/v1/users/${targetId}/followers`)
         .set('Authorization', `Bearer ${token1}`)
         .expect(200);
-      
-      expect(getFollowers.body.data.some((item: any) => item.id === user1.user.id)).toBe(true);
+
+      expect(
+        getFollowers.body.data.some((item: any) => item.id === user1.user.id),
+      ).toBe(true);
 
       // Unfollow
       await request(app.getHttpServer())
@@ -115,7 +128,10 @@ describe('Users & Social Modules (e2e)', () => {
       const user1 = await createTestUser(app, 'user1');
       const user2 = await createTestUser(app, 'user2');
 
-      const { token: token1 } = await loginAndGetToken(user1.email, user1.password);
+      const { token: token1 } = await loginAndGetToken(
+        user1.email,
+        user1.password,
+      );
       const targetId = user2.user.id;
 
       // Block
@@ -129,8 +145,10 @@ describe('Users & Social Modules (e2e)', () => {
         .get(`/v1/users/me/blocks`)
         .set('Authorization', `Bearer ${token1}`)
         .expect(200);
-      
-      expect(getBlocks.body.data.some((item: any) => item.id === targetId)).toBe(true);
+
+      expect(
+        getBlocks.body.data.some((item: any) => item.id === targetId),
+      ).toBe(true);
 
       // Unblock
       await request(app.getHttpServer())

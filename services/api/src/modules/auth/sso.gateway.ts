@@ -14,7 +14,8 @@ export class SsoGateway implements OnGatewayConnection {
   server: Server;
 
   handleConnection(client: Socket) {
-    const tokenUuid = client.handshake.query?.tokenUuid || client.handshake.auth?.tokenUuid;
+    const tokenUuid =
+      client.handshake.query?.tokenUuid || client.handshake.auth?.tokenUuid;
     if (tokenUuid) {
       client.join(`sso:qr:${tokenUuid}`);
     }
@@ -31,7 +32,11 @@ export class SsoGateway implements OnGatewayConnection {
     }
   }
 
-  emitQrValidated(tokenUuid: string, accessToken: string, refreshToken: string) {
+  emitQrValidated(
+    tokenUuid: string,
+    accessToken: string,
+    refreshToken: string,
+  ) {
     if (this.server) {
       this.server.to(`sso:qr:${tokenUuid}`).emit('sso:qr_validated', {
         access_token: accessToken,

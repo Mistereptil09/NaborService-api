@@ -19,7 +19,17 @@ import { HttpRetryModule } from '../../common/http-retry/http-retry.module';
     HttpRetryModule,
   ],
   controllers: [NeighbourhoodAdminController],
-  providers: [BanService, Neo4jGeoService, GeoPipelineProcessor, GeoReconciliationService],
-  exports: [BanService, Neo4jGeoService, GeoPipelineProcessor, GeoReconciliationService],
+  providers: [
+    BanService,
+    Neo4jGeoService,
+    GeoPipelineProcessor,
+    GeoReconciliationService,
+  ],
+  exports: [
+    BanService,
+    Neo4jGeoService,
+    GeoPipelineProcessor,
+    GeoReconciliationService,
+  ],
 })
 export class GeoModule {}

@@ -6,7 +6,8 @@ describe('Message Schema', () => {
   let MessageModel: mongoose.Model<any>;
 
   beforeAll(() => {
-    MessageModel = mongoose.models.Message || mongoose.model('Message', MessageSchema);
+    MessageModel =
+      mongoose.models.Message || mongoose.model('Message', MessageSchema);
   });
 
   it('should have the correct collection name', () => {
@@ -16,17 +17,19 @@ describe('Message Schema', () => {
   it('should have the correct indexes defined', () => {
     const indexes = MessageSchema.indexes();
 
-    const pgMsgIdx = indexes.find(idx => idx[0].pg_message_id === 1);
+    const pgMsgIdx = indexes.find((idx) => idx[0].pg_message_id === 1);
     expect(pgMsgIdx).toBeDefined();
     expect(pgMsgIdx?.[1]?.unique).toBe(true);
 
-    const groupIdx = indexes.find(idx => idx[0].pg_group_id === 1 && idx[0].sent_at === -1);
+    const groupIdx = indexes.find(
+      (idx) => idx[0].pg_group_id === 1 && idx[0].sent_at === -1,
+    );
     expect(groupIdx).toBeDefined();
 
-    const senderIdx = indexes.find(idx => idx[0].pg_sender_id === 1);
+    const senderIdx = indexes.find((idx) => idx[0].pg_sender_id === 1);
     expect(senderIdx).toBeDefined();
 
-    const deletedIdx = indexes.find(idx => idx[0].deleted_at === 1);
+    const deletedIdx = indexes.find((idx) => idx[0].deleted_at === 1);
     expect(deletedIdx).toBeDefined();
   });
 
@@ -104,19 +107,24 @@ describe('Message Schema', () => {
     const err = doc.validateSync();
     expect(err).toBeDefined();
     expect(err?.errors.attachments).toBeDefined();
-    expect(err?.errors.attachments.message).toBe('attachments exceeds maximum length of 3');
+    expect(err?.errors.attachments.message).toBe(
+      'attachments exceeds maximum length of 3',
+    );
   });
 
   describe('Pre-save hook - aggregate size limit', () => {
     const hook = createTotalSizePreSaveHook({
-      binaryFields: [{ path: 'attachments', isArray: true, sizeField: 'size_bytes' }],
+      binaryFields: [
+        { path: 'attachments', isArray: true, sizeField: 'size_bytes' },
+      ],
       maxTotalBytes: 14155776, // 13.5 MB
     });
 
     it('should pass if the total size of attachments is at or below 13.5 MB', () => {
       const mockDoc = {
         get: (path: string) => {
-          if (path === 'attachments') return [{ size_bytes: 7000000 }, { size_bytes: 7155776 }];
+          if (path === 'attachments')
+            return [{ size_bytes: 7000000 }, { size_bytes: 7155776 }];
           return null;
         },
       };
@@ -131,7 +139,8 @@ describe('Message Schema', () => {
     it('should fail if the total size of attachments exceeds 13.5 MB', () => {
       const mockDoc = {
         get: (path: string) => {
-          if (path === 'attachments') return [{ size_bytes: 7000000 }, { size_bytes: 7155777 }]; // 1 byte over
+          if (path === 'attachments')
+            return [{ size_bytes: 7000000 }, { size_bytes: 7155777 }]; // 1 byte over
           return null;
         },
       };

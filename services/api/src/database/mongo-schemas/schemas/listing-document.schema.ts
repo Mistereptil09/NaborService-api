@@ -51,7 +51,8 @@ export class ListingDocument {
   anonymised_at: Date | null;
 }
 
-export const ListingDocumentSchema = SchemaFactory.createForClass(ListingDocument);
+export const ListingDocumentSchema =
+  SchemaFactory.createForClass(ListingDocument);
 
 // Indexes
 ListingDocumentSchema.index({ pg_listing_id: 1 }, { unique: true });

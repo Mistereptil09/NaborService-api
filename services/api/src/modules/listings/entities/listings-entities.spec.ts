@@ -76,9 +76,7 @@ describe('Listings & Payments Entities Metadata', () => {
 
     it('should have "category_name" VARCHAR NOT NULL', () => {
       const meta = ds.getMetadata(ListingCategory);
-      const col = meta.columns.find(
-        (c) => c.databaseName === 'category_name',
-      );
+      const col = meta.columns.find((c) => c.databaseName === 'category_name');
       expect(col).toBeDefined();
       expect(col!.type).toBe('varchar');
       expect(col!.isNullable).toBe(false);
@@ -100,14 +98,14 @@ describe('Listings & Payments Entities Metadata', () => {
       expect(pkColumns[0].databaseName).toBe('id');
       expect(pkColumns[0].type).toBe('uuid');
       expect(typeof pkColumns[0].default).toBe('function');
-      expect((pkColumns[0].default as () => string)()).toBe('uuid_generate_v7()');
+      expect((pkColumns[0].default as () => string)()).toBe(
+        'uuid_generate_v7()',
+      );
     });
 
     it('should have "listing_type" enum column with enumName "listing_type_enum"', () => {
       const meta = ds.getMetadata(Listing);
-      const col = meta.columns.find(
-        (c) => c.databaseName === 'listing_type',
-      );
+      const col = meta.columns.find((c) => c.databaseName === 'listing_type');
       expect(col).toBeDefined();
       expect(col!.type).toBe('enum');
       expect(col!.enumName).toBe('listing_type_enum');
@@ -139,9 +137,7 @@ describe('Listings & Payments Entities Metadata', () => {
 
     it('should have index "idx_listings_creator" on creator_id', () => {
       const meta = ds.getMetadata(Listing);
-      const idx = meta.indices.find(
-        (i) => i.name === 'idx_listings_creator',
-      );
+      const idx = meta.indices.find((i) => i.name === 'idx_listings_creator');
       expect(idx).toBeDefined();
       expect(idx!.columns.map((c) => c.databaseName)).toContain('creator_id');
     });
@@ -157,9 +153,7 @@ describe('Listings & Payments Entities Metadata', () => {
 
     it('should have a DeleteDateColumn "deleted_at" (soft delete)', () => {
       const meta = ds.getMetadata(Listing);
-      const col = meta.columns.find(
-        (c) => c.databaseName === 'deleted_at',
-      );
+      const col = meta.columns.find((c) => c.databaseName === 'deleted_at');
       expect(col).toBeDefined();
       expect(col!.isDeleteDate).toBe(true);
       expect(col!.type).toBe('timestamptz');
@@ -197,7 +191,9 @@ describe('Listings & Payments Entities Metadata', () => {
       expect(pkColumns[0].databaseName).toBe('id');
       expect(pkColumns[0].type).toBe('uuid');
       expect(typeof pkColumns[0].default).toBe('function');
-      expect((pkColumns[0].default as () => string)()).toBe('uuid_generate_v7()');
+      expect((pkColumns[0].default as () => string)()).toBe(
+        'uuid_generate_v7()',
+      );
     });
 
     it('should have CHECK constraint "chk_ltx_parties"', () => {
@@ -251,9 +247,7 @@ describe('Listings & Payments Entities Metadata', () => {
 
     it('should have index on (listing_id, status)', () => {
       const meta = ds.getMetadata(ListingTransaction);
-      const idx = meta.indices.find(
-        (i) => i.name === 'idx_ltx_listing_status',
-      );
+      const idx = meta.indices.find((i) => i.name === 'idx_ltx_listing_status');
       expect(idx).toBeDefined();
       expect(idx!.columns.map((c) => c.databaseName)).toEqual(
         expect.arrayContaining(['listing_id', 'status']),
@@ -271,9 +265,7 @@ describe('Listings & Payments Entities Metadata', () => {
       const meta = ds.getMetadata(ListingTransaction);
       const idx = meta.indices.find((i) => i.name === 'idx_ltx_requester');
       expect(idx).toBeDefined();
-      expect(idx!.columns.map((c) => c.databaseName)).toContain(
-        'requester_id',
-      );
+      expect(idx!.columns.map((c) => c.databaseName)).toContain('requester_id');
     });
 
     it('should have "status" enum column with enumName "transaction_status_enum"', () => {
@@ -322,7 +314,9 @@ describe('Listings & Payments Entities Metadata', () => {
       expect(pkColumns[0].databaseName).toBe('id');
       expect(pkColumns[0].type).toBe('uuid');
       expect(typeof pkColumns[0].default).toBe('function');
-      expect((pkColumns[0].default as () => string)()).toBe('uuid_generate_v7()');
+      expect((pkColumns[0].default as () => string)()).toBe(
+        'uuid_generate_v7()',
+      );
     });
 
     it('should have index on listing_id', () => {
@@ -375,7 +369,9 @@ describe('Listings & Payments Entities Metadata', () => {
       expect(pkColumns[0].databaseName).toBe('id');
       expect(pkColumns[0].type).toBe('uuid');
       expect(typeof pkColumns[0].default).toBe('function');
-      expect((pkColumns[0].default as () => string)()).toBe('uuid_generate_v7()');
+      expect((pkColumns[0].default as () => string)()).toBe(
+        'uuid_generate_v7()',
+      );
     });
 
     it('should have "action" enum column with enumName "moderation_action_enum"', () => {

@@ -29,16 +29,22 @@ describe('Feature: neo4j-init-service, Property 9: replaceAdjacencies atomicity 
               .mockResolvedValue({ records: [] } as any), // others
           };
 
-          mockNeo4jService.runInTransaction.mockImplementationOnce(async (work) => {
-            return work(mockTx as any);
-          });
+          mockNeo4jService.runInTransaction.mockImplementationOnce(
+            async (work) => {
+              return work(mockTx as any);
+            },
+          );
 
           await service.replaceAdjacencies(pgId, adjacentPgIds);
 
           expect(mockNeo4jService.runInTransaction).toHaveBeenCalledTimes(1);
 
-          expect(mockTx.run.mock.calls[0][0]).toContain('MATCH (n:Neighbourhood { pg_id: $pgId }) RETURN n');
-          expect(mockTx.run.mock.calls[1][0]).toContain('MATCH (n:Neighbourhood { pg_id: $pgId })-[r:ADJACENT_TO]-() DELETE r');
+          expect(mockTx.run.mock.calls[0][0]).toContain(
+            'MATCH (n:Neighbourhood { pg_id: $pgId }) RETURN n',
+          );
+          expect(mockTx.run.mock.calls[1][0]).toContain(
+            'MATCH (n:Neighbourhood { pg_id: $pgId })-[r:ADJACENT_TO]-() DELETE r',
+          );
 
           if (adjacentPgIds.length > 0) {
             expect(mockTx.run).toHaveBeenCalledTimes(3);

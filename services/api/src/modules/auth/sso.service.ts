@@ -86,7 +86,7 @@ export class SsoService {
 
     // Store the session for 120 seconds
     await this.redis.set(ssoKey, JSON.stringify(payload), 'EX', 120);
-    
+
     // Add to active keys set for the IP, set TTL slightly longer than session
     await this.redis.sadd(activeKeysSetKey, ssoKey);
     await this.redis.expire(activeKeysSetKey, 130);
@@ -100,7 +100,11 @@ export class SsoService {
    * Validates an SSO session from the authenticated web client.
    * Generates long-lived tokens for the Java Desktop client.
    */
-  async validateQr(tokenUuid: string, userId: string, userAgent: string | null = null): Promise<void> {
+  async validateQr(
+    tokenUuid: string,
+    userId: string,
+    userAgent: string | null = null,
+  ): Promise<void> {
     const ssoKey = `sso:qr:${tokenUuid}`;
     const data = await this.redis.get(ssoKey);
 
@@ -122,7 +126,7 @@ export class SsoService {
     }
 
     // Generate tokens for desktop client (90 days validity)
-    // The access token duration is normally fixed by JWT module (e.g. 15 mins), 
+    // The access token duration is normally fixed by JWT module (e.g. 15 mins),
     // but the refresh token gives a long-lived session.
     const accessToken = this.tokenService.generateAccessToken(user);
     const refreshToken = this.tokenService.generateRefreshToken();
@@ -163,7 +167,11 @@ export class SsoService {
   /**
    * Checks the status of an SSO session. Used by the Java Desktop client.
    */
-  async checkStatus(tokenUuid: string): Promise<{ status: string; access_token?: string; refresh_token?: string }> {
+  async checkStatus(tokenUuid: string): Promise<{
+    status: string;
+    access_token?: string;
+    refresh_token?: string;
+  }> {
     const ssoKey = `sso:qr:${tokenUuid}`;
     const data = await this.redis.get(ssoKey);
 

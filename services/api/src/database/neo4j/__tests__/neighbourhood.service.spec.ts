@@ -34,7 +34,9 @@ describe('NeighbourhoodService', () => {
       expect(mockNeo4jService.run).toHaveBeenCalledTimes(1);
       const [cypher, params] = mockNeo4jService.run.mock.calls[0];
       expect(cypher).toContain('MERGE (n:Neighbourhood { pg_id: $pgId })');
-      expect(cypher).toContain("point({latitude: $latitude, longitude: $longitude, crs: 'wgs-84'})");
+      expect(cypher).toContain(
+        "point({latitude: $latitude, longitude: $longitude, crs: 'wgs-84'})",
+      );
       expect(params).toEqual({
         pgId: 'hood_123',
         name: 'Belleville',
@@ -84,7 +86,9 @@ describe('NeighbourhoodService', () => {
         },
       };
 
-      mockNeo4jService.run.mockResolvedValueOnce({ records: [mockRecord] } as any);
+      mockNeo4jService.run.mockResolvedValueOnce({
+        records: [mockRecord],
+      } as any);
 
       const result = await service.findByPgId('hood_123');
 
@@ -118,7 +122,9 @@ describe('NeighbourhoodService', () => {
         },
       };
 
-      mockNeo4jService.run.mockResolvedValueOnce({ records: [mockRecord] } as any);
+      mockNeo4jService.run.mockResolvedValueOnce({
+        records: [mockRecord],
+      } as any);
 
       const result = await service.findNearby(48.87, 2.38, 1000);
 
@@ -141,16 +147,22 @@ describe('NeighbourhoodService', () => {
     it('should throw NotFoundException if neighbourhood does not exist', async () => {
       mockNeo4jService.run.mockResolvedValueOnce({ records: [] } as any);
 
-      await expect(service.delete('hood_123')).rejects.toThrow(NotFoundException);
+      await expect(service.delete('hood_123')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw ConflictException if neighbourhood has active residents', async () => {
       const mockRecord = {
         get: () => 3, // residentCount
       };
-      mockNeo4jService.run.mockResolvedValueOnce({ records: [mockRecord] } as any);
+      mockNeo4jService.run.mockResolvedValueOnce({
+        records: [mockRecord],
+      } as any);
 
-      await expect(service.delete('hood_123')).rejects.toThrow(ConflictException);
+      await expect(service.delete('hood_123')).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('should detach delete if no active residents live there', async () => {
@@ -164,7 +176,9 @@ describe('NeighbourhoodService', () => {
       await service.delete('hood_123');
 
       expect(mockNeo4jService.run).toHaveBeenCalledTimes(2);
-      expect(mockNeo4jService.run.mock.calls[1][0]).toContain('DETACH DELETE n');
+      expect(mockNeo4jService.run.mock.calls[1][0]).toContain(
+        'DETACH DELETE n',
+      );
     });
   });
 
@@ -177,9 +191,9 @@ describe('NeighbourhoodService', () => {
         return work(mockTx as any);
       });
 
-      await expect(service.replaceAdjacencies('hood_123', ['hood_456'])).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.replaceAdjacencies('hood_123', ['hood_456']),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should successfully run queries inside transaction if target exists', async () => {

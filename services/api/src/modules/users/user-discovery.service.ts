@@ -29,19 +29,22 @@ export class UserDiscoveryService {
     private readonly dataProcessingService: DataProcessingService,
     private readonly neo4jService: Neo4jService,
     @Inject('BullQueue_neo4j-sync')
-    private readonly neo4jSyncQueue: { add: (name: string, data: any) => Promise<any> },
+    private readonly neo4jSyncQueue: {
+      add: (name: string, data: any) => Promise<any>;
+    },
     @Inject(REDIS_CLIENT)
     private readonly redis: Redis,
   ) {}
 
   private async getBlockedUserIds(userId: string): Promise<string[]> {
     const blocks = await this.blockRepository.find({
-      where: [
-        { blockerId: userId },
-        { blockedId: userId },
-      ],
+      where: [{ blockerId: userId }, { blockedId: userId }],
     });
-    return Array.from(new Set(blocks.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId))));
+    return Array.from(
+      new Set(
+        blocks.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId)),
+      ),
+    );
   }
 
   async search(
@@ -49,9 +52,14 @@ export class UserDiscoveryService {
     query: string,
     neighbourhood?: string,
     pagination: PaginationDto = new PaginationDto(),
-  ): Promise<{ data: Partial<User>[]; meta: { total: number; offset: number; limit: number } }> {
+  ): Promise<{
+    data: Partial<User>[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
     if (!query || query.trim() === '') {
-      throw new BadRequestException('Le paramètre q est requis et ne doit pas être vide');
+      throw new BadRequestException(
+        'Le paramètre q est requis et ne doit pas être vide',
+      );
     }
 
     const blockedIds = await this.getBlockedUserIds(requesterId);
@@ -113,7 +121,10 @@ export class UserDiscoveryService {
   async getDiscoverFeed(
     userId: string,
     pagination: PaginationDto = new PaginationDto(),
-  ): Promise<{ data: any[]; meta: { total: number; offset: number; limit: number } }> {
+  ): Promise<{
+    data: any[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
     const cacheKey = `discover:${userId}:offset:${pagination.offset}:limit:${pagination.limit}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) {
@@ -126,7 +137,9 @@ export class UserDiscoveryService {
     });
     const swipedIds = swiped.map((s) => s.swipedId);
 
-    const excludeIds = Array.from(new Set([userId, ...blockedIds, ...swipedIds]));
+    const excludeIds = Array.from(
+      new Set([userId, ...blockedIds, ...swipedIds]),
+    );
 
     // Query candidate users from PostgreSQL first
     const candidates = await this.userRepository.find({
@@ -140,7 +153,10 @@ export class UserDiscoveryService {
     // Filter out users opted out of discovery
     const discoveryCandidates: User[] = [];
     for (const c of candidates) {
-      const isOpted = await this.dataProcessingService.isOptedOut(c.id, 'discovery');
+      const isOpted = await this.dataProcessingService.isOptedOut(
+        c.id,
+        'discovery',
+      );
       if (!isOpted) {
         discoveryCandidates.push(c);
       }
@@ -208,7 +224,9 @@ export class UserDiscoveryService {
     }
 
     // Map candidates to their scores
-    const scoreMap = new Map(scoredUserIds.map((item) => [item.pgId, item.score]));
+    const scoreMap = new Map(
+      scoredUserIds.map((item) => [item.pgId, item.score]),
+    );
     const candidatesWithScores = discoveryCandidates.map((c) => ({
       user: c,
       score: scoreMap.get(c.id) ?? 0,
@@ -254,7 +272,9 @@ export class UserDiscoveryService {
       throw new BadRequestException('Vous ne pouvez pas vous swiper vous-même');
     }
 
-    const target = await this.userRepository.findOne({ where: { id: targetId, deletedAt: IsNull() } });
+    const target = await this.userRepository.findOne({
+      where: { id: targetId, deletedAt: IsNull() },
+    });
     if (!target) {
       throw new NotFoundException('Utilisateur cible introuvable');
     }
@@ -284,7 +304,10 @@ export class UserDiscoveryService {
   async getSwipeHistory(
     userId: string,
     pagination: PaginationDto = new PaginationDto(),
-  ): Promise<{ data: any[]; meta: { total: number; offset: number; limit: number } }> {
+  ): Promise<{
+    data: any[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
     const [swipes, total] = await this.swipeRepository.findAndCount({
       where: { swiperId: userId },
       order: { swipedAt: 'DESC' },

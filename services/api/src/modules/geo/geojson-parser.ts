@@ -18,7 +18,7 @@ export function parseFeatureCollection(raw: any): ParsedFeature[] {
   if (!validateFeatureCollection(raw)) {
     const rawString = typeof raw === 'string' ? raw : JSON.stringify(raw);
     throw new BanParseException(
-      `Invalid GeoJSON FeatureCollection: ${String(rawString).substring(0, 500)}`
+      `Invalid GeoJSON FeatureCollection: ${String(rawString).substring(0, 500)}`,
     );
   }
 
@@ -27,17 +27,26 @@ export function parseFeatureCollection(raw: any): ParsedFeature[] {
 
   for (const feature of features) {
     if (!feature || typeof feature !== 'object') continue;
-    
+
     // Check geometry
     const geometry = feature.geometry;
-    if (!geometry || geometry.type !== 'Point' || !Array.isArray(geometry.coordinates)) {
+    if (
+      !geometry ||
+      geometry.type !== 'Point' ||
+      !Array.isArray(geometry.coordinates)
+    ) {
       continue;
     }
 
     const [lng, lat] = geometry.coordinates;
 
     // Validate coordinates are valid finite numbers
-    if (typeof lng !== 'number' || typeof lat !== 'number' || !Number.isFinite(lng) || !Number.isFinite(lat)) {
+    if (
+      typeof lng !== 'number' ||
+      typeof lat !== 'number' ||
+      !Number.isFinite(lng) ||
+      !Number.isFinite(lat)
+    ) {
       continue;
     }
 
@@ -49,7 +58,8 @@ export function parseFeatureCollection(raw: any): ParsedFeature[] {
     // Extract properties
     const properties = feature.properties || {};
     const score = typeof properties.score === 'number' ? properties.score : 0;
-    const label = typeof properties.label === 'string' ? properties.label : undefined;
+    const label =
+      typeof properties.label === 'string' ? properties.label : undefined;
 
     parsedFeatures.push({
       latitude: lat,

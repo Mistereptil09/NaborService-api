@@ -33,15 +33,17 @@ describe('Feature: gridfs-media-storage, Property 3: File Size Validation', () =
           };
 
           if (fileSize > maxLimit) {
-            expect(() => (uploadPipeline as any).validateFile(file, context)).toThrow(
-              PayloadTooLargeException,
-            );
+            expect(() =>
+              (uploadPipeline as any).validateFile(file, context),
+            ).toThrow(PayloadTooLargeException);
           } else {
-            expect(() => (uploadPipeline as any).validateFile(file, context)).not.toThrow();
+            expect(() =>
+              (uploadPipeline as any).validateFile(file, context),
+            ).not.toThrow();
           }
-        }
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

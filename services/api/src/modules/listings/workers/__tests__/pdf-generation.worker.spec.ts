@@ -21,7 +21,10 @@ describe('PdfGenerationWorker', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PdfGenerationWorker,
-        { provide: getRepositoryToken(ListingTransaction), useValue: mockTransactionRepo },
+        {
+          provide: getRepositoryToken(ListingTransaction),
+          useValue: mockTransactionRepo,
+        },
         { provide: getRepositoryToken(Listing), useValue: mockListingRepo },
         { provide: getModelToken(Contract.name), useValue: mockContractModel },
       ],
@@ -36,15 +39,25 @@ describe('PdfGenerationWorker', () => {
       id: 'tx-1',
       listingId: 'list-1',
       provider: { firstName: 'John', lastName: 'Doe', email: 'j@example.com' },
-      requester: { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com' },
+      requester: {
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+      },
     });
-    mockListingRepo.findOne.mockResolvedValue({ title: 'Test Service', priceCents: 1000 });
+    mockListingRepo.findOne.mockResolvedValue({
+      title: 'Test Service',
+      priceCents: 1000,
+    });
 
-    const job = { name: 'generate-contract', data: { transactionId: 'tx-1' } } as Job;
+    const job = {
+      name: 'generate-contract',
+      data: { transactionId: 'tx-1' },
+    } as Job;
     await worker.process(job);
 
     expect(mockTransactionRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ contractMongoId: 'mongo-id-123' })
+      expect.objectContaining({ contractMongoId: 'mongo-id-123' }),
     );
   });
 
@@ -53,22 +66,35 @@ describe('PdfGenerationWorker', () => {
       id: 'tx-1',
       listingId: 'list-1',
       provider: { firstName: 'John', lastName: 'Doe', email: 'j@example.com' },
-      requester: { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com' },
+      requester: {
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+      },
     });
-    mockListingRepo.findOne.mockResolvedValue({ title: 'Test Service', priceCents: 1000 });
+    mockListingRepo.findOne.mockResolvedValue({
+      title: 'Test Service',
+      priceCents: 1000,
+    });
 
-    const job = { name: 'generate-receipt', data: { transactionId: 'tx-1' } } as Job;
+    const job = {
+      name: 'generate-receipt',
+      data: { transactionId: 'tx-1' },
+    } as Job;
     await worker.process(job);
 
     expect(mockTransactionRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ receiptMongoId: 'mongo-id-123' })
+      expect.objectContaining({ receiptMongoId: 'mongo-id-123' }),
     );
   });
 
   it('should wrap NotFoundException in UnrecoverableError', async () => {
     mockTransactionRepo.findOne.mockResolvedValue(null);
-    const job = { name: 'generate-contract', data: { transactionId: 'tx-2' } } as Job;
-    
+    const job = {
+      name: 'generate-contract',
+      data: { transactionId: 'tx-2' },
+    } as Job;
+
     await expect(worker.process(job)).rejects.toThrow(UnrecoverableError);
   });
 });

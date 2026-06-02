@@ -15,7 +15,10 @@ interface UserProfile {
   email: string;
 }
 
-function simulateUpdateProfile(user: UserProfile, dto: Partial<UserProfile>): UserProfile {
+function simulateUpdateProfile(
+  user: UserProfile,
+  dto: Partial<UserProfile>,
+): UserProfile {
   return {
     ...user,
     ...dto,
@@ -48,7 +51,9 @@ function simulateUploadMedia(
   const newId = `mongo-${Math.random()}`;
 
   // Property 3: replacement marks old
-  const oldMediaIdx = store.findIndex((m) => m.pg_user_id === userId && m.type === type);
+  const oldMediaIdx = store.findIndex(
+    (m) => m.pg_user_id === userId && m.type === type,
+  );
   if (oldMediaIdx !== -1) {
     store[oldMediaIdx] = {
       ...store[oldMediaIdx],
@@ -82,7 +87,9 @@ function simulateDeleteMedia(
   originalRefs: UserMediaRefs,
   mediaStore: MongoMedia[],
 ): { refs: UserMediaRefs; store: MongoMedia[] } {
-  const store = mediaStore.filter((m) => !(m.pg_user_id === userId && m.type === type));
+  const store = mediaStore.filter(
+    (m) => !(m.pg_user_id === userId && m.type === type),
+  );
   const refs = { ...originalRefs };
   if (type === 'avatar') {
     refs.profilePictureMongoId = null;
@@ -108,7 +115,12 @@ function simulatePasswordChange(
   currentSessionId: string,
 ): Session[] {
   return sessions.map((s) => {
-    if (s.userId === userId && s.id !== currentSessionId && s.revokedAt === null && s.expiresAt > new Date()) {
+    if (
+      s.userId === userId &&
+      s.id !== currentSessionId &&
+      s.revokedAt === null &&
+      s.expiresAt > new Date()
+    ) {
       return { ...s, revokedAt: new Date() };
     }
     return s;
@@ -136,7 +148,11 @@ function getEffectiveOptOuts(record: UserDataProcessing): string[] {
 // ----------------------------------------------------
 interface RelationshipGraph {
   follows: { followerId: string; followedId: string }[];
-  friendships: { user1Id: string; user2Id: string; unfriendedAt: Date | null }[];
+  friendships: {
+    user1Id: string;
+    user2Id: string;
+    unfriendedAt: Date | null;
+  }[];
   blocks: { blockerId: string; blockedId: string }[];
 }
 
@@ -144,7 +160,8 @@ function areFriends(u1: string, u2: string, graph: RelationshipGraph): boolean {
   const first = u1 < u2 ? u1 : u2;
   const second = u1 < u2 ? u2 : u1;
   return graph.friendships.some(
-    (f) => f.user1Id === first && f.user2Id === second && f.unfriendedAt === null,
+    (f) =>
+      f.user1Id === first && f.user2Id === second && f.unfriendedAt === null,
   );
 }
 
@@ -222,15 +239,19 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
         }),
         (user, rawUpdate) => {
           const updateDto: Partial<UserProfile> = {};
-          if (rawUpdate.firstName !== null) updateDto.firstName = rawUpdate.firstName;
-          if (rawUpdate.lastName !== null) updateDto.lastName = rawUpdate.lastName;
+          if (rawUpdate.firstName !== null)
+            updateDto.firstName = rawUpdate.firstName;
+          if (rawUpdate.lastName !== null)
+            updateDto.lastName = rawUpdate.lastName;
           if (rawUpdate.bio !== null) updateDto.bio = rawUpdate.bio;
 
           const updated = simulateUpdateProfile(user, updateDto);
 
           // Checked fields must be changed if specified
-          if (updateDto.firstName) expect(updated.firstName).toBe(updateDto.firstName);
-          if (updateDto.lastName) expect(updated.lastName).toBe(updateDto.lastName);
+          if (updateDto.firstName)
+            expect(updated.firstName).toBe(updateDto.firstName);
+          if (updateDto.lastName)
+            expect(updated.lastName).toBe(updateDto.lastName);
           if (updateDto.bio) expect(updated.bio).toBe(updateDto.bio);
 
           // All other fields must remain identical
@@ -266,7 +287,12 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
             },
           ];
 
-          const { refs, store } = simulateUploadMedia(userId, type, originalRefs, initialStore);
+          const { refs, store } = simulateUploadMedia(
+            userId,
+            type,
+            originalRefs,
+            initialStore,
+          );
 
           if (type === 'avatar') {
             expect(refs.profilePictureMongoId).not.toBeNull();
@@ -280,7 +306,13 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
           }
 
           // Newly added media is WebP
-          const newMedia = store.find((m) => m._id === (type === 'avatar' ? refs.profilePictureMongoId : refs.bannerMongoId));
+          const newMedia = store.find(
+            (m) =>
+              m._id ===
+              (type === 'avatar'
+                ? refs.profilePictureMongoId
+                : refs.bannerMongoId),
+          );
           expect(newMedia?.mimetype).toBe('image/webp');
           expect(newMedia?.replaced_at).toBeNull();
         },
@@ -317,7 +349,12 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
             },
           ];
 
-          const { refs, store } = simulateDeleteMedia(userId, type, originalRefs, initialStore);
+          const { refs, store } = simulateDeleteMedia(
+            userId,
+            type,
+            originalRefs,
+            initialStore,
+          );
 
           if (type === 'avatar') {
             expect(refs.profilePictureMongoId).toBeNull();
@@ -375,7 +412,11 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
             ...userSessions,
           ];
 
-          const updated = simulatePasswordChange(userId, allSessions, currentSessionId);
+          const updated = simulatePasswordChange(
+            userId,
+            allSessions,
+            currentSessionId,
+          );
 
           // Current session is not revoked
           const current = updated.find((s) => s.id === currentSessionId);
@@ -406,7 +447,9 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
           };
 
           // Add opt-out
-          record.optOuts = Array.from(new Set([...record.optOuts, processingType]));
+          record.optOuts = Array.from(
+            new Set([...record.optOuts, processingType]),
+          );
           expect(getEffectiveOptOuts(record)).toContain(processingType);
 
           // Remove opt-out
@@ -422,7 +465,9 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
   it('Property 8: Restriction activates all opt-outs', () => {
     fc.assert(
       fc.property(
-        fc.array(fc.constantFrom('discovery', 'notifications', 'neo4j_tracking')),
+        fc.array(
+          fc.constantFrom('discovery', 'notifications', 'neo4j_tracking'),
+        ),
         (initialOptOuts) => {
           const record: UserDataProcessing = {
             userId: 'user-1',
@@ -440,7 +485,9 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
 
           // Deactivate restriction
           record.isRestricted = false;
-          expect(getEffectiveOptOuts(record)).toEqual(Array.from(new Set(initialOptOuts)));
+          expect(getEffectiveOptOuts(record)).toEqual(
+            Array.from(new Set(initialOptOuts)),
+          );
         },
       ),
       { numRuns: 100 },
@@ -466,7 +513,13 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
           const graph: RelationshipGraph = {
             follows: [],
             friendships: isFriends
-              ? [{ user1Id: 'req-user', user2Id: 'target-user', unfriendedAt: null }]
+              ? [
+                  {
+                    user1Id: 'req-user',
+                    user2Id: 'target-user',
+                    unfriendedAt: null,
+                  },
+                ]
               : [],
             blocks: [],
           };
@@ -515,7 +568,9 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
           };
 
           // Lookups throw 404
-          expect(() => getPublicProfile('req-user', target, graph)).toThrow('404');
+          expect(() => getPublicProfile('req-user', target, graph)).toThrow(
+            '404',
+          );
         },
       ),
       { numRuns: 100 },
@@ -573,7 +628,9 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
 
           // Verify strictly non-increasing order
           for (let i = 0; i < filtered.length - 1; i++) {
-            expect(filtered[i].score).toBeGreaterThanOrEqual(filtered[i + 1].score);
+            expect(filtered[i].score).toBeGreaterThanOrEqual(
+              filtered[i + 1].score,
+            );
           }
         },
       ),
@@ -603,10 +660,18 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
             // Mutual follow creates friendship
             const first = u1 < u2 ? u1 : u2;
             const second = u1 < u2 ? u2 : u1;
-            graph.friendships.push({ user1Id: first, user2Id: second, unfriendedAt: null });
+            graph.friendships.push({
+              user1Id: first,
+              user2Id: second,
+              unfriendedAt: null,
+            });
           }
 
-          expect(graph.follows.some((f) => f.followerId === u1 && f.followedId === u2)).toBe(true);
+          expect(
+            graph.follows.some(
+              (f) => f.followerId === u1 && f.followedId === u2,
+            ),
+          ).toBe(true);
           if (followBackExists) {
             expect(areFriends(u1, u2, graph)).toBe(true);
           }
@@ -619,40 +684,42 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
   // Property 14
   it('Property 14: Unfollow removes record and breaks friendship', () => {
     fc.assert(
-      fc.property(
-        fc.uuid(),
-        fc.uuid(),
-        (u1, u2) => {
-          const graph: RelationshipGraph = {
-            follows: [
-              { followerId: u1, followedId: u2 },
-              { followerId: u2, followedId: u1 },
-            ],
-            friendships: [
-              {
-                user1Id: u1 < u2 ? u1 : u2,
-                user2Id: u1 < u2 ? u2 : u1,
-                unfriendedAt: null,
-              },
-            ],
-            blocks: [],
-          };
+      fc.property(fc.uuid(), fc.uuid(), (u1, u2) => {
+        const graph: RelationshipGraph = {
+          follows: [
+            { followerId: u1, followedId: u2 },
+            { followerId: u2, followedId: u1 },
+          ],
+          friendships: [
+            {
+              user1Id: u1 < u2 ? u1 : u2,
+              user2Id: u1 < u2 ? u2 : u1,
+              unfriendedAt: null,
+            },
+          ],
+          blocks: [],
+        };
 
-          // Unfollow A -> B
-          graph.follows = graph.follows.filter((f) => !(f.followerId === u1 && f.followedId === u2));
+        // Unfollow A -> B
+        graph.follows = graph.follows.filter(
+          (f) => !(f.followerId === u1 && f.followedId === u2),
+        );
 
-          // Break friendship
-          const first = u1 < u2 ? u1 : u2;
-          const second = u1 < u2 ? u2 : u1;
-          const friendship = graph.friendships.find((f) => f.user1Id === first && f.user2Id === second);
-          if (friendship) {
-            friendship.unfriendedAt = new Date();
-          }
+        // Break friendship
+        const first = u1 < u2 ? u1 : u2;
+        const second = u1 < u2 ? u2 : u1;
+        const friendship = graph.friendships.find(
+          (f) => f.user1Id === first && f.user2Id === second,
+        );
+        if (friendship) {
+          friendship.unfriendedAt = new Date();
+        }
 
-          expect(graph.follows.some((f) => f.followerId === u1 && f.followedId === u2)).toBe(false);
-          expect(areFriends(u1, u2, graph)).toBe(false);
-        },
-      ),
+        expect(
+          graph.follows.some((f) => f.followerId === u1 && f.followedId === u2),
+        ).toBe(false);
+        expect(areFriends(u1, u2, graph)).toBe(false);
+      }),
       { numRuns: 100 },
     );
   });
@@ -660,50 +727,48 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
   // Property 15
   it('Property 15: Block removes all social relationships', () => {
     fc.assert(
-      fc.property(
-        fc.uuid(),
-        fc.uuid(),
-        (u1, u2) => {
-          const graph: RelationshipGraph = {
-            follows: [
-              { followerId: u1, followedId: u2 },
-              { followerId: u2, followedId: u1 },
-            ],
-            friendships: [
-              {
-                user1Id: u1 < u2 ? u1 : u2,
-                user2Id: u1 < u2 ? u2 : u1,
-                unfriendedAt: null,
-              },
-            ],
-            blocks: [],
-          };
+      fc.property(fc.uuid(), fc.uuid(), (u1, u2) => {
+        const graph: RelationshipGraph = {
+          follows: [
+            { followerId: u1, followedId: u2 },
+            { followerId: u2, followedId: u1 },
+          ],
+          friendships: [
+            {
+              user1Id: u1 < u2 ? u1 : u2,
+              user2Id: u1 < u2 ? u2 : u1,
+              unfriendedAt: null,
+            },
+          ],
+          blocks: [],
+        };
 
-          // Block A -> B
-          graph.blocks.push({ blockerId: u1, blockedId: u2 });
+        // Block A -> B
+        graph.blocks.push({ blockerId: u1, blockedId: u2 });
 
-          // Clean follows in both directions
-          graph.follows = graph.follows.filter(
-            (f) =>
-              !(
-                (f.followerId === u1 && f.followedId === u2) ||
-                (f.followerId === u2 && f.followedId === u1)
-              ),
-          );
+        // Clean follows in both directions
+        graph.follows = graph.follows.filter(
+          (f) =>
+            !(
+              (f.followerId === u1 && f.followedId === u2) ||
+              (f.followerId === u2 && f.followedId === u1)
+            ),
+        );
 
-          // Clean friendship
-          const first = u1 < u2 ? u1 : u2;
-          const second = u1 < u2 ? u2 : u1;
-          const friendship = graph.friendships.find((f) => f.user1Id === first && f.user2Id === second);
-          if (friendship) {
-            friendship.unfriendedAt = new Date();
-          }
+        // Clean friendship
+        const first = u1 < u2 ? u1 : u2;
+        const second = u1 < u2 ? u2 : u1;
+        const friendship = graph.friendships.find(
+          (f) => f.user1Id === first && f.user2Id === second,
+        );
+        if (friendship) {
+          friendship.unfriendedAt = new Date();
+        }
 
-          expect(graph.follows.length).toBe(0);
-          expect(areFriends(u1, u2, graph)).toBe(false);
-          expect(isBlocked(u1, u2, graph)).toBe(true);
-        },
-      ),
+        expect(graph.follows.length).toBe(0);
+        expect(areFriends(u1, u2, graph)).toBe(false);
+        expect(isBlocked(u1, u2, graph)).toBe(true);
+      }),
       { numRuns: 100 },
     );
   });
@@ -734,17 +799,35 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
             .filter((f) => f.followerId === targetId)
             .map((f) => f.followedId);
 
-          const friendsList = followersList.filter((f) => followingList.includes(f));
+          const friendsList = followersList.filter((f) =>
+            followingList.includes(f),
+          );
 
           for (const follower of followersList) {
-            expect(follows.some((f) => f.followerId === follower && f.followedId === targetId)).toBe(true);
+            expect(
+              follows.some(
+                (f) => f.followerId === follower && f.followedId === targetId,
+              ),
+            ).toBe(true);
           }
           for (const following of followingList) {
-            expect(follows.some((f) => f.followerId === targetId && f.followedId === following)).toBe(true);
+            expect(
+              follows.some(
+                (f) => f.followerId === targetId && f.followedId === following,
+              ),
+            ).toBe(true);
           }
           for (const friend of friendsList) {
-            expect(follows.some((f) => f.followerId === friend && f.followedId === targetId)).toBe(true);
-            expect(follows.some((f) => f.followerId === targetId && f.followedId === friend)).toBe(true);
+            expect(
+              follows.some(
+                (f) => f.followerId === friend && f.followedId === targetId,
+              ),
+            ).toBe(true);
+            expect(
+              follows.some(
+                (f) => f.followerId === targetId && f.followedId === friend,
+              ),
+            ).toBe(true);
           }
         },
       ),
@@ -760,7 +843,9 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
           profile: fc.record({ id: fc.uuid(), email: fc.emailAddress() }),
           listings: fc.array(fc.record({ id: fc.uuid(), title: fc.string() })),
           messages: fc.array(fc.record({ id: fc.uuid(), body: fc.string() })),
-          eventParticipations: fc.array(fc.record({ eventId: fc.uuid(), status: fc.string() })),
+          eventParticipations: fc.array(
+            fc.record({ eventId: fc.uuid(), status: fc.string() }),
+          ),
           votes: fc.array(fc.record({ optionId: fc.uuid() })),
         }),
         (data) => {
@@ -795,7 +880,9 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
         fc.array(
           fc.record({
             id: fc.uuid(),
-            swipedAt: fc.integer({ min: 0, max: 10000000000000 }).map((t) => new Date(t)),
+            swipedAt: fc
+              .integer({ min: 0, max: 10000000000000 })
+              .map((t) => new Date(t)),
           }),
           { minLength: 1, maxLength: 50 },
         ),
@@ -803,7 +890,9 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
           swipes.sort((a, b) => b.swipedAt.getTime() - a.swipedAt.getTime());
 
           for (let i = 0; i < swipes.length - 1; i++) {
-            expect(swipes[i].swipedAt.getTime()).toBeGreaterThanOrEqual(swipes[i + 1].swipedAt.getTime());
+            expect(swipes[i].swipedAt.getTime()).toBeGreaterThanOrEqual(
+              swipes[i + 1].swipedAt.getTime(),
+            );
           }
         },
       ),

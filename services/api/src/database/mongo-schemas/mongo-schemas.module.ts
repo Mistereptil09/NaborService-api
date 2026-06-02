@@ -1,12 +1,21 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserMedia, UserMediaSchema } from './schemas/user-media.schema';
-import { ListingDocument, ListingDocumentSchema } from './schemas/listing-document.schema';
+import {
+  ListingDocument,
+  ListingDocumentSchema,
+} from './schemas/listing-document.schema';
 import { Contract, ContractSchema } from './schemas/contract.schema';
 import { Message, MessageSchema } from './schemas/message.schema';
-import { EventDocument, EventDocumentSchema } from './schemas/event-document.schema';
+import {
+  EventDocument,
+  EventDocumentSchema,
+} from './schemas/event-document.schema';
 import { EventTicket, EventTicketSchema } from './schemas/event-ticket.schema';
-import { IncidentDocument, IncidentDocumentSchema } from './schemas/incident-document.schema';
+import {
+  IncidentDocument,
+  IncidentDocumentSchema,
+} from './schemas/incident-document.schema';
 
 @Module({
   imports: [

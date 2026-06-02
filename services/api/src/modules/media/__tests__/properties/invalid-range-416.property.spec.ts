@@ -69,16 +69,16 @@ describe('Feature: gridfs-media-storage, Property 18: Invalid Range Returns 416'
             send(data: any) {
               this.body = data;
               return this;
-            }
+            },
           };
 
           await mediaController.streamMedia(mediaId, req, res);
 
           expect(res.statusCode).toBe(416);
           expect(res.headers['content-range']).toBe(`bytes */${totalSize}`);
-        }
+        },
       ),
-      { numRuns: 50 }
+      { numRuns: 50 },
     );
   });
 });

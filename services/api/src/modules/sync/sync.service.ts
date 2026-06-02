@@ -1,11 +1,19 @@
-import { Injectable, Inject, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, LessThanOrEqual } from 'typeorm';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import Redis from 'ioredis';
 import { Neo4jService } from '../../database/neo4j';
 
-import { GetSnapshotQueryDto, SnapshotResponseDto } from './dto/sync-snapshot.dto';
+import {
+  GetSnapshotQueryDto,
+  SnapshotResponseDto,
+} from './dto/sync-snapshot.dto';
 import { SyncUpdatesBatchDto } from './dto/sync-push.dto';
 
 import { User } from '../users/entities/user.entity';
@@ -29,24 +37,34 @@ export class SyncService {
     @Inject(REDIS_CLIENT) private readonly redisClient: Redis,
     private readonly neo4jService: Neo4jService,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
-    @InjectRepository(Incident) private readonly incidentRepository: Repository<Incident>,
-    @InjectRepository(Listing) private readonly listingRepository: Repository<Listing>,
-    @InjectRepository(Evenement) private readonly eventRepository: Repository<Evenement>,
-    @InjectRepository(ListingModerationAction) private readonly lmaRepository: Repository<ListingModerationAction>,
-    @InjectRepository(EventModerationAction) private readonly emaRepository: Repository<EventModerationAction>,
-    @InjectRepository(ListingReport) private readonly lReportRepository: Repository<ListingReport>,
-    @InjectRepository(EventReport) private readonly eReportRepository: Repository<EventReport>,
-    @InjectRepository(ListingTransaction) private readonly ltRepository: Repository<ListingTransaction>,
-    @InjectRepository(ChatGroup) private readonly chatGroupRepository: Repository<ChatGroup>,
+    @InjectRepository(Incident)
+    private readonly incidentRepository: Repository<Incident>,
+    @InjectRepository(Listing)
+    private readonly listingRepository: Repository<Listing>,
+    @InjectRepository(Evenement)
+    private readonly eventRepository: Repository<Evenement>,
+    @InjectRepository(ListingModerationAction)
+    private readonly lmaRepository: Repository<ListingModerationAction>,
+    @InjectRepository(EventModerationAction)
+    private readonly emaRepository: Repository<EventModerationAction>,
+    @InjectRepository(ListingReport)
+    private readonly lReportRepository: Repository<ListingReport>,
+    @InjectRepository(EventReport)
+    private readonly eReportRepository: Repository<EventReport>,
+    @InjectRepository(ListingTransaction)
+    private readonly ltRepository: Repository<ListingTransaction>,
+    @InjectRepository(ChatGroup)
+    private readonly chatGroupRepository: Repository<ChatGroup>,
     @InjectRepository(Poll) private readonly pollRepository: Repository<Poll>,
     @InjectRepository(Vote) private readonly voteRepository: Repository<Vote>,
-    @InjectRepository(SyncConflict) private readonly syncConflictRepository: Repository<SyncConflict>,
+    @InjectRepository(SyncConflict)
+    private readonly syncConflictRepository: Repository<SyncConflict>,
     private readonly entityPatchHandler: EntityPatchHandler,
   ) {}
 
   async getSnapshot(dto: GetSnapshotQueryDto): Promise<SnapshotResponseDto> {
     const { since, limit = 500, cursor } = dto;
-    const syncAt = new Date(); 
+    const syncAt = new Date();
     const take = limit;
     let remaining = take;
     const response: SnapshotResponseDto = {
@@ -67,18 +85,31 @@ export class SyncService {
       listing_transactions: [],
     };
 
-    const fetchDelta = async (repo: Repository<any>, relations: string[] = []) => {
+    const fetchDelta = async (
+      repo: Repository<any>,
+      relations: string[] = [],
+    ) => {
       if (remaining <= 0) return [];
       const qb = repo.createQueryBuilder('entity').withDeleted();
-      if (repo.metadata.findColumnWithPropertyName('updatedAt') && repo.metadata.findColumnWithPropertyName('deletedAt')) {
-        qb.where('entity.updatedAt > :since OR entity.deletedAt > :since', { since });
+      if (
+        repo.metadata.findColumnWithPropertyName('updatedAt') &&
+        repo.metadata.findColumnWithPropertyName('deletedAt')
+      ) {
+        qb.where('entity.updatedAt > :since OR entity.deletedAt > :since', {
+          since,
+        });
       } else if (repo.metadata.findColumnWithPropertyName('updatedAt')) {
         qb.where('entity.updatedAt > :since', { since });
       } else if (repo.metadata.findColumnWithPropertyName('createdAt')) {
-        qb.where('entity.createdAt > :since', { since }); 
+        qb.where('entity.createdAt > :since', { since });
       }
-      relations.forEach(rel => qb.leftJoinAndSelect(`entity.${rel}`, rel));
-      qb.orderBy(repo.metadata.findColumnWithPropertyName('updatedAt') ? 'entity.updatedAt' : 'entity.createdAt', 'ASC');
+      relations.forEach((rel) => qb.leftJoinAndSelect(`entity.${rel}`, rel));
+      qb.orderBy(
+        repo.metadata.findColumnWithPropertyName('updatedAt')
+          ? 'entity.updatedAt'
+          : 'entity.createdAt',
+        'ASC',
+      );
       qb.take(remaining);
       const results = await qb.getMany();
       remaining -= results.length;
@@ -106,9 +137,12 @@ export class SyncService {
         ORDER BY n.updated_at ASC
         LIMIT $limit
       `;
-      const result = await this.neo4jService.run(cypher, { since: since.toISOString(), limit: remaining });
-      const neo4jNodes = result.records.map(r => {
-        const props = (r.get('n') as any).properties;
+      const result = await this.neo4jService.run(cypher, {
+        since: since.toISOString(),
+        limit: remaining,
+      });
+      const neo4jNodes = result.records.map((r) => {
+        const props = r.get('n').properties;
         return {
           pg_id: props.pg_id,
           name: props.name,
@@ -143,9 +177,11 @@ export class SyncService {
 
     for (const update of dto.updates) {
       const result = await this.entityPatchHandler.handlePatch(update);
-      
+
       if (result.status === 'conflict') {
-        const conflictRecord = this.syncConflictRepository.create(result.conflict);
+        const conflictRecord = this.syncConflictRepository.create(
+          result.conflict,
+        );
         await this.syncConflictRepository.save(conflictRecord);
         conflicts.push(conflictRecord);
       } else if (result.status === 'success' && result.processed) {
@@ -153,7 +189,11 @@ export class SyncService {
       }
     }
 
-    const finalResponse = { success: true, conflicts, processedCount: updatedCount };
+    const finalResponse = {
+      success: true,
+      conflicts,
+      processedCount: updatedCount,
+    };
     await this.markJobProcessed(dto.jobId, finalResponse);
     return finalResponse;
   }

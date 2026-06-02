@@ -13,7 +13,9 @@ import { UserSession } from '../../common/entities/user-session.entity';
   concurrency: 1,
   settings: {
     backoffStrategy: (attemptsMade: number, type: string) => {
-      return type === 'custom' ? getBackoffDelay('rgpd-anonymise', attemptsMade) : 1000;
+      return type === 'custom'
+        ? getBackoffDelay('rgpd-anonymise', attemptsMade)
+        : 1000;
     },
   },
 })
@@ -27,7 +29,7 @@ export class RgpdAnonymiseWorker extends WorkerHost {
   async process(job: Job<RgpdAnonymiseJobPayload>): Promise<any> {
     try {
       const { userId } = job.data;
-      
+
       await this.dataSource.transaction(async (manager) => {
         const user = await manager.findOne(User, {
           where: { id: userId },
@@ -42,22 +44,26 @@ export class RgpdAnonymiseWorker extends WorkerHost {
         user.firstName = `Anonymized-${randomSuffix}`;
         user.lastName = `Anonymized-${randomSuffix}`;
         user.email = `anonymized-${randomSuffix}@deleted.user`;
-        
+
         user.bio = null;
         user.profilePictureMongoId = null;
         user.bannerMongoId = null;
         user.stripeAccountId = null;
         user.totpSecret = null;
-        
+
         await manager.save(user);
 
-        await manager.update(UserSession, {
-          userId,
-          revokedAt: IsNull(),
-          expiresAt: MoreThan(new Date()),
-        }, {
-          revokedAt: new Date(),
-        });
+        await manager.update(
+          UserSession,
+          {
+            userId,
+            revokedAt: IsNull(),
+            expiresAt: MoreThan(new Date()),
+          },
+          {
+            revokedAt: new Date(),
+          },
+        );
       });
 
       this.logger.log(`Successfully anonymized user ${job.data.userId}`);

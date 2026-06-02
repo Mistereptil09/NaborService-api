@@ -23,7 +23,10 @@ describe('Property 14: Argon2id hash round-trip', () => {
           expect(isOriginalValid).toBe(true);
 
           // Verify incorrect password fails
-          const isDifferentValid = await argon2.verify(hash, password + '_modified');
+          const isDifferentValid = await argon2.verify(
+            hash,
+            password + '_modified',
+          );
           expect(isDifferentValid).toBe(false);
         },
       ),

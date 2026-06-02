@@ -19,7 +19,10 @@ export class Attachment {
   @Prop({ required: true })
   filename: string;
 
-  @Prop({ required: true, validate: createBinarySizeValidator(4718592, 'attachment') })
+  @Prop({
+    required: true,
+    validate: createBinarySizeValidator(4718592, 'attachment'),
+  })
   size_bytes: number;
 
   @Prop({ required: true, type: Date })
@@ -90,7 +93,9 @@ export const MessageSchema = SchemaFactory.createForClass(Message);
 MessageSchema.pre(
   'save',
   createTotalSizePreSaveHook({
-    binaryFields: [{ path: 'attachments', isArray: true, sizeField: 'size_bytes' }],
+    binaryFields: [
+      { path: 'attachments', isArray: true, sizeField: 'size_bytes' },
+    ],
     maxTotalBytes: 14155776, // 13.5 MB
   }),
 );

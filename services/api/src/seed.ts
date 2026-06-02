@@ -81,7 +81,9 @@ async function bootstrap() {
     // ==========================================
     console.log('Cleaning PostgreSQL database...');
     const entities = dataSource.entityMetadatas;
-    const tableNames = entities.map((entity) => `"${entity.tableName}"`).join(', ');
+    const tableNames = entities
+      .map((entity) => `"${entity.tableName}"`)
+      .join(', ');
     if (tableNames.length > 0) {
       await dataSource.query(`TRUNCATE TABLE ${tableNames} CASCADE;`);
     }
@@ -108,20 +110,41 @@ async function bootstrap() {
     // STEP 2: SEED CATEGORIES (POSTGRES)
     // ==========================================
     console.log('Seeding listing and event categories...');
-    const listingCatRepo = app.get<Repository<ListingCategory>>(getRepositoryToken(ListingCategory));
-    const eventCatRepo = app.get<Repository<EvenementsCategory>>(getRepositoryToken(EvenementsCategory));
-
-    const toolsCat = await listingCatRepo.save(listingCatRepo.create({ categoryName: 'Bricolage & Outils' }));
-    const gardenCat = await listingCatRepo.save(
-      listingCatRepo.create({ categoryName: 'Jardinage', parentCategoryId: toolsCat.id }),
+    const listingCatRepo = app.get<Repository<ListingCategory>>(
+      getRepositoryToken(ListingCategory),
     );
-    const furnitureCat = await listingCatRepo.save(listingCatRepo.create({ categoryName: 'Mobilier' }));
-    const servicesCat = await listingCatRepo.save(listingCatRepo.create({ categoryName: 'Services & Aide' }));
+    const eventCatRepo = app.get<Repository<EvenementsCategory>>(
+      getRepositoryToken(EvenementsCategory),
+    );
 
-    const socialEventCat = await eventCatRepo.save(eventCatRepo.create({ categoryName: 'Social & Fêtes' }));
-    const sportsEventCat = await eventCatRepo.save(eventCatRepo.create({ categoryName: 'Sports' }));
-    const cleanUpEventCat = await eventCatRepo.save(eventCatRepo.create({ categoryName: 'Écologie & Nettoyage' }));
-    const workshopEventCat = await eventCatRepo.save(eventCatRepo.create({ categoryName: 'Ateliers & Apprentissage' }));
+    const toolsCat = await listingCatRepo.save(
+      listingCatRepo.create({ categoryName: 'Bricolage & Outils' }),
+    );
+    const gardenCat = await listingCatRepo.save(
+      listingCatRepo.create({
+        categoryName: 'Jardinage',
+        parentCategoryId: toolsCat.id,
+      }),
+    );
+    const furnitureCat = await listingCatRepo.save(
+      listingCatRepo.create({ categoryName: 'Mobilier' }),
+    );
+    const servicesCat = await listingCatRepo.save(
+      listingCatRepo.create({ categoryName: 'Services & Aide' }),
+    );
+
+    const socialEventCat = await eventCatRepo.save(
+      eventCatRepo.create({ categoryName: 'Social & Fêtes' }),
+    );
+    const sportsEventCat = await eventCatRepo.save(
+      eventCatRepo.create({ categoryName: 'Sports' }),
+    );
+    const cleanUpEventCat = await eventCatRepo.save(
+      eventCatRepo.create({ categoryName: 'Écologie & Nettoyage' }),
+    );
+    const workshopEventCat = await eventCatRepo.save(
+      eventCatRepo.create({ categoryName: 'Ateliers & Apprentissage' }),
+    );
 
     // ==========================================
     // STEP 3: SEED NEIGHBOURHOODS (NEO4J)
@@ -133,11 +156,11 @@ async function bootstrap() {
       type: 'Polygon',
       coordinates: [
         [
-          [2.340, 48.850],
-          [2.350, 48.850],
-          [2.350, 48.860],
-          [2.340, 48.860],
-          [2.340, 48.850],
+          [2.34, 48.85],
+          [2.35, 48.85],
+          [2.35, 48.86],
+          [2.34, 48.86],
+          [2.34, 48.85],
         ],
       ],
     };
@@ -146,11 +169,11 @@ async function bootstrap() {
       type: 'Polygon',
       coordinates: [
         [
-          [2.350, 48.850],
-          [2.360, 48.850],
-          [2.360, 48.860],
-          [2.350, 48.860],
-          [2.350, 48.850],
+          [2.35, 48.85],
+          [2.36, 48.85],
+          [2.36, 48.86],
+          [2.35, 48.86],
+          [2.35, 48.85],
         ],
       ],
     };
@@ -159,11 +182,11 @@ async function bootstrap() {
       type: 'Polygon',
       coordinates: [
         [
-          [2.350, 48.860],
-          [2.360, 48.860],
-          [2.360, 48.870],
-          [2.350, 48.870],
-          [2.350, 48.860],
+          [2.35, 48.86],
+          [2.36, 48.86],
+          [2.36, 48.87],
+          [2.35, 48.87],
+          [2.35, 48.86],
         ],
       ],
     };
@@ -192,7 +215,9 @@ async function bootstrap() {
       country: 'France',
     });
 
-    console.log(`Neighbourhoods created. Adjacencies: nb-downtown has ${nb1.adjacent_pg_ids.length} adjacencies.`);
+    console.log(
+      `Neighbourhoods created. Adjacencies: nb-downtown has ${nb1.adjacent_pg_ids.length} adjacencies.`,
+    );
 
     // ==========================================
     // STEP 4: SEED USERS (AUTH & USER SERVICE)
@@ -203,10 +228,38 @@ async function bootstrap() {
     const userRepo = app.get<Repository<User>>(getRepositoryToken(User));
 
     const mockUsers = [
-      { email: 'resident1@nabor.fr', firstName: 'Alice', lastName: 'Martin', password: 'Password123!', nbId: 'nb-downtown', role: UserRoleEnum.RESIDENT },
-      { email: 'resident2@nabor.fr', firstName: 'Bob', lastName: 'Bernard', password: 'Password123!', nbId: 'nb-marais', role: UserRoleEnum.RESIDENT },
-      { email: 'mod1@nabor.fr', firstName: 'Charlie', lastName: 'Dubois', password: 'Password123!', nbId: 'nb-downtown', role: UserRoleEnum.MODERATOR },
-      { email: 'admin1@nabor.fr', firstName: 'David', lastName: 'Leroy', password: 'Password123!', nbId: 'nb-villette', role: UserRoleEnum.ADMIN },
+      {
+        email: 'resident1@nabor.fr',
+        firstName: 'Alice',
+        lastName: 'Martin',
+        password: 'Password123!',
+        nbId: 'nb-downtown',
+        role: UserRoleEnum.RESIDENT,
+      },
+      {
+        email: 'resident2@nabor.fr',
+        firstName: 'Bob',
+        lastName: 'Bernard',
+        password: 'Password123!',
+        nbId: 'nb-marais',
+        role: UserRoleEnum.RESIDENT,
+      },
+      {
+        email: 'mod1@nabor.fr',
+        firstName: 'Charlie',
+        lastName: 'Dubois',
+        password: 'Password123!',
+        nbId: 'nb-downtown',
+        role: UserRoleEnum.MODERATOR,
+      },
+      {
+        email: 'admin1@nabor.fr',
+        firstName: 'David',
+        lastName: 'Leroy',
+        password: 'Password123!',
+        nbId: 'nb-villette',
+        role: UserRoleEnum.ADMIN,
+      },
     ];
 
     const seededUsers: User[] = [];
@@ -220,7 +273,9 @@ async function bootstrap() {
       });
 
       // Retrieve registered user
-      const dbUser = await userRepo.findOneOrFail({ where: { email: u.email } });
+      const dbUser = await userRepo.findOneOrFail({
+        where: { email: u.email },
+      });
 
       // Assign to neighbourhood via UsersService.updateProfile (so that lives_in is synced with Neo4j)
       await usersService.updateProfile(dbUser.id, { neighbourhoodId: u.nbId });
@@ -238,7 +293,9 @@ async function bootstrap() {
       });
 
       seededUsers.push(dbUser);
-      console.log(`Registered user ${dbUser.firstName} (${dbUser.email}) with role ${dbUser.role}`);
+      console.log(
+        `Registered user ${dbUser.firstName} (${dbUser.email}) with role ${dbUser.role}`,
+      );
     }
 
     const [uAlice, uBob, uCharlie, uDavid] = seededUsers;
@@ -280,14 +337,16 @@ async function bootstrap() {
     });
 
     await listingContentService.updateContent(uAlice.id, listing1.id, {
-      body_html: '<p>Tondeuse thermique de marque Honda. À venir chercher sur place.</p>',
+      body_html:
+        '<p>Tondeuse thermique de marque Honda. À venir chercher sur place.</p>',
       tags: ['jardin', 'outil', 'gratuit'],
     });
 
     // Listing 2: Sofa help request from Bob
     const listing2 = await listingsService.create(uBob.id, {
       title: 'Aide déménagement canapé',
-      description: 'Besoin de deux bras pour descendre un canapé du 3ème étage.',
+      description:
+        'Besoin de deux bras pour descendre un canapé du 3ème étage.',
       listing_type: ListingTypeEnum.REQUEST,
       price_cents: 1500, // 15.00 EUR
       category_id: servicesCat.id,
@@ -295,14 +354,23 @@ async function bootstrap() {
     });
 
     await listingContentService.updateContent(uBob.id, listing2.id, {
-      body_html: '<p>Le canapé est lourd. Prévu samedi après-midi. Bières offertes en prime !</p>',
+      body_html:
+        '<p>Le canapé est lourd. Prévu samedi après-midi. Bières offertes en prime !</p>',
       tags: ['déménagement', 'canapé', 'aide'],
     });
 
     // Listing Transaction: Alice requests Bob\'s help listing
-    const tx1 = await transactionService.create(listing2.id, uBob.id, uAlice.id, 1500, 150);
+    const tx1 = await transactionService.create(
+      listing2.id,
+      uBob.id,
+      uAlice.id,
+      1500,
+      150,
+    );
 
-    console.log(`Listings seeded. Transaction created for Bob's listing: status ${tx1.status}`);
+    console.log(
+      `Listings seeded. Transaction created for Bob's listing: status ${tx1.status}`,
+    );
 
     // ==========================================
     // STEP 7: SEED EVENTS (EVENTS MODULE)
@@ -322,11 +390,14 @@ async function bootstrap() {
       category_id: socialEventCat.id,
       neighbourhood_id: 'nb-downtown',
       starts_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // in 5 days
-      ends_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000).toISOString(),
+      ends_at: new Date(
+        Date.now() + 5 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000,
+      ).toISOString(),
     });
 
     await eventContentService.updateContent(uAlice.id, event1.id, {
-      body_html: '<h3>BBQ Communautaire</h3><p>Rendez-vous dans le parc central avec de quoi partager.</p>',
+      body_html:
+        '<h3>BBQ Communautaire</h3><p>Rendez-vous dans le parc central avec de quoi partager.</p>',
       location: {
         address: 'Square du centre ville, Paris',
         geocode: '48.855,2.345',
@@ -348,8 +419,12 @@ async function bootstrap() {
     // STEP 8: SEED INCIDENTS
     // ==========================================
     console.log('Seeding incidents...');
-    const incidentRepo = app.get<Repository<Incident>>(getRepositoryToken(Incident));
-    const incidentDocModel = app.get<Model<any>>(getModelToken(IncidentDocument.name));
+    const incidentRepo = app.get<Repository<Incident>>(
+      getRepositoryToken(Incident),
+    );
+    const incidentDocModel = app.get<Model<any>>(
+      getModelToken(IncidentDocument.name),
+    );
 
     const incident1 = await incidentRepo.save(
       incidentRepo.create({
@@ -357,7 +432,7 @@ async function bootstrap() {
         assignedTo: uDavid.id,
         neighbourhoodId: 'nb-downtown',
         title: 'Nid de poule béant',
-        description: 'Un énorme trou s\'est formé sur la chaussée principale.',
+        description: "Un énorme trou s'est formé sur la chaussée principale.",
         severity: IncidentSeverityEnum.HIGH,
         status: IncidentStatusEnum.IN_PROGRESS,
         assignedAt: new Date(),
@@ -386,13 +461,16 @@ async function bootstrap() {
      * business rules, Redis metrics, and events are processed properly.
      */
     const pollRepo = app.get<Repository<Poll>>(getRepositoryToken(Poll));
-    const pollOptRepo = app.get<Repository<PollOption>>(getRepositoryToken(PollOption));
+    const pollOptRepo = app.get<Repository<PollOption>>(
+      getRepositoryToken(PollOption),
+    );
     const voteRepo = app.get<Repository<Vote>>(getRepositoryToken(Vote));
 
     const poll1 = await pollRepo.save(
       pollRepo.create({
         title: 'Choix de la couleur des bancs publics',
-        description: 'Quelle couleur préférez-vous pour les nouveaux bancs du parc ?',
+        description:
+          'Quelle couleur préférez-vous pour les nouveaux bancs du parc ?',
         creatorId: uCharlie.id,
         neighbourhoodId: 'nb-downtown',
         pollType: PollTypeEnum.SINGLE,
@@ -402,14 +480,24 @@ async function bootstrap() {
       }),
     );
 
-    const optVert = await pollOptRepo.save(pollOptRepo.create({ pollId: poll1.id, label: 'Vert forêt' }));
-    const optBleu = await pollOptRepo.save(pollOptRepo.create({ pollId: poll1.id, label: 'Bleu océan' }));
-    const optGris = await pollOptRepo.save(pollOptRepo.create({ pollId: poll1.id, label: 'Gris anthracite' }));
+    const optVert = await pollOptRepo.save(
+      pollOptRepo.create({ pollId: poll1.id, label: 'Vert forêt' }),
+    );
+    const optBleu = await pollOptRepo.save(
+      pollOptRepo.create({ pollId: poll1.id, label: 'Bleu océan' }),
+    );
+    const optGris = await pollOptRepo.save(
+      pollOptRepo.create({ pollId: poll1.id, label: 'Gris anthracite' }),
+    );
 
     // Alice votes for Vert forêt
-    await voteRepo.save(voteRepo.create({ userId: uAlice.id, optionId: optVert.id, weight: 1 }));
+    await voteRepo.save(
+      voteRepo.create({ userId: uAlice.id, optionId: optVert.id, weight: 1 }),
+    );
     // Bob votes for Bleu océan
-    await voteRepo.save(voteRepo.create({ userId: uBob.id, optionId: optBleu.id, weight: 1 }));
+    await voteRepo.save(
+      voteRepo.create({ userId: uBob.id, optionId: optBleu.id, weight: 1 }),
+    );
 
     console.log('Polls seeded.');
 
@@ -422,16 +510,23 @@ async function bootstrap() {
      * refactor this block to call the business service methods to handle encryption (Argon2id / AES),
      * message read receipts, Socket.io presence events, and notification pushes.
      */
-    const chatGroupRepo = app.get<Repository<ChatGroup>>(getRepositoryToken(ChatGroup));
-    const uigRepo = app.get<Repository<UsersInGroup>>(getRepositoryToken(UsersInGroup));
-    const msgMetaRepo = app.get<Repository<MessageMetadata>>(getRepositoryToken(MessageMetadata));
+    const chatGroupRepo = app.get<Repository<ChatGroup>>(
+      getRepositoryToken(ChatGroup),
+    );
+    const uigRepo = app.get<Repository<UsersInGroup>>(
+      getRepositoryToken(UsersInGroup),
+    );
+    const msgMetaRepo = app.get<Repository<MessageMetadata>>(
+      getRepositoryToken(MessageMetadata),
+    );
     const msgMongoModel = app.get<Model<any>>(getModelToken(Message.name));
 
     // Create a group chat for Downtown residents
     const groupChat = await chatGroupRepo.save(
       chatGroupRepo.create({
         name: 'Discussion générale - Downtown',
-        description: 'Le canal de discussion principal des résidents de Downtown.',
+        description:
+          'Le canal de discussion principal des résidents de Downtown.',
         createdBy: uCharlie.id,
         type: ChatGroupTypeEnum.GROUP_CHAT,
       }),
@@ -439,8 +534,16 @@ async function bootstrap() {
 
     // Add members
     await uigRepo.save([
-      uigRepo.create({ userId: uAlice.id, groupId: groupChat.id, roleInGroup: GroupRoleEnum.MESSAGE }),
-      uigRepo.create({ userId: uCharlie.id, groupId: groupChat.id, roleInGroup: GroupRoleEnum.ADMIN }),
+      uigRepo.create({
+        userId: uAlice.id,
+        groupId: groupChat.id,
+        roleInGroup: GroupRoleEnum.MESSAGE,
+      }),
+      uigRepo.create({
+        userId: uCharlie.id,
+        groupId: groupChat.id,
+        roleInGroup: GroupRoleEnum.ADMIN,
+      }),
     ]);
 
     // Add a chat message
@@ -474,7 +577,9 @@ async function bootstrap() {
     // ==========================================
     // STEP 11: AWAIT QUEUE DRAINING
     // ==========================================
-    console.log('Waiting for BullMQ worker queues to process pending sync and registration jobs...');
+    console.log(
+      'Waiting for BullMQ worker queues to process pending sync and registration jobs...',
+    );
     const queueNames = [
       'neo4j-sync',
       'email',
@@ -494,7 +599,9 @@ async function bootstrap() {
           let counts = await queue.getJobCounts('active', 'waiting', 'delayed');
           let total = counts.active + counts.waiting;
           if (total > 0) {
-            console.log(`Queue "${qName}" has ${total} pending jobs. Draining...`);
+            console.log(
+              `Queue "${qName}" has ${total} pending jobs. Draining...`,
+            );
             while (total > 0) {
               await new Promise((r) => setTimeout(r, 1000));
               counts = await queue.getJobCounts('active', 'waiting');

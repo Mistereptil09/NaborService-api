@@ -6,7 +6,14 @@ import { MessageMetadata } from './entities/message-metadata.entity';
 import { MessageReadReceipt } from './entities/message-read-receipt.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ChatGroup, UsersInGroup, MessageMetadata, MessageReadReceipt])],
+  imports: [
+    TypeOrmModule.forFeature([
+      ChatGroup,
+      UsersInGroup,
+      MessageMetadata,
+      MessageReadReceipt,
+    ]),
+  ],
   exports: [TypeOrmModule],
 })
 export class MessagingModule {}

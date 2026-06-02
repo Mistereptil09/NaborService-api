@@ -58,7 +58,8 @@ export class EventAttachment {
   uploaded_at: Date;
 }
 
-export const EventAttachmentSchema = SchemaFactory.createForClass(EventAttachment);
+export const EventAttachmentSchema =
+  SchemaFactory.createForClass(EventAttachment);
 
 @Schema({ collection: 'event_documents', timestamps: false })
 export class EventDocument {

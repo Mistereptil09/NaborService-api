@@ -69,9 +69,11 @@ describe('Feature: gridfs-media-storage, Property 11: User Media Singleton Invar
             owner_id: userId,
             save: jest.fn().mockResolvedValue(this),
           };
-          (mediaService as any).mediaFileModel = jest.fn().mockImplementation(() => ({
-            save: jest.fn().mockResolvedValue(mockSavedDoc),
-          })) as any;
+          (mediaService as any).mediaFileModel = jest
+            .fn()
+            .mockImplementation(() => ({
+              save: jest.fn().mockResolvedValue(mockSavedDoc),
+            })) as any;
           Object.assign((mediaService as any).mediaFileModel, mockMediaModel);
 
           const file = {
@@ -81,13 +83,17 @@ describe('Feature: gridfs-media-storage, Property 11: User Media Singleton Invar
             mimetype: 'image/png',
           } as Express.Multer.File;
 
-          await mediaService.upload(file, ownerType as any, userId);
+          await mediaService.upload(file, ownerType, userId);
 
-          expect(mockGridFSService.delete).toHaveBeenCalledWith(existingMedia.gridfs_file_id);
-          expect(mockMediaModel.deleteOne).toHaveBeenCalledWith({ _id: existingMedia._id });
-        }
+          expect(mockGridFSService.delete).toHaveBeenCalledWith(
+            existingMedia.gridfs_file_id,
+          );
+          expect(mockMediaModel.deleteOne).toHaveBeenCalledWith({
+            _id: existingMedia._id,
+          });
+        },
       ),
-      { numRuns: 50 }
+      { numRuns: 50 },
     );
   });
 });

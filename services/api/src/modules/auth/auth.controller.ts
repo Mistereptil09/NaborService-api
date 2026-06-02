@@ -64,7 +64,9 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Créer un compte' })
   @ApiCreatedResponse({ description: 'Compte créé avec succès' })
-  @ApiBadRequestResponse({ description: 'Données invalides ou email déjà utilisé' })
+  @ApiBadRequestResponse({
+    description: 'Données invalides ou email déjà utilisé',
+  })
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
@@ -73,9 +75,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @RateLimit('login', 10, 900) // 10 requests per 15 mins per IP
   @ApiOperation({ summary: 'Se connecter et obtenir un JWT' })
-  @ApiOkResponse({ description: 'Connexion réussie (renvoie le token access_token ou un challenge TOTP)' })
+  @ApiOkResponse({
+    description:
+      'Connexion réussie (renvoie le token access_token ou un challenge TOTP)',
+  })
   @ApiUnauthorizedResponse({ description: 'Email ou mot de passe incorrect' })
-  @ApiBadRequestResponse({ description: 'Données d\'entrée invalides' })
+  @ApiBadRequestResponse({ description: "Données d'entrée invalides" })
   async login(
     @Body() dto: LoginDto,
     @Req() req: Express.Request,
@@ -90,9 +95,16 @@ export class AuthController {
 
   @Post('totp/confirm-setup')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Confirmer la configuration TOTP obligatoire et activer la session' })
-  @ApiOkResponse({ description: 'TOTP configuré avec succès, session démarrée' })
-  @ApiUnauthorizedResponse({ description: 'Code TOTP ou token de setup invalide/expiré' })
+  @ApiOperation({
+    summary:
+      'Confirmer la configuration TOTP obligatoire et activer la session',
+  })
+  @ApiOkResponse({
+    description: 'TOTP configuré avec succès, session démarrée',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Code TOTP ou token de setup invalide/expiré',
+  })
   @ApiBadRequestResponse({ description: 'Données de validation invalides' })
   async confirmSetup(
     @Body() dto: TotpVerifyDto, // Reuse the same DTO since it has challenge_token and code
@@ -156,8 +168,12 @@ export class AuthController {
   @Post('totp/verify')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Vérifier le code TOTP et activer la session' })
-  @ApiOkResponse({ description: 'Code TOTP validé avec succès, session démarrée' })
-  @ApiUnauthorizedResponse({ description: 'Code TOTP ou token de challenge invalide/expiré' })
+  @ApiOkResponse({
+    description: 'Code TOTP validé avec succès, session démarrée',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Code TOTP ou token de challenge invalide/expiré',
+  })
   @ApiBadRequestResponse({ description: 'Données de validation invalides' })
   async verifyTotp(
     @Body() dto: TotpVerifyDto,
@@ -223,7 +239,9 @@ export class AuthController {
   @RateLimit('refresh', 10, 60) // 10 requests per 1 min per user_id
   @ApiOperation({ summary: 'Renouveler le token access_token' })
   @ApiOkResponse({ description: 'Tokens rafraîchis avec succès' })
-  @ApiUnauthorizedResponse({ description: 'Non authentifié, session expirée ou révoquée' })
+  @ApiUnauthorizedResponse({
+    description: 'Non authentifié, session expirée ou révoquée',
+  })
   async refresh(
     @Req() req: Express.Request,
     @Res({ passthrough: true }) res: Express.Response,
@@ -235,16 +253,23 @@ export class AuthController {
 
     const hash = this.tokenService.hashRefreshToken(token);
     const payload = await this.tokenService.lookupRefreshInRedis(hash);
-    let session = await this.sessionService.findByTokenHash(hash);
+    const session = await this.sessionService.findByTokenHash(hash);
 
     // Fallback validation against DB if Redis miss
     if (!payload && session) {
-      if (session.revokedAt !== null || session.expiresAt.getTime() <= Date.now()) {
+      if (
+        session.revokedAt !== null ||
+        session.expiresAt.getTime() <= Date.now()
+      ) {
         throw new UnauthorizedException('Session expirée ou révoquée');
       }
     }
 
-    if (!session || session.revokedAt !== null || session.expiresAt.getTime() <= Date.now()) {
+    if (
+      !session ||
+      session.revokedAt !== null ||
+      session.expiresAt.getTime() <= Date.now()
+    ) {
       throw new UnauthorizedException('Session expirée ou révoquée');
     }
 
@@ -294,7 +319,9 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Se déconnecter' })
   @ApiOkResponse({ description: 'Déconnexion réussie' })
-  @ApiUnauthorizedResponse({ description: 'Non authentifié ou session invalide' })
+  @ApiUnauthorizedResponse({
+    description: 'Non authentifié ou session invalide',
+  })
   async logout(
     @Req() req: Express.Request,
     @Res({ passthrough: true }) res: Express.Response,
@@ -331,7 +358,9 @@ export class AuthController {
   @ApiOkResponse({ description: 'Déconnexion globale réussie' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async logoutAll(@Req() req: { user: { sub: string } }) {
-    const activeSessions = await this.sessionService.findActiveByUser(req.user.sub);
+    const activeSessions = await this.sessionService.findActiveByUser(
+      req.user.sub,
+    );
 
     // Revoke all in Redis
     for (const session of activeSessions) {
@@ -351,9 +380,13 @@ export class AuthController {
   @ApiOkResponse({ description: 'Liste des sessions actives retournée' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async getSessions(@Req() req: Express.Request & { user: { sub: string } }) {
-    const activeSessions = await this.sessionService.findActiveByUser(req.user.sub);
+    const activeSessions = await this.sessionService.findActiveByUser(
+      req.user.sub,
+    );
     const token = req.cookies?.['refresh_token'];
-    const currentHash = token ? this.tokenService.hashRefreshToken(token) : null;
+    const currentHash = token
+      ? this.tokenService.hashRefreshToken(token)
+      : null;
 
     return activeSessions.map((session) => ({
       id: session.id,
@@ -361,7 +394,8 @@ export class AuthController {
       ip_address: session.ipAddress,
       created_at: session.createdAt,
       last_used_at: session.lastUsedAt,
-      is_current: currentHash !== null && session.refreshTokenHash === currentHash,
+      is_current:
+        currentHash !== null && session.refreshTokenHash === currentHash,
     }));
   }
 
@@ -371,7 +405,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Révoquer une session spécifique' })
   @ApiOkResponse({ description: 'Session révoquée avec succès' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  @ApiForbiddenResponse({ description: 'Accès interdit (la session n\'appartient pas à l\'utilisateur)' })
+  @ApiForbiddenResponse({
+    description: "Accès interdit (la session n'appartient pas à l'utilisateur)",
+  })
   @ApiNotFoundResponse({ description: 'Session introuvable' })
   async deleteSession(
     @Param('id') sessionId: string,
@@ -471,7 +507,9 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @RateLimit('forgot-password', 5, 900)
   @ApiOperation({ summary: 'Demander une réinitialisation de mot de passe' })
-  @ApiOkResponse({ description: 'Email de réinitialisation envoyé si le compte existe' })
+  @ApiOkResponse({
+    description: 'Email de réinitialisation envoyé si le compte existe',
+  })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     await this.userSecurityService.forgotPassword(dto.email);
     return { message: 'Si un compte existe, un email a été envoyé' };
@@ -489,7 +527,7 @@ export class AuthController {
 
   @Get('sso/qr/:token_uuid/status')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Vérifier le statut d\'une session SSO' })
+  @ApiOperation({ summary: "Vérifier le statut d'une session SSO" })
   @ApiOkResponse({ description: 'Statut de la session SSO' })
   async checkSsoStatus(@Param('token_uuid') tokenUuid: string) {
     return this.ssoService.checkStatus(tokenUuid);

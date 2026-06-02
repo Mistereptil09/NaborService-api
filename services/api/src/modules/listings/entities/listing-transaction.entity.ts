@@ -91,10 +91,18 @@ export class ListingTransaction {
   @Column({ name: 'cancelled_at', type: 'timestamptz', nullable: true })
   cancelledAt: Date | null;
 
-  @Column({ name: 'provider_confirmed_at', type: 'timestamptz', nullable: true })
+  @Column({
+    name: 'provider_confirmed_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
   providerConfirmedAt: Date | null;
 
-  @Column({ name: 'requester_confirmed_at', type: 'timestamptz', nullable: true })
+  @Column({
+    name: 'requester_confirmed_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
   requesterConfirmedAt: Date | null;
 
   @ManyToOne(() => Listing)

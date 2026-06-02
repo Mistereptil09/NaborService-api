@@ -29,8 +29,12 @@ describe('Feature: neo4j-init-service, Property 8: findNearby returns sorted and
           expect(mockNeo4jService.run).toHaveBeenCalledTimes(1);
           const [cypher, params] = mockNeo4jService.run.mock.calls[0];
 
-          expect(cypher).toContain('point({latitude: $lat, longitude: $lng, crs: \'wgs-84\'})');
-          expect(cypher).toContain('point.distance(n.centroid, queryPoint) <= $radiusMeters');
+          expect(cypher).toContain(
+            "point({latitude: $lat, longitude: $lng, crs: 'wgs-84'})",
+          );
+          expect(cypher).toContain(
+            'point.distance(n.centroid, queryPoint) <= $radiusMeters',
+          );
           expect(cypher).toContain('ORDER BY distanceMeters ASC');
           expect(cypher).toContain('LIMIT 5');
 

@@ -30,4 +30,9 @@ export const RateLimit = (
   prefix: string,
   limit: number,
   windowSeconds: number,
-) => SetMetadata(RATE_LIMIT_KEY, { prefix, limit, windowSeconds } as RateLimitOptions);
+) =>
+  SetMetadata(RATE_LIMIT_KEY, {
+    prefix,
+    limit,
+    windowSeconds,
+  });

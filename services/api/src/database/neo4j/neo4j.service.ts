@@ -1,5 +1,10 @@
 import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
-import neo4j, { Driver, QueryResult, ManagedTransaction, RecordShape } from 'neo4j-driver';
+import neo4j, {
+  Driver,
+  QueryResult,
+  ManagedTransaction,
+  RecordShape,
+} from 'neo4j-driver';
 import { NEO4J_DRIVER, TRANSIENT_ERROR_CODES } from './neo4j.constants';
 
 @Injectable()
@@ -24,7 +29,10 @@ export class Neo4jService implements OnModuleDestroy {
       if (TRANSIENT_ERROR_CODES.includes(code)) return true;
     }
     const message = err.message || '';
-    if (message.includes('ServiceUnavailable') || message.includes('SessionExpired')) {
+    if (
+      message.includes('ServiceUnavailable') ||
+      message.includes('SessionExpired')
+    ) {
       return true;
     }
     return false;
@@ -36,7 +44,7 @@ export class Neo4jService implements OnModuleDestroy {
   private async retryWithBackoff<T>(work: () => Promise<T>): Promise<T> {
     const delays = [1000, 5000, 30000];
     let attempt = 0;
- 
+
     while (true) {
       try {
         return await work();
@@ -62,7 +70,7 @@ export class Neo4jService implements OnModuleDestroy {
     return this.retryWithBackoff(async () => {
       const session = this.driver.session();
       try {
-        return (await session.run(cypher, params)) as QueryResult<T>;
+        return await session.run(cypher, params);
       } finally {
         await session.close();
       }

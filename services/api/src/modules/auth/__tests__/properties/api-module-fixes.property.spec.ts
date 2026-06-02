@@ -6,12 +6,14 @@ import { ListingStateMachineService } from '../../../listings/listing-state-mach
 import { AuthService } from '../../auth.service';
 import { SsoService } from '../../sso.service';
 import { UsersService } from '../../../users/users.service';
-import { ConflictException, InternalServerErrorException } from '@nestjs/common';
+import {
+  ConflictException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ListingStatusEnum } from '../../../../common/enums';
 
 describe('API Module Fixes Spec Verification', () => {
   describe('Property 1: Bug Condition (Exploration Tests)', () => {
-    
     // 1. WebSocket Auth
     it('1.1: WebSocket gateway handleConnection rejects clients without valid JWT', async () => {
       const mockJwtService = {
@@ -19,7 +21,7 @@ describe('API Module Fixes Spec Verification', () => {
           throw new Error('Invalid JWT');
         }),
       };
-      
+
       const gateway = new ListingsGateway(mockJwtService as any);
       const mockClient = {
         handshake: {
@@ -48,9 +50,9 @@ describe('API Module Fixes Spec Verification', () => {
 
             const errors = await validate(dto);
             expect(errors.length).toBeGreaterThan(0);
-          }
+          },
         ),
-        { numRuns: 20 }
+        { numRuns: 20 },
       );
     });
 
@@ -98,16 +100,23 @@ describe('API Module Fixes Spec Verification', () => {
         null as any,
         null as any,
         null as any,
-        null as any
+        null as any,
       );
 
-      await expect(smService.expressInterest('l1', 'requester-1')).rejects.toThrow(ConflictException);
+      await expect(
+        smService.expressInterest('l1', 'requester-1'),
+      ).rejects.toThrow(ConflictException);
     });
 
     // 5. Desktop token 90-day expiry via SSO
     it('1.19: SsoService signs desktop token with 90 days expiry', async () => {
       const mockRedis = {
-        get: jest.fn().mockResolvedValue(JSON.stringify({ status: 'pending', expiresAt: Date.now() + 10000 })),
+        get: jest.fn().mockResolvedValue(
+          JSON.stringify({
+            status: 'pending',
+            expiresAt: Date.now() + 10000,
+          }),
+        ),
         set: jest.fn(),
       };
       const mockUserRepo = {
@@ -127,7 +136,7 @@ describe('API Module Fixes Spec Verification', () => {
         mockUserRepo as any,
         mockTokenService as any,
         mockSessionService as any,
-        { emitQrValidated: jest.fn() } as any
+        { emitQrValidated: jest.fn() } as any,
       );
 
       await ssoService.validateQr('mock-uuid', 'u1');
@@ -140,7 +149,9 @@ describe('API Module Fixes Spec Verification', () => {
       const mockUserRepo = {
         findOne: jest.fn().mockResolvedValue({ id: 'u1' }),
         manager: {
-          query: jest.fn().mockRejectedValue(new Error('Database Query Failure')),
+          query: jest
+            .fn()
+            .mockRejectedValue(new Error('Database Query Failure')),
         },
       };
 
@@ -151,24 +162,27 @@ describe('API Module Fixes Spec Verification', () => {
         null as any,
         null as any,
         null as any,
-        null as any
+        null as any,
       );
-      
+
       usersService.getProfile = jest.fn().mockResolvedValue({ id: 'u1' });
 
-      await expect(usersService.exportJson('u1')).rejects.toThrow(InternalServerErrorException);
+      await expect(usersService.exportJson('u1')).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
   });
 
   describe('Property 2: Preservation (Regression Testing)', () => {
-    
     // 1. Valid login values validation passes
     it('3.2: LoginDto validation passes for valid credentials', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.record({
             email: fc.emailAddress(),
-            password: fc.string({ minLength: 8, maxLength: 50 }).filter(s => !s.includes(' ')),
+            password: fc
+              .string({ minLength: 8, maxLength: 50 })
+              .filter((s) => !s.includes(' ')),
           }),
           async (payload) => {
             const dto = new LoginDto();
@@ -177,12 +191,15 @@ describe('API Module Fixes Spec Verification', () => {
 
             const errors = await validate(dto);
             if (errors.length > 0) {
-              console.log('VALIDATION ERRORS:', JSON.stringify(errors, null, 2));
+              console.log(
+                'VALIDATION ERRORS:',
+                JSON.stringify(errors, null, 2),
+              );
             }
             expect(errors.length).toBe(0);
-          }
+          },
         ),
-        { numRuns: 20 }
+        { numRuns: 20 },
       );
     });
 
@@ -191,7 +208,7 @@ describe('API Module Fixes Spec Verification', () => {
       const mockJwtService = {
         verify: jest.fn().mockReturnValue({ sub: 'user-1' }),
       };
-      
+
       const gateway = new ListingsGateway(mockJwtService as any);
       const mockClient = {
         handshake: {
@@ -237,9 +254,9 @@ describe('API Module Fixes Spec Verification', () => {
         mockListingsService as any,
         mockTxService as any,
         mockGateway as any,
-        mockQueue as any,
-        mockQueue as any,
-        mockQueue as any
+        mockQueue,
+        mockQueue,
+        mockQueue,
       );
 
       const result = await smService.expressInterest('l1', 'requester-1');

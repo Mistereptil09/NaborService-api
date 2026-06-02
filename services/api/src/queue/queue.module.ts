@@ -50,19 +50,64 @@ const queues = [
       }),
     }),
     BullModule.registerQueue(
-      { name: 'neo4j-sync', defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } } },
-      { name: 'email', defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } } },
-      { name: 'pdf-generation', defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } } },
-      { name: 'stripe-webhook', defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } } },
-      { name: 'waitlist-promote', defaultJobOptions: { attempts: 3, delay: 86400000, backoff: { type: 'custom' } } },
-      { name: 'rgpd-anonymise', defaultJobOptions: { attempts: 3, priority: 10, backoff: { type: 'custom' } } },
-      { name: 'crypto-rotation', defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } } },
-      { name: 'event-register', defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } } },
-      { name: 'contract-expiration', defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } } },
+      {
+        name: 'neo4j-sync',
+        defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } },
+      },
+      {
+        name: 'email',
+        defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } },
+      },
+      {
+        name: 'pdf-generation',
+        defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } },
+      },
+      {
+        name: 'stripe-webhook',
+        defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } },
+      },
+      {
+        name: 'waitlist-promote',
+        defaultJobOptions: {
+          attempts: 3,
+          delay: 86400000,
+          backoff: { type: 'custom' },
+        },
+      },
+      {
+        name: 'rgpd-anonymise',
+        defaultJobOptions: {
+          attempts: 3,
+          priority: 10,
+          backoff: { type: 'custom' },
+        },
+      },
+      {
+        name: 'crypto-rotation',
+        defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } },
+      },
+      {
+        name: 'event-register',
+        defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } },
+      },
+      {
+        name: 'contract-expiration',
+        defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } },
+      },
     ),
   ],
   controllers: [QueueHealthController],
-  providers: [Neo4jSyncWorker, EmailWorker, StripeWebhookWorker, EventRegisterWorker, WaitlistPromoteWorker, RgpdAnonymiseWorker, CryptoRotationWorker, QueueHealthService, QueueFailureListener],
+  providers: [
+    Neo4jSyncWorker,
+    EmailWorker,
+    StripeWebhookWorker,
+    EventRegisterWorker,
+    WaitlistPromoteWorker,
+    RgpdAnonymiseWorker,
+    CryptoRotationWorker,
+    QueueHealthService,
+    QueueFailureListener,
+  ],
   exports: [BullModule],
 })
 export class QueueModule implements OnModuleInit {

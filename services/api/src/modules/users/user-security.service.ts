@@ -72,7 +72,11 @@ export class UserSecurityService {
     });
   }
 
-  async changePassword(userId: string, dto: ChangePasswordDto, currentRefreshToken?: string): Promise<void> {
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+    currentRefreshToken?: string,
+  ): Promise<void> {
     await this.verifyUserTotp(userId, dto.totpCode);
 
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -80,7 +84,10 @@ export class UserSecurityService {
       throw new NotFoundException('Utilisateur introuvable');
     }
 
-    const isCurrentPasswordCorrect = await argon2.verify(user.passwordHash, dto.currentPassword);
+    const isCurrentPasswordCorrect = await argon2.verify(
+      user.passwordHash,
+      dto.currentPassword,
+    );
     if (!isCurrentPasswordCorrect) {
       throw new UnauthorizedException('Mot de passe actuel incorrect');
     }
@@ -93,7 +100,9 @@ export class UserSecurityService {
     let currentSessionId: string | null = null;
     if (currentRefreshToken) {
       const hash = this.tokenService.hashRefreshToken(currentRefreshToken);
-      const session = await this.sessionRepository.findOne({ where: { refreshTokenHash: hash } });
+      const session = await this.sessionRepository.findOne({
+        where: { refreshTokenHash: hash },
+      });
       if (session) {
         currentSessionId = session.id;
       }
@@ -117,7 +126,9 @@ export class UserSecurityService {
   async changeEmail(userId: string, dto: ChangeEmailDto): Promise<void> {
     await this.verifyUserTotp(userId, dto.totpCode);
 
-    const existing = await this.userRepository.findOne({ where: { email: dto.newEmail } });
+    const existing = await this.userRepository.findOne({
+      where: { email: dto.newEmail },
+    });
     if (existing && existing.id !== userId) {
       throw new ConflictException('Email déjà utilisé');
     }

@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventModerationAction } from './entities/event-moderation-action.entity';
@@ -41,10 +45,14 @@ export class EventModerationService {
       event.status = EventStatusEnum.CANCELLED;
       event.cancelledAt = new Date();
       await this.eventRepo.save(event);
-      
-      this.eventsGateway.emitEventCancelled(eventId, `Moderation: ${dto.reason}`, event.cancelledAt);
-      
-      // Note: Refund logic would normally be triggered here or enqueued. 
+
+      this.eventsGateway.emitEventCancelled(
+        eventId,
+        `Moderation: ${dto.reason}`,
+        event.cancelledAt,
+      );
+
+      // Note: Refund logic would normally be triggered here or enqueued.
       // For brevity, assuming state machine or a worker handles cancellation refunds.
     } else if (dto.action === 'restored') {
       event.status = EventStatusEnum.OPEN; // Or previous state

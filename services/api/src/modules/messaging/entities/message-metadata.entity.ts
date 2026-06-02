@@ -36,7 +36,12 @@ export class MessageMetadata {
   @Column({ name: 'edited_at', type: 'timestamptz', nullable: true })
   editedAt: Date | null;
 
-  @Column({ name: 'is_deleted', type: 'boolean', nullable: false, default: false })
+  @Column({
+    name: 'is_deleted',
+    type: 'boolean',
+    nullable: false,
+    default: false,
+  })
   isDeleted: boolean;
 
   @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })

@@ -112,9 +112,7 @@ describe('Incidents Domain — TypeORM Metadata', () => {
 
     it('should define status enum with enumName "incident_status_enum"', () => {
       const metadata = dataSource.getMetadata(Incident);
-      const status = metadata.columns.find(
-        (c) => c.databaseName === 'status',
-      );
+      const status = metadata.columns.find((c) => c.databaseName === 'status');
       expect(status).toBeDefined();
       expect(status!.enumName).toBe('incident_status_enum');
     });
@@ -125,23 +123,19 @@ describe('Incidents Domain — TypeORM Metadata', () => {
         (c) => c.databaseName === 'severity',
       );
       expect(severity).toBeDefined();
-      expect(severity!.default).toBe("medium");
+      expect(severity!.default).toBe('medium');
     });
 
     it('should have default "open" for status', () => {
       const metadata = dataSource.getMetadata(Incident);
-      const status = metadata.columns.find(
-        (c) => c.databaseName === 'status',
-      );
+      const status = metadata.columns.find((c) => c.databaseName === 'status');
       expect(status).toBeDefined();
-      expect(status!.default).toBe("open");
+      expect(status!.default).toBe('open');
     });
 
     it('should define index idx_incidents_feed on (neighbourhood_id, status)', () => {
       const metadata = dataSource.getMetadata(Incident);
-      const idx = metadata.indices.find(
-        (i) => i.name === 'idx_incidents_feed',
-      );
+      const idx = metadata.indices.find((i) => i.name === 'idx_incidents_feed');
       expect(idx).toBeDefined();
       const colNames = idx!.columns.map((c) => c.databaseName);
       expect(colNames).toContain('neighbourhood_id');

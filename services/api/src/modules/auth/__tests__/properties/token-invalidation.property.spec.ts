@@ -28,7 +28,9 @@ describe('Property 9: Token invalidation after password change or account deleti
         }),
         async (data) => {
           const tokenIat = data.iat;
-          const passwordChangedAt = new Date((tokenIat * 1000) + data.passwordChangedOffset);
+          const passwordChangedAt = new Date(
+            tokenIat * 1000 + data.passwordChangedOffset,
+          );
           const deletedAt = data.isDeleted ? new Date() : null;
 
           const user = {
@@ -49,10 +51,13 @@ describe('Property 9: Token invalidation after password change or account deleti
             exp: tokenIat + 900,
           };
 
-          const expectFailure = data.isDeleted || data.passwordChangedOffset > 0;
+          const expectFailure =
+            data.isDeleted || data.passwordChangedOffset > 0;
 
           if (expectFailure) {
-            await expect(strategy.validate(payload)).rejects.toThrow(UnauthorizedException);
+            await expect(strategy.validate(payload)).rejects.toThrow(
+              UnauthorizedException,
+            );
           } else {
             const result = await strategy.validate(payload);
             expect(result).toBeDefined();

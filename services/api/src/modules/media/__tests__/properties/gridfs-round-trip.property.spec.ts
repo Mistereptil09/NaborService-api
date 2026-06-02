@@ -19,7 +19,7 @@ describe('Feature: gridfs-media-storage, Property 1: GridFS Storage Round-Trip',
     mockConnection = {
       db: {
         collection: jest.fn(),
-      }
+      },
     };
 
     gridfsService = new GridFSService(mockConnection);
@@ -39,7 +39,7 @@ describe('Feature: gridfs-media-storage, Property 1: GridFS Storage Round-Trip',
           const mockUploadStream: any = new Writable({
             write(chunk, encoding, callback) {
               callback();
-            }
+            },
           });
           mockUploadStream.id = fileId;
           mockBucket.openUploadStream.mockReturnValue(mockUploadStream);
@@ -48,7 +48,11 @@ describe('Feature: gridfs-media-storage, Property 1: GridFS Storage Round-Trip',
             mockUploadStream.emit('finish');
           }, 5);
 
-          const uploadedId = await gridfsService.upload(buffer, filename, contentType);
+          const uploadedId = await gridfsService.upload(
+            buffer,
+            filename,
+            contentType,
+          );
           expect(uploadedId).toBe(fileId);
           expect(mockBucket.openUploadStream).toHaveBeenCalledWith(filename, {
             metadata: { contentType },
@@ -62,15 +66,15 @@ describe('Feature: gridfs-media-storage, Property 1: GridFS Storage Round-Trip',
                 filename,
                 metadata: { contentType },
                 uploadDate: new Date(),
-              }
-            ])
+              },
+            ]),
           });
 
           const mockDownloadStream = new Readable({
             read() {
               this.push(buffer);
               this.push(null);
-            }
+            },
           });
           mockBucket.openDownloadStream.mockReturnValue(mockDownloadStream);
 
@@ -79,9 +83,9 @@ describe('Feature: gridfs-media-storage, Property 1: GridFS Storage Round-Trip',
           expect(downloadResult.contentType).toBe(contentType);
           expect(downloadResult.filename).toBe(filename);
           expect(downloadResult.length).toBe(buffer.length);
-        }
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

@@ -32,7 +32,11 @@ describe('Feature: rgpd-data-processing-table, Property 4: Notification dispatch
         fc.constantFrom(...allEmails), // emailType
         fc.boolean(), // isNotificationsOptedOut
         async (userId, emailType, isNotificationsOptedOut) => {
-          const result = await simulateSendEmail(userId, emailType, isNotificationsOptedOut);
+          const result = await simulateSendEmail(
+            userId,
+            emailType,
+            isNotificationsOptedOut,
+          );
 
           if (isNotificationsOptedOut) {
             const isEssential = ESSENTIAL_EMAILS.includes(emailType as any);

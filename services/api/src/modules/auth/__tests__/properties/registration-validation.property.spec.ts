@@ -9,10 +9,16 @@ describe('Property 12: Registration input validation', () => {
       fc.asyncProperty(
         fc.record({
           email: fc.emailAddress(),
-          firstName: fc.string({ minLength: 1, maxLength: 100 }).map(s => s.trim()).filter(s => s.length > 0),
-          lastName: fc.string({ minLength: 1, maxLength: 100 }).map(s => s.trim()).filter(s => s.length > 0),
+          firstName: fc
+            .string({ minLength: 1, maxLength: 100 })
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0),
+          lastName: fc
+            .string({ minLength: 1, maxLength: 100 })
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0),
           password: fc.string({ minLength: 8, maxLength: 128 }),
-          
+
           emailMutator: fc.constantFrom('valid', 'invalid-format', 'too-long'),
           firstNameMutator: fc.constantFrom('valid', 'empty', 'too-long'),
           lastNameMutator: fc.constantFrom('valid', 'empty', 'too-long'),
@@ -21,7 +27,8 @@ describe('Property 12: Registration input validation', () => {
         async (data) => {
           let email = data.email;
           if (data.emailMutator === 'invalid-format') email = 'not-an-email';
-          if (data.emailMutator === 'too-long') email = 'a'.repeat(256) + '@test.com';
+          if (data.emailMutator === 'too-long')
+            email = 'a'.repeat(256) + '@test.com';
 
           let firstName = data.firstName;
           if (data.firstNameMutator === 'empty') firstName = '';
@@ -43,7 +50,7 @@ describe('Property 12: Registration input validation', () => {
           });
 
           const errors = await validate(dto);
-          const errorFields = errors.map(e => e.property);
+          const errorFields = errors.map((e) => e.property);
 
           if (data.emailMutator !== 'valid') {
             expect(errorFields).toContain('email');

@@ -146,7 +146,9 @@ describe('Neo4jSyncService', () => {
     it('should delete LivesIn relation', async () => {
       await service.deleteLivesIn('usr_1');
       expect(mockNeo4jService.run).toHaveBeenCalledWith(
-        expect.stringContaining('MATCH (u:User { pg_id: $userPgId })-[r:LIVES_IN]->()'),
+        expect.stringContaining(
+          'MATCH (u:User { pg_id: $userPgId })-[r:LIVES_IN]->()',
+        ),
         { userPgId: 'usr_1' },
       );
     });
@@ -162,7 +164,9 @@ describe('Neo4jSyncService', () => {
     it('should delete Follows relation', async () => {
       await service.deleteFollows('usr_1', 'usr_2');
       expect(mockNeo4jService.run).toHaveBeenCalledWith(
-        expect.stringContaining('MATCH (u1:User { pg_id: $followerPgId })-[r:FOLLOWS]->(u2:User { pg_id: $followedPgId })'),
+        expect.stringContaining(
+          'MATCH (u1:User { pg_id: $followerPgId })-[r:FOLLOWS]->(u2:User { pg_id: $followedPgId })',
+        ),
         { followerPgId: 'usr_1', followedPgId: 'usr_2' },
       );
     });
@@ -178,7 +182,9 @@ describe('Neo4jSyncService', () => {
     it('should delete FriendsWith relation', async () => {
       await service.deleteFriendsWith('usr_1', 'usr_2');
       expect(mockNeo4jService.run).toHaveBeenCalledWith(
-        expect.stringContaining('MATCH (u1:User { pg_id: $userPgId1 })-[r:FRIENDS_WITH]-(u2:User { pg_id: $userPgId2 })'),
+        expect.stringContaining(
+          'MATCH (u1:User { pg_id: $userPgId1 })-[r:FRIENDS_WITH]-(u2:User { pg_id: $userPgId2 })',
+        ),
         { userPgId1: 'usr_1', userPgId2: 'usr_2' },
       );
     });
@@ -194,7 +200,9 @@ describe('Neo4jSyncService', () => {
     it('should delete Blocks relation', async () => {
       await service.deleteBlocks('usr_1', 'usr_2');
       expect(mockNeo4jService.run).toHaveBeenCalledWith(
-        expect.stringContaining('MATCH (u1:User { pg_id: $blockerPgId })-[r:BLOCKS]->(u2:User { pg_id: $blockedPgId })'),
+        expect.stringContaining(
+          'MATCH (u1:User { pg_id: $blockerPgId })-[r:BLOCKS]->(u2:User { pg_id: $blockedPgId })',
+        ),
         { blockerPgId: 'usr_1', blockedPgId: 'usr_2' },
       );
     });

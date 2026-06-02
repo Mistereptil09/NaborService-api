@@ -38,7 +38,9 @@ describe('Feature: neo4j-init-service, Property 6: Neighbourhood upsert preserve
 
           // Structural validation
           expect(cypher).toContain('MERGE (n:Neighbourhood { pg_id: $pgId })');
-          expect(cypher).toContain('n.centroid = point({latitude: $latitude, longitude: $longitude, crs: \'wgs-84\'})');
+          expect(cypher).toContain(
+            "n.centroid = point({latitude: $latitude, longitude: $longitude, crs: 'wgs-84'})",
+          );
           expect(cypher).toContain('n.created_at = datetime()');
           expect(cypher).toContain('n.updated_at = datetime()');
 

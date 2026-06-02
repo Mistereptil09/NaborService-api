@@ -7,7 +7,8 @@ describe('EventDocument Schema', () => {
 
   beforeAll(() => {
     EventDocumentModel =
-      mongoose.models.EventDocument || mongoose.model('EventDocument', EventDocumentSchema);
+      mongoose.models.EventDocument ||
+      mongoose.model('EventDocument', EventDocumentSchema);
   });
 
   it('should have the correct collection name', () => {
@@ -17,11 +18,11 @@ describe('EventDocument Schema', () => {
   it('should have the correct indexes defined', () => {
     const indexes = EventDocumentSchema.indexes();
 
-    const pgEventIdx = indexes.find(idx => idx[0].pg_event_id === 1);
+    const pgEventIdx = indexes.find((idx) => idx[0].pg_event_id === 1);
     expect(pgEventIdx).toBeDefined();
     expect(pgEventIdx?.[1]?.unique).toBe(true);
 
-    const updatedIdx = indexes.find(idx => idx[0].updated_at === -1);
+    const updatedIdx = indexes.find((idx) => idx[0].updated_at === -1);
     expect(updatedIdx).toBeDefined();
   });
 
@@ -73,7 +74,8 @@ describe('EventDocument Schema', () => {
       const mockDoc = {
         get: (path: string) => {
           if (path === 'cover') return { size_bytes: 5000000 };
-          if (path === 'attachments') return [{ size_bytes: 4000000 }, { size_bytes: 5155776 }];
+          if (path === 'attachments')
+            return [{ size_bytes: 4000000 }, { size_bytes: 5155776 }];
           return null;
         },
       };
@@ -89,7 +91,8 @@ describe('EventDocument Schema', () => {
       const mockDoc = {
         get: (path: string) => {
           if (path === 'cover') return { size_bytes: 5000000 };
-          if (path === 'attachments') return [{ size_bytes: 4000000 }, { size_bytes: 5155777 }]; // 1 byte over
+          if (path === 'attachments')
+            return [{ size_bytes: 4000000 }, { size_bytes: 5155777 }]; // 1 byte over
           return null;
         },
       };

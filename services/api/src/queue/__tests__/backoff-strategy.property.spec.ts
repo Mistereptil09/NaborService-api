@@ -5,7 +5,7 @@ import { getBackoffDelay } from '../utils/backoff-strategy';
 describe('Backoff Strategy', () => {
   const delaysMap: Record<string, number[]> = {
     'neo4j-sync': [1000, 5000, 30000],
-    'email': [2000, 8000, 32000],
+    email: [2000, 8000, 32000],
     'pdf-generation': [1000, 5000, 30000],
     'stripe-webhook': [1000, 5000, 30000],
     'waitlist-promote': [500, 1000, 2000],
@@ -24,9 +24,9 @@ describe('Backoff Strategy', () => {
           const delay = getBackoffDelay(queueName, attempt);
           const expected = delaysMap[queueName][attempt - 1];
           return delay === expected;
-        }
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 
@@ -35,9 +35,9 @@ describe('Backoff Strategy', () => {
       fc.property(
         fc.string().filter((s) => !(s in delaysMap)),
         fc.integer(),
-        (queueName, attempt) => getBackoffDelay(queueName, attempt) === 1000
+        (queueName, attempt) => getBackoffDelay(queueName, attempt) === 1000,
       ),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

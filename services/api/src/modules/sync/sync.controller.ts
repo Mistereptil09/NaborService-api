@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -17,7 +25,9 @@ export class SyncController {
 
   @Get('snapshot')
   @Roles('moderator', 'admin')
-  @ApiOperation({ summary: 'Obtenir un delta snapshot des données (Offline Sync)' })
+  @ApiOperation({
+    summary: 'Obtenir un delta snapshot des données (Offline Sync)',
+  })
   async getSnapshot(@Query() query: GetSnapshotQueryDto) {
     return this.syncService.getSnapshot(query);
   }

@@ -25,22 +25,19 @@ describe('Feature: gridfs-media-storage, Property 8: Invalid Media ID Validation
 
   it('should throw BadRequestException if mediaId is not a valid 24-character hex string', async () => {
     await fc.assert(
-      fc.asyncProperty(
-        fc.string(),
-        async (mediaId) => {
-          if (/^[0-9a-fA-F]{24}$/.test(mediaId)) {
-            return;
-          }
-
-          const req = {};
-          const res: any = {};
-
-          await expect(mediaController.streamMedia(mediaId, req, res)).rejects.toThrow(
-            BadRequestException,
-          );
+      fc.asyncProperty(fc.string(), async (mediaId) => {
+        if (/^[0-9a-fA-F]{24}$/.test(mediaId)) {
+          return;
         }
-      ),
-      { numRuns: 100 }
+
+        const req = {};
+        const res: any = {};
+
+        await expect(
+          mediaController.streamMedia(mediaId, req, res),
+        ).rejects.toThrow(BadRequestException);
+      }),
+      { numRuns: 100 },
     );
   });
 });

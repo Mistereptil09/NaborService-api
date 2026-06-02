@@ -12,10 +12,12 @@ describe('Property 14: Discovery Scoring Formula', () => {
           const socialScore = commonConnections;
           const interestScore = sharedInterests * 2;
           const total = geoScore + socialScore + interestScore;
-          expect(total).toBe(geoScore + commonConnections + (sharedInterests * 2));
-        }
+          expect(total).toBe(
+            geoScore + commonConnections + sharedInterests * 2,
+          );
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

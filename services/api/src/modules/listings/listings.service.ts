@@ -9,7 +9,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { Listing } from './entities/listing.entity';
-import { CreateListingDto, UpdateListingDto, ListListingsDto } from './dto/listing-routes.dtos';
+import {
+  CreateListingDto,
+  UpdateListingDto,
+  ListListingsDto,
+} from './dto/listing-routes.dtos';
 import { ListingStatusEnum, ListingTypeEnum } from '../../common/enums';
 import { UserBlock } from '../social/entities/user-block.entity';
 
@@ -21,27 +25,41 @@ export class ListingsService {
     @InjectRepository(UserBlock)
     private readonly blockRepository: Repository<UserBlock>,
     @Inject('BullQueue_neo4j-sync')
-    private readonly neo4jSyncQueue: { add: (name: string, data: any) => Promise<any> },
+    private readonly neo4jSyncQueue: {
+      add: (name: string, data: any) => Promise<any>;
+    },
   ) {}
 
-  async list(userId: string, dto: ListListingsDto): Promise<{ data: Listing[]; total: number }> {
-    const query = this.listingRepository.createQueryBuilder('listing')
+  async list(
+    userId: string,
+    dto: ListListingsDto,
+  ): Promise<{ data: Listing[]; total: number }> {
+    const query = this.listingRepository
+      .createQueryBuilder('listing')
       .where('listing.deletedAt IS NULL');
 
     const blocks = await this.blockRepository.find({
       where: [{ blockerId: userId }, { blockedId: userId }],
     });
-    const blockedUserIds = blocks.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId));
+    const blockedUserIds = blocks.map((b) =>
+      b.blockerId === userId ? b.blockedId : b.blockerId,
+    );
     if (blockedUserIds.length > 0) {
-      query.andWhere('listing.creatorId NOT IN (:...blockedUserIds)', { blockedUserIds });
+      query.andWhere('listing.creatorId NOT IN (:...blockedUserIds)', {
+        blockedUserIds,
+      });
     }
 
     if (dto.neighbourhood) {
-      query.andWhere('listing.neighbourhoodId = :neighbourhood', { neighbourhood: dto.neighbourhood });
+      query.andWhere('listing.neighbourhoodId = :neighbourhood', {
+        neighbourhood: dto.neighbourhood,
+      });
     }
 
     if (dto.category !== undefined) {
-      query.andWhere('listing.categoryId = :category', { category: dto.category });
+      query.andWhere('listing.categoryId = :category', {
+        category: dto.category,
+      });
     }
 
     if (dto.type) {
@@ -52,9 +70,7 @@ export class ListingsService {
     const statusFilter = dto.status || ListingStatusEnum.OPEN;
     query.andWhere('listing.status = :status', { status: statusFilter });
 
-    query.orderBy('listing.createdAt', 'DESC')
-      .skip(dto.offset)
-      .take(dto.limit);
+    query.orderBy('listing.createdAt', 'DESC').skip(dto.offset).take(dto.limit);
 
     const [data, total] = await query.getManyAndCount();
     return { data, total };
@@ -64,8 +80,11 @@ export class ListingsService {
     if (!dto.title || dto.title.trim() === '') {
       throw new BadRequestException('Le titre est obligatoire');
     }
-    if (dto.listing_type !== ListingTypeEnum.OFFER && dto.listing_type !== ListingTypeEnum.REQUEST) {
-      throw new BadRequestException('Type d\'annonce invalide');
+    if (
+      dto.listing_type !== ListingTypeEnum.OFFER &&
+      dto.listing_type !== ListingTypeEnum.REQUEST
+    ) {
+      throw new BadRequestException("Type d'annonce invalide");
     }
     if (dto.price_cents !== undefined && dto.price_cents < 0) {
       throw new BadRequestException('Le prix ne peut pas être négatif');
@@ -75,7 +94,7 @@ export class ListingsService {
       creatorId,
       title: dto.title,
       description: dto.description || null,
-      listingType: dto.listing_type as ListingTypeEnum,
+      listingType: dto.listing_type,
       priceCents: dto.price_cents ?? 0,
       categoryId: dto.category_id || null,
       neighbourhoodId: dto.neighbourhood_id || null,
@@ -114,7 +133,11 @@ export class ListingsService {
     return listing;
   }
 
-  async update(userId: string, id: string, dto: UpdateListingDto): Promise<Listing> {
+  async update(
+    userId: string,
+    id: string,
+    dto: UpdateListingDto,
+  ): Promise<Listing> {
     const listing = await this.findOne(id);
 
     if (listing.creatorId !== userId) {
@@ -122,7 +145,9 @@ export class ListingsService {
     }
 
     if (listing.status !== ListingStatusEnum.OPEN) {
-      throw new ConflictException('Modification impossible : l\'annonce n\'est plus ouverte');
+      throw new ConflictException(
+        "Modification impossible : l'annonce n'est plus ouverte",
+      );
     }
 
     if (dto.price_cents !== undefined && dto.price_cents < 0) {
@@ -140,14 +165,18 @@ export class ListingsService {
     if (dto.description !== undefined) listing.description = dto.description;
     if (dto.category_id !== undefined) listing.categoryId = dto.category_id;
     if (dto.price_cents !== undefined) listing.priceCents = dto.price_cents;
-    if (dto.neighbourhood_id !== undefined) listing.neighbourhoodId = dto.neighbourhood_id;
+    if (dto.neighbourhood_id !== undefined)
+      listing.neighbourhoodId = dto.neighbourhood_id;
 
     listing.updatedAt = new Date();
 
     const savedListing = await this.listingRepository.save(listing);
 
     // Update Neo4j relation if neighbourhood changed
-    if (dto.neighbourhood_id !== undefined && dto.neighbourhood_id !== oldNeighbourhoodId) {
+    if (
+      dto.neighbourhood_id !== undefined &&
+      dto.neighbourhood_id !== oldNeighbourhoodId
+    ) {
       await this.neo4jSyncQueue.add('update-posted-in', {
         listingId: savedListing.id,
         neighbourhoodId: savedListing.neighbourhoodId,
@@ -167,7 +196,11 @@ export class ListingsService {
     return savedListing;
   }
 
-  async softDelete(userId: string, id: string, isModerator: boolean): Promise<void> {
+  async softDelete(
+    userId: string,
+    id: string,
+    isModerator: boolean,
+  ): Promise<void> {
     const listing = await this.findOne(id);
 
     if (listing.creatorId !== userId && !isModerator) {

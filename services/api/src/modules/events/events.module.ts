@@ -11,8 +11,14 @@ import { ChatGroup } from '../messaging/entities/chat-group.entity';
 import { User } from '../users/entities/user.entity';
 import { UserBlock } from '../social/entities/user-block.entity';
 
-import { EventDocument, EventDocumentSchema } from '../../database/mongo-schemas/schemas/event-document.schema';
-import { EventTicket, EventTicketSchema } from '../../database/mongo-schemas/schemas/event-ticket.schema';
+import {
+  EventDocument,
+  EventDocumentSchema,
+} from '../../database/mongo-schemas/schemas/event-document.schema';
+import {
+  EventTicket,
+  EventTicketSchema,
+} from '../../database/mongo-schemas/schemas/event-ticket.schema';
 
 import { EventsService } from './events.service';
 import { EventContentService } from './event-content.service';
@@ -51,7 +57,7 @@ import { BullModule } from '@nestjs/bullmq';
       { name: 'waitlist-promote' },
       { name: 'waitlist-confirm' },
       { name: 'neo4j-sync' },
-      { name: 'email' }
+      { name: 'email' },
     ),
     AuthModule,
     MediaModule,

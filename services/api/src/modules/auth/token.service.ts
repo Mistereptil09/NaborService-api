@@ -57,7 +57,7 @@ export class TokenService {
       session_id: sessionId,
       expires_at: expiresAt.toISOString(),
     };
-    
+
     // TTL is 30 days = 2,592,000 seconds
     await this.redis.set(key, JSON.stringify(payload), 'EX', 2592000);
   }
@@ -73,7 +73,9 @@ export class TokenService {
   /**
    * Looks up a refresh token in Redis and returns the parsed payload or null if not found
    */
-  async lookupRefreshInRedis(hash: string): Promise<RedisRefreshPayload | null> {
+  async lookupRefreshInRedis(
+    hash: string,
+  ): Promise<RedisRefreshPayload | null> {
     const key = `refresh:${hash}`;
     const data = await this.redis.get(key);
     if (!data) {

@@ -58,13 +58,21 @@ export class UploadPipeline {
       }
     } catch (error) {
       if (isImage) {
-        throw new BadRequestException('Image processing error: unable to convert to WebP');
+        throw new BadRequestException(
+          'Image processing error: unable to convert to WebP',
+        );
       } else if (isVideo) {
-        throw new BadRequestException('Video processing error: unable to compress video');
+        throw new BadRequestException(
+          'Video processing error: unable to compress video',
+        );
       } else if (isAudio) {
-        throw new BadRequestException('Audio processing error: unable to transcode audio');
+        throw new BadRequestException(
+          'Audio processing error: unable to transcode audio',
+        );
       }
-      throw new BadRequestException(`Processing error: ${(error as Error).message}`);
+      throw new BadRequestException(
+        `Processing error: ${(error as Error).message}`,
+      );
     }
 
     const gridfsFileId = await this.gridfsService.upload(
@@ -87,7 +95,10 @@ export class UploadPipeline {
    * Validate file against context-specific constraints (size, MIME type).
    * Throws appropriate HTTP exceptions on failure.
    */
-  private validateFile(file: Express.Multer.File, context: UploadContext): void {
+  private validateFile(
+    file: Express.Multer.File,
+    context: UploadContext,
+  ): void {
     if (!file || !file.buffer) {
       throw new BadRequestException('A file is required');
     }
@@ -116,14 +127,23 @@ export class UploadPipeline {
     const tempDir = join(process.cwd(), 'tmp-media');
     await fs.mkdir(tempDir, { recursive: true });
 
-    const inputPath = join(tempDir, `input-${Date.now()}-${Math.random().toString(36).substring(7)}.tmp`);
-    const outputPath = join(tempDir, `output-${Date.now()}-${Math.random().toString(36).substring(7)}.mp4`);
+    const inputPath = join(
+      tempDir,
+      `input-${Date.now()}-${Math.random().toString(36).substring(7)}.tmp`,
+    );
+    const outputPath = join(
+      tempDir,
+      `output-${Date.now()}-${Math.random().toString(36).substring(7)}.mp4`,
+    );
 
     try {
       await fs.writeFile(inputPath, buffer);
 
       const dimensions = await this.getVideoDimensions(inputPath);
-      const scaleFilter = this.getScaleFilter(dimensions.width, dimensions.height);
+      const scaleFilter = this.getScaleFilter(
+        dimensions.width,
+        dimensions.height,
+      );
 
       await new Promise<void>((resolve, reject) => {
         ffmpeg(inputPath)
@@ -150,8 +170,14 @@ export class UploadPipeline {
     const tempDir = join(process.cwd(), 'tmp-media');
     await fs.mkdir(tempDir, { recursive: true });
 
-    const inputPath = join(tempDir, `input-${Date.now()}-${Math.random().toString(36).substring(7)}.tmp`);
-    const outputPath = join(tempDir, `output-${Date.now()}-${Math.random().toString(36).substring(7)}.ogg`);
+    const inputPath = join(
+      tempDir,
+      `input-${Date.now()}-${Math.random().toString(36).substring(7)}.tmp`,
+    );
+    const outputPath = join(
+      tempDir,
+      `output-${Date.now()}-${Math.random().toString(36).substring(7)}.ogg`,
+    );
 
     try {
       await fs.writeFile(inputPath, buffer);
@@ -173,7 +199,9 @@ export class UploadPipeline {
     }
   }
 
-  private async getVideoDimensions(inputPath: string): Promise<{ width: number; height: number }> {
+  private async getVideoDimensions(
+    inputPath: string,
+  ): Promise<{ width: number; height: number }> {
     return new Promise((resolve, reject) => {
       ffmpeg.ffprobe(inputPath, (err, metadata) => {
         if (err) {

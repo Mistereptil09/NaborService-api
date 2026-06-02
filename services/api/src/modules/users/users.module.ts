@@ -11,7 +11,10 @@ import { Friendship } from '../social/entities/friendship.entity';
 import { UserBlock } from '../social/entities/user-block.entity';
 import { UserSwipe } from '../social/entities/user-swipe.entity';
 
-import { UserMedia, UserMediaSchema } from '../../database/mongo-schemas/schemas/user-media.schema';
+import {
+  UserMedia,
+  UserMediaSchema,
+} from '../../database/mongo-schemas/schemas/user-media.schema';
 
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
@@ -43,7 +46,9 @@ import { MessagingModule } from '../messaging/messaging.module';
       UserBlock,
       UserSwipe,
     ]),
-    MongooseModule.forFeature([{ name: UserMedia.name, schema: UserMediaSchema }]),
+    MongooseModule.forFeature([
+      { name: UserMedia.name, schema: UserMediaSchema },
+    ]),
     AuthModule,
     MediaModule,
     MessagingModule,

@@ -13,16 +13,56 @@ interface IndexDef {
 const INDEX_DEFINITIONS: IndexDef[] = [
   // RANGE indexes
   { name: 'user_pg_id', label: 'User', properties: ['pg_id'], type: 'RANGE' },
-  { name: 'listing_pg_id', label: 'Listing', properties: ['pg_id'], type: 'RANGE' },
+  {
+    name: 'listing_pg_id',
+    label: 'Listing',
+    properties: ['pg_id'],
+    type: 'RANGE',
+  },
   { name: 'event_pg_id', label: 'Event', properties: ['pg_id'], type: 'RANGE' },
-  { name: 'neighbourhood_id', label: 'Neighbourhood', properties: ['pg_id'], type: 'RANGE' },
-  { name: 'neighbourhood_city', label: 'Neighbourhood', properties: ['city'], type: 'RANGE' },
-  { name: 'category_pg_id', label: 'Category', properties: ['pg_id'], type: 'RANGE' },
-  { name: 'listing_status_date', label: 'Listing', properties: ['status', 'created_at'], type: 'RANGE' },
-  { name: 'event_status_date', label: 'Event', properties: ['status', 'starts_at'], type: 'RANGE' },
-  { name: 'user_visibility', label: 'User', properties: ['visibility'], type: 'RANGE' },
+  {
+    name: 'neighbourhood_id',
+    label: 'Neighbourhood',
+    properties: ['pg_id'],
+    type: 'RANGE',
+  },
+  {
+    name: 'neighbourhood_city',
+    label: 'Neighbourhood',
+    properties: ['city'],
+    type: 'RANGE',
+  },
+  {
+    name: 'category_pg_id',
+    label: 'Category',
+    properties: ['pg_id'],
+    type: 'RANGE',
+  },
+  {
+    name: 'listing_status_date',
+    label: 'Listing',
+    properties: ['status', 'created_at'],
+    type: 'RANGE',
+  },
+  {
+    name: 'event_status_date',
+    label: 'Event',
+    properties: ['status', 'starts_at'],
+    type: 'RANGE',
+  },
+  {
+    name: 'user_visibility',
+    label: 'User',
+    properties: ['visibility'],
+    type: 'RANGE',
+  },
   // POINT index
-  { name: 'neighbourhood_centroid', label: 'Neighbourhood', properties: ['centroid'], type: 'POINT' },
+  {
+    name: 'neighbourhood_centroid',
+    label: 'Neighbourhood',
+    properties: ['centroid'],
+    type: 'POINT',
+  },
 ];
 
 @Injectable()
@@ -48,7 +88,7 @@ export class Neo4jInitService implements OnModuleInit {
     let skipped = 0;
 
     for (const def of INDEX_DEFINITIONS) {
-      const propertiesStr = def.properties.map(p => `n.${p}`).join(', ');
+      const propertiesStr = def.properties.map((p) => `n.${p}`).join(', ');
       const cypher = `CREATE ${def.type} INDEX ${def.name} IF NOT EXISTS FOR (n:${def.label}) ON (${propertiesStr})`;
 
       try {
@@ -58,7 +98,9 @@ export class Neo4jInitService implements OnModuleInit {
         if (err && err.code === INDEX_EXISTS_CODE) {
           skipped++;
         } else {
-          this.logger.error(`Failed to create index ${def.name}: ${err.message || err}`);
+          this.logger.error(
+            `Failed to create index ${def.name}: ${err.message || err}`,
+          );
           throw err; // throw to fail startup
         }
       }

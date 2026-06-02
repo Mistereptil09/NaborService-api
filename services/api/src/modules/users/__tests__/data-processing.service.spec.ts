@@ -43,7 +43,11 @@ describe('DataProcessingService Unit Tests', () => {
 
   describe('setOptOuts and setRestricted updates', () => {
     it('should filter invalid types and update optOuts', async () => {
-      await service.setOptOuts('user-1', ['discovery', 'invalid-type', 'notifications']);
+      await service.setOptOuts('user-1', [
+        'discovery',
+        'invalid-type',
+        'notifications',
+      ]);
       expect(mockRepo.update).toHaveBeenCalledWith(
         { userId: 'user-1' },
         expect.objectContaining({
@@ -79,7 +83,11 @@ describe('DataProcessingService Unit Tests', () => {
 
   describe('createDefault', () => {
     it('should create default entity and save it', async () => {
-      const defaultEntity = { userId: 'user-1', optOuts: [], isRestricted: false } as unknown as UserDataProcessing;
+      const defaultEntity = {
+        userId: 'user-1',
+        optOuts: [],
+        isRestricted: false,
+      } as unknown as UserDataProcessing;
       mockRepo.create.mockReturnValue(defaultEntity);
       mockRepo.save.mockResolvedValue(defaultEntity);
 
@@ -94,7 +102,11 @@ describe('DataProcessingService Unit Tests', () => {
     });
 
     it('should use custom transaction manager when provided', async () => {
-      const defaultEntity = { userId: 'user-1', optOuts: [], isRestricted: false } as unknown as UserDataProcessing;
+      const defaultEntity = {
+        userId: 'user-1',
+        optOuts: [],
+        isRestricted: false,
+      } as unknown as UserDataProcessing;
       const mockManagerRepo = {
         create: jest.fn().mockReturnValue(defaultEntity),
         save: jest.fn().mockResolvedValue(defaultEntity),
@@ -105,7 +117,9 @@ describe('DataProcessingService Unit Tests', () => {
       } as unknown as jest.Mocked<EntityManager>;
 
       const result = await service.createDefault('user-1', mockManager);
-      expect(mockManager.getRepository).toHaveBeenCalledWith(UserDataProcessing);
+      expect(mockManager.getRepository).toHaveBeenCalledWith(
+        UserDataProcessing,
+      );
       expect(mockManagerRepo.create).toHaveBeenCalledWith({
         userId: 'user-1',
         optOuts: [],

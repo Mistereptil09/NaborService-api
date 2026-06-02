@@ -6,7 +6,8 @@ describe('Property 2: Type-dependent size limit enforcement', () => {
   let UserMediaModel: mongoose.Model<any>;
 
   beforeAll(() => {
-    UserMediaModel = mongoose.models.UserMedia || mongoose.model('UserMedia', UserMediaSchema);
+    UserMediaModel =
+      mongoose.models.UserMedia || mongoose.model('UserMedia', UserMediaSchema);
   });
 
   it('should accept size_bytes of any size on database schema level (validation delegated to service)', () => {

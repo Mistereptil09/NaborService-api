@@ -36,7 +36,11 @@ describe('WaitlistPromoteWorker', () => {
   });
 
   it('should do nothing if event is full', async () => {
-    mockManager.findOne.mockResolvedValueOnce({ id: 'evt-1', status: EventStatusEnum.OPEN, maxParticipants: 5 });
+    mockManager.findOne.mockResolvedValueOnce({
+      id: 'evt-1',
+      status: EventStatusEnum.OPEN,
+      maxParticipants: 5,
+    });
     mockManager.count.mockResolvedValue(5);
 
     await worker.process({ data: { eventId: 'evt-1' } } as any);
@@ -45,11 +49,24 @@ describe('WaitlistPromoteWorker', () => {
   });
 
   it('should promote participants and send email', async () => {
-    mockManager.findOne.mockResolvedValueOnce({ id: 'evt-1', title: 'Test Event', status: EventStatusEnum.OPEN, maxParticipants: 5 });
+    mockManager.findOne.mockResolvedValueOnce({
+      id: 'evt-1',
+      title: 'Test Event',
+      status: EventStatusEnum.OPEN,
+      maxParticipants: 5,
+    });
     mockManager.count.mockResolvedValue(3); // 2 spots available
     mockManager.find.mockResolvedValueOnce([
-      { userId: 'usr-1', eventId: 'evt-1', user: { email: 'usr1@example.com', firstName: 'John' } },
-      { userId: 'usr-2', eventId: 'evt-1', user: { email: 'usr2@example.com', firstName: 'Jane' } }
+      {
+        userId: 'usr-1',
+        eventId: 'evt-1',
+        user: { email: 'usr1@example.com', firstName: 'John' },
+      },
+      {
+        userId: 'usr-2',
+        eventId: 'evt-1',
+        user: { email: 'usr2@example.com', firstName: 'Jane' },
+      },
     ]);
 
     await worker.process({ data: { eventId: 'evt-1' } } as any);

@@ -11,7 +11,9 @@ import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 
 @WebSocketGateway({ cors: true })
-export class ListingsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ListingsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -56,9 +58,13 @@ export class ListingsGateway implements OnGatewayConnection, OnGatewayDisconnect
     return { event: 'joined', room: `listing:${data.listingId}` };
   }
 
-  joinPartiesToRoom(listingId: string, providerId: string, requesterId: string) {
+  joinPartiesToRoom(
+    listingId: string,
+    providerId: string,
+    requesterId: string,
+  ) {
     if (!this.server) return;
-    
+
     // Attempt joining by retrieving sockets
     const providerSocketId = this.userSockets.get(providerId);
     const requesterSocketId = this.userSockets.get(requesterId);
@@ -80,7 +86,9 @@ export class ListingsGateway implements OnGatewayConnection, OnGatewayDisconnect
         status,
         updated_at: updatedAt,
       };
-      this.server.to(`listing:${listingId}`).emit('listing:status_changed', payload);
+      this.server
+        .to(`listing:${listingId}`)
+        .emit('listing:status_changed', payload);
     }
   }
 }

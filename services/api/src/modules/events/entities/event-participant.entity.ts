@@ -7,7 +7,10 @@ import {
   ManyToOne,
   PrimaryColumn,
 } from 'typeorm';
-import { ParticipantStatusEnum, PaymentStatusEnum } from '../../../common/enums';
+import {
+  ParticipantStatusEnum,
+  PaymentStatusEnum,
+} from '../../../common/enums';
 import { User } from '../../users/entities/user.entity';
 import { Evenement } from './evenement.entity';
 

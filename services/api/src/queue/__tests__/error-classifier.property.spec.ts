@@ -27,14 +27,25 @@ describe('Error Classifier', () => {
         }
         return threw;
       }),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 
   it('should wrap non-transient errors in UnrecoverableError', () => {
     fc.assert(
       fc.property(
-        fc.string().filter((s) => !transientMessages.some((msg) => s.includes(msg.split(' ')[0])) && !/5\d{2}/.test(s) && !/lock/i.test(s) && !/redis/i.test(s) && !/econn/i.test(s) && !/socket/i.test(s) && !/timedout/i.test(s)),
+        fc
+          .string()
+          .filter(
+            (s) =>
+              !transientMessages.some((msg) => s.includes(msg.split(' ')[0])) &&
+              !/5\d{2}/.test(s) &&
+              !/lock/i.test(s) &&
+              !/redis/i.test(s) &&
+              !/econn/i.test(s) &&
+              !/socket/i.test(s) &&
+              !/timedout/i.test(s),
+          ),
         (msg) => {
           let threw = false;
           try {
@@ -44,9 +55,9 @@ describe('Error Classifier', () => {
             return e instanceof UnrecoverableError && e.message === msg;
           }
           return threw;
-        }
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

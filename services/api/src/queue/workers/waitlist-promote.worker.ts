@@ -1,8 +1,16 @@
-import { Processor, WorkerHost, OnWorkerEvent, InjectQueue } from '@nestjs/bullmq';
+import {
+  Processor,
+  WorkerHost,
+  OnWorkerEvent,
+  InjectQueue,
+} from '@nestjs/bullmq';
 import { Job, Queue, UnrecoverableError } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { WaitlistPromoteJobPayload, EmailJobPayload } from '../interfaces/job-payloads';
+import {
+  WaitlistPromoteJobPayload,
+  EmailJobPayload,
+} from '../interfaces/job-payloads';
 import { classifyAndThrow } from '../utils/error-classifier';
 import { getBackoffDelay } from '../utils/backoff-strategy';
 import { Evenement } from '../../modules/events/entities/evenement.entity';
@@ -15,7 +23,9 @@ import { waitlistJobId } from '../utils/job-id';
   concurrency: 1,
   settings: {
     backoffStrategy: (attemptsMade: number, type: string) => {
-      return type === 'custom' ? getBackoffDelay('waitlist-promote', attemptsMade) : 1000;
+      return type === 'custom'
+        ? getBackoffDelay('waitlist-promote', attemptsMade)
+        : 1000;
     },
   },
 })
@@ -33,7 +43,7 @@ export class WaitlistPromoteWorker extends WorkerHost {
   async process(job: Job<WaitlistPromoteJobPayload>): Promise<any> {
     try {
       const { eventId } = job.data;
-      
+
       await this.dataSource.transaction(async (manager) => {
         const event = await manager.findOne(Evenement, {
           where: { id: eventId },
@@ -47,7 +57,7 @@ export class WaitlistPromoteWorker extends WorkerHost {
         if (event.status !== EventStatusEnum.OPEN || !event.maxParticipants) {
           return;
         }
-        
+
         const participantCount = await manager.count(EventParticipant, {
           where: { eventId, status: ParticipantStatusEnum.REGISTERED },
         });
@@ -85,13 +95,12 @@ export class WaitlistPromoteWorker extends WorkerHost {
           };
 
           const jobId = waitlistJobId(eventId, participant.userId);
-          
+
           await this.emailQueue.add('send-email', emailPayload, { jobId });
 
           this.eventsGateway.emitParticipantAdded(eventId, participant.userId);
         }
       });
-
     } catch (error: any) {
       if (error instanceof UnrecoverableError) {
         throw error;

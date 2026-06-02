@@ -53,7 +53,9 @@ describe('Feature: neo4j-init-service, Property 2: Retry with exponential backof
             }
             const result = await runPromise;
             expect(result).toBeDefined();
-            expect(mockSession.run).toHaveBeenCalledTimes(failuresBeforeSuccess + 1);
+            expect(mockSession.run).toHaveBeenCalledTimes(
+              failuresBeforeSuccess + 1,
+            );
           } else {
             // If failures >= 4, it will exhaust all 3 retries (4 total attempts)
             for (let i = 0; i < 3; i++) {

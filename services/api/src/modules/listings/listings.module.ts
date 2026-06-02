@@ -10,8 +10,14 @@ import { ChatGroup } from '../messaging/entities/chat-group.entity';
 import { User } from '../users/entities/user.entity';
 import { UserBlock } from '../social/entities/user-block.entity';
 
-import { ListingDocument, ListingDocumentSchema } from '../../database/mongo-schemas/schemas/listing-document.schema';
-import { Contract, ContractSchema } from '../../database/mongo-schemas/schemas/contract.schema';
+import {
+  ListingDocument,
+  ListingDocumentSchema,
+} from '../../database/mongo-schemas/schemas/listing-document.schema';
+import {
+  Contract,
+  ContractSchema,
+} from '../../database/mongo-schemas/schemas/contract.schema';
 
 import { ListingsService } from './listings.service';
 import { ListingContentService } from './listing-content.service';

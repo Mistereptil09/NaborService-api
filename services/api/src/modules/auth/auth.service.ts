@@ -101,7 +101,11 @@ export class AuthService {
     dto: LoginDto,
     ip: string | null = null,
     userAgent: string | null = null,
-  ): Promise<{ challenge: string; challenge_token: string; otpauthUrl?: string }> {
+  ): Promise<{
+    challenge: string;
+    challenge_token: string;
+    otpauthUrl?: string;
+  }> {
     const user = await this.userRepository.findOne({
       where: { email: dto.email },
     });
@@ -147,16 +151,13 @@ export class AuthService {
     }
 
     // TOTP not enabled (mandatory setup at registration/first login)
-    const { challengeToken, otpauthUrl } = await this.totpService.createSetupChallenge(
-      user.id,
-      user.email,
-    );
-    
+    const { challengeToken, otpauthUrl } =
+      await this.totpService.createSetupChallenge(user.id, user.email);
+
     return {
       challenge: 'totp_setup_required',
       challenge_token: challengeToken,
       otpauthUrl,
     };
   }
-
 }

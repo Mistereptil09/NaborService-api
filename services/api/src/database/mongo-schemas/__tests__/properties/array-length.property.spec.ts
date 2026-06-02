@@ -9,13 +9,15 @@ describe('Property 3: Array length enforcement', () => {
 
   beforeAll(() => {
     ListingDocumentModel =
-      mongoose.models.ListingDocument || mongoose.model('ListingDocument', ListingDocumentSchema);
-    MessageModel = mongoose.models.Message || mongoose.model('Message', MessageSchema);
+      mongoose.models.ListingDocument ||
+      mongoose.model('ListingDocument', ListingDocumentSchema);
+    MessageModel =
+      mongoose.models.Message || mongoose.model('Message', MessageSchema);
   });
 
   it('should enforce photos array limit (max 8) on ListingDocument', () => {
     fc.assert(
-      fc.property(fc.integer({ min: 0, max: 20 }), length => {
+      fc.property(fc.integer({ min: 0, max: 20 }), (length) => {
         const photosList = Array.from({ length }).map((_, i) => ({
           data: Buffer.from('p'),
           mimetype: 'image/jpeg',
@@ -40,7 +42,9 @@ describe('Property 3: Array length enforcement', () => {
         } else {
           expect(err).toBeDefined();
           expect(err?.errors.photos).toBeDefined();
-          expect(err?.errors.photos.message).toBe('photos exceeds maximum length of 8');
+          expect(err?.errors.photos.message).toBe(
+            'photos exceeds maximum length of 8',
+          );
         }
       }),
       { numRuns: 100 },
@@ -49,7 +53,7 @@ describe('Property 3: Array length enforcement', () => {
 
   it('should enforce attachments array limit (max 3) on Message', () => {
     fc.assert(
-      fc.property(fc.integer({ min: 0, max: 10 }), length => {
+      fc.property(fc.integer({ min: 0, max: 10 }), (length) => {
         const attachmentsList = Array.from({ length }).map((_, i) => ({
           data: Buffer.from('a'),
           mimetype: 'text/plain',
@@ -78,7 +82,9 @@ describe('Property 3: Array length enforcement', () => {
         } else {
           expect(err).toBeDefined();
           expect(err?.errors.attachments).toBeDefined();
-          expect(err?.errors.attachments.message).toBe('attachments exceeds maximum length of 3');
+          expect(err?.errors.attachments.message).toBe(
+            'attachments exceeds maximum length of 3',
+          );
         }
       }),
       { numRuns: 100 },

@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { parseFeatureCollection } from './geojson-parser';
-import { HttpRetryService, HttpRequestFailedException, HttpRequestTimeoutException } from '../../common/http-retry/http-retry.service';
+import {
+  HttpRetryService,
+  HttpRequestFailedException,
+  HttpRequestTimeoutException,
+} from '../../common/http-retry/http-retry.service';
 
 export interface GeocodingResult {
   latitude: number;
@@ -26,23 +30,29 @@ export class BanService {
     this.validateAddress(address);
     const trimmedAddress = address.trim();
     const encodedAddress = encodeURIComponent(trimmedAddress);
-    
+
     let url = `${this.baseUrl}?q=${encodedAddress}`;
     if (limit && Number.isInteger(limit) && limit >= 1 && limit <= 20) {
       url += `&limit=${limit}`;
     }
 
     try {
-      const response = await this.httpRetryService.fetchWithRetry(url, {}, {
-        maxAttempts: 4,
-        backoffs: [1000, 2000, 4000],
-        timeoutMs: 5000,
-      });
+      const response = await this.httpRetryService.fetchWithRetry(
+        url,
+        {},
+        {
+          maxAttempts: 4,
+          backoffs: [1000, 2000, 4000],
+          timeoutMs: 5000,
+        },
+      );
 
       const data = await response.json();
       const parsed = parseFeatureCollection(data);
       if (parsed.length === 0) {
-        throw new NoResultsError(`No results found for address: ${trimmedAddress}`);
+        throw new NoResultsError(
+          `No results found for address: ${trimmedAddress}`,
+        );
       }
 
       const best = parsed[0];
@@ -51,9 +61,11 @@ export class BanService {
         longitude: best.longitude,
         confidence: best.score,
       };
-
     } catch (error) {
-      if (error instanceof NoResultsError || error instanceof BanParseException) {
+      if (
+        error instanceof NoResultsError ||
+        error instanceof BanParseException
+      ) {
         throw error;
       }
       if (error instanceof HttpRequestTimeoutException) {
@@ -62,7 +74,9 @@ export class BanService {
       if (error instanceof HttpRequestFailedException) {
         throw new BanServerException(`BAN API returned ${error.status}`);
       }
-      throw new BanUnavailableException(`BAN API unavailable: ${error.message}`);
+      throw new BanUnavailableException(
+        `BAN API unavailable: ${error.message}`,
+      );
     }
   }
 
@@ -72,7 +86,9 @@ export class BanService {
     }
     const trimmed = address.trim();
     if (trimmed.length === 0 || address.length > 200) {
-      throw new AddressValidationException('Address must be between 1 and 200 characters');
+      throw new AddressValidationException(
+        'Address must be between 1 and 200 characters',
+      );
     }
     return true;
   }

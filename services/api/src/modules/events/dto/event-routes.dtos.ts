@@ -13,21 +13,30 @@ import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ListEventsDto {
-  @ApiPropertyOptional({ description: 'Number of elements to skip for pagination (offset)', example: 0 })
+  @ApiPropertyOptional({
+    description: 'Number of elements to skip for pagination (offset)',
+    example: 0,
+  })
   @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
   @Min(0)
   offset: number = 0;
 
-  @ApiPropertyOptional({ description: 'Maximum number of elements to return per page', example: 20 })
+  @ApiPropertyOptional({
+    description: 'Maximum number of elements to return per page',
+    example: 20,
+  })
   @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
   @Min(1)
   limit: number = 20;
 
-  @ApiPropertyOptional({ description: 'Filter by neighbourhood ID', example: '550e8400-e29b-41d4-a716-446655440000' })
+  @ApiPropertyOptional({
+    description: 'Filter by neighbourhood ID',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
   @IsOptional()
   @IsString()
   neighbourhood?: string;
@@ -38,20 +47,29 @@ export class ListEventsDto {
   @IsInt()
   category?: number;
 
-  @ApiPropertyOptional({ description: 'Filter by event status', example: 'open' })
+  @ApiPropertyOptional({
+    description: 'Filter by event status',
+    example: 'open',
+  })
   @IsOptional()
   @IsIn(['draft', 'published', 'open', 'completed', 'cancelled'])
   status?: string;
 }
 
 export class CreateEventDto {
-  @ApiProperty({ description: 'Title of the event', example: 'Community Picnic' })
+  @ApiProperty({
+    description: 'Title of the event',
+    example: 'Community Picnic',
+  })
   @IsString()
   @IsNotEmpty()
   @Transform(({ value }) => value?.trim())
   title: string;
 
-  @ApiPropertyOptional({ description: 'Description of the event', example: 'A nice picnic in the park.' })
+  @ApiPropertyOptional({
+    description: 'Description of the event',
+    example: 'A nice picnic in the park.',
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -61,39 +79,60 @@ export class CreateEventDto {
   @IsInt()
   category_id?: number;
 
-  @ApiPropertyOptional({ description: 'Invitation code (null for public)', example: 'SECRET2026' })
+  @ApiPropertyOptional({
+    description: 'Invitation code (null for public)',
+    example: 'SECRET2026',
+  })
   @IsOptional()
   @IsString()
   invite_code?: string;
 
-  @ApiPropertyOptional({ description: 'Cost in cents (0 for free)', example: 500 })
+  @ApiPropertyOptional({
+    description: 'Cost in cents (0 for free)',
+    example: 500,
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
   cost_cents?: number;
 
-  @ApiPropertyOptional({ description: 'Maximum number of participants', example: 50 })
+  @ApiPropertyOptional({
+    description: 'Maximum number of participants',
+    example: 50,
+  })
   @IsOptional()
   @IsInt()
   @Min(1)
   max_participants?: number;
 
-  @ApiPropertyOptional({ description: 'Start time of the event', example: '2026-06-01T10:00:00Z' })
+  @ApiPropertyOptional({
+    description: 'Start time of the event',
+    example: '2026-06-01T10:00:00Z',
+  })
   @IsOptional()
   @IsDateString()
   starts_at?: string;
 
-  @ApiPropertyOptional({ description: 'End time of the event', example: '2026-06-01T14:00:00Z' })
+  @ApiPropertyOptional({
+    description: 'End time of the event',
+    example: '2026-06-01T14:00:00Z',
+  })
   @IsOptional()
   @IsDateString()
   ends_at?: string;
 
-  @ApiPropertyOptional({ description: 'Neighbourhood ID where the event takes place', example: '550e8400-e29b-41d4-a716-446655440000' })
+  @ApiPropertyOptional({
+    description: 'Neighbourhood ID where the event takes place',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
   @IsOptional()
   @IsString()
   neighbourhood_id?: string;
 
-  @ApiPropertyOptional({ description: 'Refund deadline in hours before event', example: 48 })
+  @ApiPropertyOptional({
+    description: 'Refund deadline in hours before event',
+    example: 48,
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -101,14 +140,20 @@ export class CreateEventDto {
 }
 
 export class UpdateEventDto {
-  @ApiPropertyOptional({ description: 'Title of the event', example: 'Community Picnic' })
+  @ApiPropertyOptional({
+    description: 'Title of the event',
+    example: 'Community Picnic',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   @Transform(({ value }) => value?.trim())
   title?: string;
 
-  @ApiPropertyOptional({ description: 'Description of the event', example: 'A nice picnic in the park.' })
+  @ApiPropertyOptional({
+    description: 'Description of the event',
+    example: 'A nice picnic in the park.',
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -118,39 +163,60 @@ export class UpdateEventDto {
   @IsInt()
   category_id?: number;
 
-  @ApiPropertyOptional({ description: 'Invitation code (null for public)', example: 'SECRET2026' })
+  @ApiPropertyOptional({
+    description: 'Invitation code (null for public)',
+    example: 'SECRET2026',
+  })
   @IsOptional()
   @IsString()
   invite_code?: string;
 
-  @ApiPropertyOptional({ description: 'Cost in cents (0 for free)', example: 500 })
+  @ApiPropertyOptional({
+    description: 'Cost in cents (0 for free)',
+    example: 500,
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
   cost_cents?: number;
 
-  @ApiPropertyOptional({ description: 'Maximum number of participants', example: 50 })
+  @ApiPropertyOptional({
+    description: 'Maximum number of participants',
+    example: 50,
+  })
   @IsOptional()
   @IsInt()
   @Min(1)
   max_participants?: number;
 
-  @ApiPropertyOptional({ description: 'Start time of the event', example: '2026-06-01T10:00:00Z' })
+  @ApiPropertyOptional({
+    description: 'Start time of the event',
+    example: '2026-06-01T10:00:00Z',
+  })
   @IsOptional()
   @IsDateString()
   starts_at?: string;
 
-  @ApiPropertyOptional({ description: 'End time of the event', example: '2026-06-01T14:00:00Z' })
+  @ApiPropertyOptional({
+    description: 'End time of the event',
+    example: '2026-06-01T14:00:00Z',
+  })
   @IsOptional()
   @IsDateString()
   ends_at?: string;
 
-  @ApiPropertyOptional({ description: 'Neighbourhood ID where the event takes place', example: '550e8400-e29b-41d4-a716-446655440000' })
+  @ApiPropertyOptional({
+    description: 'Neighbourhood ID where the event takes place',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
   @IsOptional()
   @IsString()
   neighbourhood_id?: string;
 
-  @ApiPropertyOptional({ description: 'Refund deadline in hours before event', example: 48 })
+  @ApiPropertyOptional({
+    description: 'Refund deadline in hours before event',
+    example: 48,
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -180,7 +246,10 @@ class LocationDto {
 }
 
 export class UpdateContentDto {
-  @ApiPropertyOptional({ description: 'Rich HTML content of the event', example: '<p>Details here...</p>' })
+  @ApiPropertyOptional({
+    description: 'Rich HTML content of the event',
+    example: '<p>Details here...</p>',
+  })
   @IsOptional()
   @IsString()
   body_html?: string;
@@ -206,7 +275,10 @@ export class SwipeDto {
 }
 
 export class ReportDto {
-  @ApiProperty({ description: 'Reason for reporting', example: 'Inappropriate content' })
+  @ApiProperty({
+    description: 'Reason for reporting',
+    example: 'Inappropriate content',
+  })
   @IsString()
   @IsNotEmpty()
   @Transform(({ value }) => value?.trim())
@@ -218,7 +290,10 @@ export class ModerateDto {
   @IsIn(['cancelled', 'warned', 'restored'])
   action: string;
 
-  @ApiProperty({ description: 'Reason for moderation', example: 'Violates terms of service' })
+  @ApiProperty({
+    description: 'Reason for moderation',
+    example: 'Violates terms of service',
+  })
   @IsString()
   @IsNotEmpty()
   @Transform(({ value }) => value?.trim())
@@ -226,7 +301,10 @@ export class ModerateDto {
 }
 
 export class CancelDto {
-  @ApiProperty({ description: 'Reason for cancelling the event', example: 'Not enough participants' })
+  @ApiProperty({
+    description: 'Reason for cancelling the event',
+    example: 'Not enough participants',
+  })
   @IsString()
   @IsNotEmpty()
   @Transform(({ value }) => value?.trim())
@@ -234,7 +312,10 @@ export class CancelDto {
 }
 
 export class ScanTicketDto {
-  @ApiProperty({ description: 'HMAC signature of the ticket payload', example: 'a1b2c3d4...' })
+  @ApiProperty({
+    description: 'HMAC signature of the ticket payload',
+    example: 'a1b2c3d4...',
+  })
   @IsString()
   @IsNotEmpty()
   hmac: string;

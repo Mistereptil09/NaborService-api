@@ -34,7 +34,7 @@ describe('Property 8: Token format correctness', () => {
           } as User;
 
           const accessToken = tokenService.generateAccessToken(user);
-          const decoded = jwtService.decode(accessToken) as any;
+          const decoded = jwtService.decode(accessToken);
 
           expect(decoded).toBeDefined();
           expect(decoded.sub).toBe(user.id);

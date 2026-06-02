@@ -1,18 +1,31 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import sharp from 'sharp';
-import { EventDocument, EventDocumentDocument } from '../../database/mongo-schemas/schemas/event-document.schema';
+import {
+  EventDocument,
+  EventDocumentDocument,
+} from '../../database/mongo-schemas/schemas/event-document.schema';
 import { Evenement } from './entities/evenement.entity';
 
 @Injectable()
 export class EventMediaService {
   private readonly ALLOWED_MIMES = [
-    'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
     'application/pdf',
-    'video/mp4', 'video/webm', 'video/quicktime'
+    'video/mp4',
+    'video/webm',
+    'video/quicktime',
   ];
 
   constructor(
@@ -22,7 +35,11 @@ export class EventMediaService {
     private readonly eventRepo: Repository<Evenement>,
   ) {}
 
-  async uploadMedia(userId: string, eventId: string, file: Express.Multer.File) {
+  async uploadMedia(
+    userId: string,
+    eventId: string,
+    file: Express.Multer.File,
+  ) {
     if (!file) {
       throw new BadRequestException('No file provided');
     }
@@ -32,7 +49,8 @@ export class EventMediaService {
     }
 
     const isImage = file.mimetype.startsWith('image/');
-    const isVideoOrPdf = file.mimetype.startsWith('video/') || file.mimetype === 'application/pdf';
+    const isVideoOrPdf =
+      file.mimetype.startsWith('video/') || file.mimetype === 'application/pdf';
 
     if (isImage && file.size > 5 * 1024 * 1024) {
       throw new BadRequestException('Image exceeds 5 MB limit');
@@ -50,7 +68,9 @@ export class EventMediaService {
       throw new ForbiddenException('Only the owner can upload media');
     }
 
-    let document = await this.eventDocumentModel.findOne({ pg_event_id: eventId });
+    let document = await this.eventDocumentModel.findOne({
+      pg_event_id: eventId,
+    });
     if (!document) {
       document = new this.eventDocumentModel({
         pg_event_id: eventId,
@@ -92,7 +112,7 @@ export class EventMediaService {
           .webp({ quality: 80 })
           .toBuffer();
         mimetypeToSave = 'image/webp';
-        nameToSave = nameToSave.replace(/\.[^/.]+$/, "") + '.webp';
+        nameToSave = nameToSave.replace(/\.[^/.]+$/, '') + '.webp';
       }
 
       document.attachments.push({
@@ -120,7 +140,9 @@ export class EventMediaService {
       throw new ForbiddenException('Only the owner can delete media');
     }
 
-    const document = await this.eventDocumentModel.findOne({ pg_event_id: eventId });
+    const document = await this.eventDocumentModel.findOne({
+      pg_event_id: eventId,
+    });
     if (!document) {
       throw new NotFoundException('Document not found');
     }
@@ -129,7 +151,9 @@ export class EventMediaService {
       document.cover = null;
     } else {
       const originalLength = document.attachments.length;
-      document.attachments = document.attachments.filter(a => a.name !== mediaId);
+      document.attachments = document.attachments.filter(
+        (a) => a.name !== mediaId,
+      );
       if (document.attachments.length === originalLength) {
         throw new NotFoundException('Media not found');
       }

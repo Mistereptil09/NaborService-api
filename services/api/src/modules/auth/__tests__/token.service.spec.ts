@@ -67,7 +67,8 @@ describe('TokenService', () => {
     it('should correctly hash refresh tokens with SHA-256', () => {
       const token = 'my-token';
       // SHA-256 of 'my-token' is 'fece50d2287f7245aea5819b75f95ee8bec295a14f8ef1e7a31f17f1dae9df44'
-      const expectedHash = 'fece50d2287f7245aea5819b75f95ee8bec295a14f8ef1e7a31f17f1dae9df44';
+      const expectedHash =
+        'fece50d2287f7245aea5819b75f95ee8bec295a14f8ef1e7a31f17f1dae9df44';
       const actualHash = service.hashRefreshToken(token);
       expect(actualHash).toBe(expectedHash);
     });
@@ -76,7 +77,12 @@ describe('TokenService', () => {
   describe('storeRefreshInRedis', () => {
     it('should store the refresh token in Redis with a 30-day TTL', async () => {
       const expiresAt = new Date();
-      await service.storeRefreshInRedis('hash', 'user-id', 'session-id', expiresAt);
+      await service.storeRefreshInRedis(
+        'hash',
+        'user-id',
+        'session-id',
+        expiresAt,
+      );
 
       expect(redisClient.set).toHaveBeenCalledWith(
         'refresh:hash',
@@ -100,7 +106,11 @@ describe('TokenService', () => {
 
   describe('lookupRefreshInRedis', () => {
     it('should return parsed payload when found in Redis', async () => {
-      const payload = { user_id: 'user-id', session_id: 'session-id', expires_at: 'date' };
+      const payload = {
+        user_id: 'user-id',
+        session_id: 'session-id',
+        expires_at: 'date',
+      };
       mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(payload));
 
       const result = await service.lookupRefreshInRedis('hash');

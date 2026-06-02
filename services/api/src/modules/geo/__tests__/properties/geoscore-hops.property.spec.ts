@@ -20,19 +20,19 @@ describe('Property 8: GeoScore by Hops', () => {
 
     // 1 hop
     (neo4jGeoService['neo4jService'].run as jest.Mock).mockResolvedValueOnce({
-      records: [{ get: () => 1 }]
+      records: [{ get: () => 1 }],
     });
     expect(await neo4jGeoService.computeGeoScore('nb1', 'nb2')).toBe(2);
 
     // 2 hops
     (neo4jGeoService['neo4jService'].run as jest.Mock).mockResolvedValueOnce({
-      records: [{ get: () => 2 }]
+      records: [{ get: () => 2 }],
     });
     expect(await neo4jGeoService.computeGeoScore('nb1', 'nb3')).toBe(1);
 
     // 3+ hops or unreachable
     (neo4jGeoService['neo4jService'].run as jest.Mock).mockResolvedValueOnce({
-      records: []
+      records: [],
     });
     expect(await neo4jGeoService.computeGeoScore('nb1', 'nb4')).toBe(0);
   });

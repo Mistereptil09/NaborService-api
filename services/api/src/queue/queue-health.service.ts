@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { QueueMetrics, QueueHealthResponse } from './interfaces/queue-health.interfaces';
+import {
+  QueueMetrics,
+  QueueHealthResponse,
+} from './interfaces/queue-health.interfaces';
 
 @Injectable()
 export class QueueHealthService {
@@ -33,21 +36,31 @@ export class QueueHealthService {
   async getMetrics(): Promise<QueueHealthResponse> {
     try {
       const queueMetrics: Record<string, QueueMetrics> = {};
-      
-      const promises = Array.from(this.queues.entries()).map(async ([name, queue]) => {
-        const counts = await queue.getJobCounts('active', 'waiting', 'completed', 'failed', 'delayed');
-        queueMetrics[name] = {
-          active: counts.active || 0,
-          waiting: counts.waiting || 0,
-          completed: counts.completed || 0,
-          failed: counts.failed || 0,
-          delayed: counts.delayed || 0,
-        };
-      });
+
+      const promises = Array.from(this.queues.entries()).map(
+        async ([name, queue]) => {
+          const counts = await queue.getJobCounts(
+            'active',
+            'waiting',
+            'completed',
+            'failed',
+            'delayed',
+          );
+          queueMetrics[name] = {
+            active: counts.active || 0,
+            waiting: counts.waiting || 0,
+            completed: counts.completed || 0,
+            failed: counts.failed || 0,
+            delayed: counts.delayed || 0,
+          };
+        },
+      );
 
       await Promise.race([
         Promise.all(promises),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Redis timeout')), 3000)),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Redis timeout')), 3000),
+        ),
       ]);
 
       return {

@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventReport } from './entities/event-report.entity';
@@ -50,19 +54,21 @@ export class EventReportService {
     const rawResults = await qb.getRawMany();
 
     // Fetch the actual events
-    const eventIds = rawResults.map(r => r.eventId);
+    const eventIds = rawResults.map((r) => r.eventId);
     if (eventIds.length === 0) {
       return { items: [], total: 0 };
     }
 
     const events = await this.eventRepo.findByIds(eventIds);
-    const eventMap = new Map(events.map(e => [e.id, e]));
+    const eventMap = new Map(events.map((e) => [e.id, e]));
 
-    const items = rawResults.map(r => ({
-      event: eventMap.get(r.eventId),
-      reportCount: parseInt(r.reportCount, 10),
-      lastReportedAt: r.lastReportedAt,
-    })).filter(item => item.event !== undefined);
+    const items = rawResults
+      .map((r) => ({
+        event: eventMap.get(r.eventId),
+        reportCount: parseInt(r.reportCount, 10),
+        lastReportedAt: r.lastReportedAt,
+      }))
+      .filter((item) => item.event !== undefined);
 
     const totalCountQuery = await this.reportRepo
       .createQueryBuilder('report')

@@ -34,7 +34,9 @@ describe('Feature: rgpd-data-processing-table, Property 5: Discovery exclusion',
           const expectedUsers = users.filter((u) => !u.isDiscoveryOptedOut);
           expect(results.length).toBe(expectedUsers.length);
           for (const expectedUser of expectedUsers) {
-            expect(results.some((r) => r.userId === expectedUser.userId)).toBe(true);
+            expect(results.some((r) => r.userId === expectedUser.userId)).toBe(
+              true,
+            );
           }
         },
       ),

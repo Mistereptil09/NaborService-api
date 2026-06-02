@@ -45,7 +45,8 @@ describe('Feature: rgpd-data-processing-table, Property Tests for DataProcessing
           if (!isValidType) {
             expect(result).toBe(false);
           } else {
-            const expected = isRestricted || optOuts.includes(processingType as any);
+            const expected =
+              isRestricted || optOuts.includes(processingType as any);
             expect(result).toBe(expected);
           }
         },
@@ -73,7 +74,9 @@ describe('Feature: rgpd-data-processing-table, Property Tests for DataProcessing
           const result = await service.getEffectiveOptOuts(userId);
 
           if (isRestricted) {
-            expect(result).toEqual(expect.arrayContaining([...PROCESSING_TYPES]));
+            expect(result).toEqual(
+              expect.arrayContaining([...PROCESSING_TYPES]),
+            );
             expect(result.length).toBe(PROCESSING_TYPES.length);
           } else {
             expect(result).toEqual(optOuts);

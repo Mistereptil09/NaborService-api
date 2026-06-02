@@ -25,11 +25,11 @@ describe('CryptoRotationWorker', () => {
     }).compile();
 
     worker = module.get<CryptoRotationWorker>(CryptoRotationWorker);
-    
+
     (worker as any).redis = {
       set: jest.fn(),
     };
-    
+
     jest.clearAllMocks();
   });
 
@@ -38,22 +38,22 @@ describe('CryptoRotationWorker', () => {
       { pg_message_id: 'msg-1', content_encrypted: 'old_content_1' },
       { pg_message_id: 'msg-2', content_encrypted: 'old_content_2' },
     ]);
-    
+
     const job = {
       data: {
         pgGroupId: 'group-1',
         newKeyReference: 'key-v2',
         messageIds: ['msg-1', 'msg-2'],
-      }
+      },
     } as any;
-    
+
     await worker.process(job);
-    
+
     expect(mockMessageModel.find).toHaveBeenCalledWith({
       pg_message_id: { $in: ['msg-1', 'msg-2'] },
       pg_group_id: 'group-1',
     });
-    
+
     expect(mockMessageModel.bulkWrite).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({
@@ -61,16 +61,21 @@ describe('CryptoRotationWorker', () => {
             filter: { pg_message_id: 'msg-1' },
             update: expect.objectContaining({
               $set: expect.objectContaining({
-                content_encrypted: expect.stringContaining('re-encrypted-with-key-v2-old_content_1'),
-              })
-            })
-          })
+                content_encrypted: expect.stringContaining(
+                  're-encrypted-with-key-v2-old_content_1',
+                ),
+              }),
+            }),
+          }),
         }),
-      ])
+      ]),
     );
-    
+
     expect((worker as any).redis.set).toHaveBeenCalledWith(
-      'group_key_rotation:group-1', 'in-progress', 'EX', 3600
+      'group_key_rotation:group-1',
+      'in-progress',
+      'EX',
+      3600,
     );
   });
 });

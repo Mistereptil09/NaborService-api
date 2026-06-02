@@ -7,7 +7,7 @@ describe('Property 4: Coordinate Precision', () => {
     fc.assert(
       fc.property(
         fc.double({ noNaN: true, min: -180, max: 180 }), // lng
-        fc.double({ noNaN: true, min: -90, max: 90 }),   // lat
+        fc.double({ noNaN: true, min: -90, max: 90 }), // lat
         (lng, lat) => {
           const raw = {
             type: 'FeatureCollection',
@@ -21,18 +21,18 @@ describe('Property 4: Coordinate Precision', () => {
                 properties: {
                   score: 0.8,
                 },
-              }
+              },
             ],
           };
-          
+
           const result = parseFeatureCollection(raw);
-          
+
           expect(result.length).toBe(1);
           expect(result[0].longitude).toStrictEqual(lng);
           expect(result[0].latitude).toStrictEqual(lat);
-        }
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

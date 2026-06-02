@@ -45,15 +45,15 @@ describe('Feature: gridfs-media-storage, Property 15: Event Aggregate Size Const
           mockMediaModel.find.mockResolvedValue([
             {
               size_bytes: existingSize,
-            }
+            },
           ]);
 
           const totalLimit = 14155776;
 
           if (existingSize + fileSize > totalLimit) {
-            await expect(mediaService.upload(file, 'event_cover', 'event-123')).rejects.toThrow(
-              PayloadTooLargeException,
-            );
+            await expect(
+              mediaService.upload(file, 'event_cover', 'event-123'),
+            ).rejects.toThrow(PayloadTooLargeException);
           } else {
             mockUploadPipeline.process = jest.fn().mockResolvedValue({
               gridfsFileId: new Types.ObjectId(),
@@ -70,14 +70,18 @@ describe('Feature: gridfs-media-storage, Property 15: Event Aggregate Size Const
             })) as any;
             mockModelInstance.find = mockMediaModel.find;
             mockModelInstance.findOne = jest.fn().mockResolvedValue(null);
-            mockModelInstance.deleteOne = jest.fn().mockResolvedValue(undefined);
+            mockModelInstance.deleteOne = jest
+              .fn()
+              .mockResolvedValue(undefined);
             (mediaService as any).mediaFileModel = mockModelInstance;
 
-            await expect(mediaService.upload(file, 'event_cover', 'event-123')).resolves.toBeDefined();
+            await expect(
+              mediaService.upload(file, 'event_cover', 'event-123'),
+            ).resolves.toBeDefined();
           }
-        }
+        },
       ),
-      { numRuns: 50 }
+      { numRuns: 50 },
     );
   });
 });

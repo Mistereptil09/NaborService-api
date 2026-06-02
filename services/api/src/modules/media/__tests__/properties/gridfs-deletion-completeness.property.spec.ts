@@ -15,7 +15,7 @@ describe('Feature: gridfs-media-storage, Property 2: GridFS Deletion Completenes
     mockConnection = {
       db: {
         collection: jest.fn(),
-      }
+      },
     };
 
     gridfsService = new GridFSService(mockConnection);
@@ -25,7 +25,10 @@ describe('Feature: gridfs-media-storage, Property 2: GridFS Deletion Completenes
   it('should call bucket.delete with the correct fileId and delete the file completely', async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.array(fc.constantFrom(...'0123456789abcdef'.split('')), { minLength: 24, maxLength: 24 }),
+        fc.array(fc.constantFrom(...'0123456789abcdef'.split('')), {
+          minLength: 24,
+          maxLength: 24,
+        }),
         async (charArray) => {
           const hexId = charArray.join('');
           const fileId = new Types.ObjectId(hexId);
@@ -34,9 +37,9 @@ describe('Feature: gridfs-media-storage, Property 2: GridFS Deletion Completenes
           await gridfsService.delete(fileId);
 
           expect(mockBucket.delete).toHaveBeenCalledWith(fileId);
-        }
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

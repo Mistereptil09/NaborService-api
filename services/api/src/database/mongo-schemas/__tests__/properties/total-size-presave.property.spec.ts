@@ -4,17 +4,23 @@ import { createTotalSizePreSaveHook } from '../../validators/size-validators';
 describe('Property 5: Total binary size pre-save enforcement', () => {
   it('should enforce aggregate size limits on ListingDocument (max 12 MB)', () => {
     const hook = createTotalSizePreSaveHook({
-      binaryFields: [{ path: 'photos', isArray: true, sizeField: 'size_bytes' }],
+      binaryFields: [
+        { path: 'photos', isArray: true, sizeField: 'size_bytes' },
+      ],
       maxTotalBytes: 12582912, // 12 MB
     });
 
     fc.assert(
       fc.property(
-        fc.array(fc.integer({ min: 0, max: 5_000_000 }), { minLength: 0, maxLength: 8 }),
-        sizes => {
+        fc.array(fc.integer({ min: 0, max: 5_000_000 }), {
+          minLength: 0,
+          maxLength: 8,
+        }),
+        (sizes) => {
           const mockDoc = {
             get: (path: string) => {
-              if (path === 'photos') return sizes.map(s => ({ size_bytes: s }));
+              if (path === 'photos')
+                return sizes.map((s) => ({ size_bytes: s }));
               return null;
             },
           };
@@ -41,17 +47,23 @@ describe('Property 5: Total binary size pre-save enforcement', () => {
 
   it('should enforce aggregate size limits on Message (max 13.5 MB)', () => {
     const hook = createTotalSizePreSaveHook({
-      binaryFields: [{ path: 'attachments', isArray: true, sizeField: 'size_bytes' }],
+      binaryFields: [
+        { path: 'attachments', isArray: true, sizeField: 'size_bytes' },
+      ],
       maxTotalBytes: 14155776, // 13.5 MB
     });
 
     fc.assert(
       fc.property(
-        fc.array(fc.integer({ min: 0, max: 6_000_000 }), { minLength: 0, maxLength: 3 }),
-        sizes => {
+        fc.array(fc.integer({ min: 0, max: 6_000_000 }), {
+          minLength: 0,
+          maxLength: 3,
+        }),
+        (sizes) => {
           const mockDoc = {
             get: (path: string) => {
-              if (path === 'attachments') return sizes.map(s => ({ size_bytes: s }));
+              if (path === 'attachments')
+                return sizes.map((s) => ({ size_bytes: s }));
               return null;
             },
           };
@@ -92,13 +104,17 @@ describe('Property 5: Total binary size pre-save enforcement', () => {
         (coverSize, attachSizes) => {
           const mockDoc = {
             get: (path: string) => {
-              if (path === 'cover') return coverSize !== null ? { size_bytes: coverSize } : null;
-              if (path === 'attachments') return attachSizes.map(s => ({ size_bytes: s }));
+              if (path === 'cover')
+                return coverSize !== null ? { size_bytes: coverSize } : null;
+              if (path === 'attachments')
+                return attachSizes.map((s) => ({ size_bytes: s }));
               return null;
             },
           };
 
-          const total = (coverSize !== null ? coverSize : 0) + attachSizes.reduce((acc, val) => acc + val, 0);
+          const total =
+            (coverSize !== null ? coverSize : 0) +
+            attachSizes.reduce((acc, val) => acc + val, 0);
           let error: any;
           hook.call(mockDoc, (err: any) => {
             error = err;

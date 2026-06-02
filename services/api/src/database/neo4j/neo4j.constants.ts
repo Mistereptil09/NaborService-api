@@ -7,4 +7,5 @@ export const TRANSIENT_ERROR_CODES = [
   'SessionExpired',
 ];
 
-export const INDEX_EXISTS_CODE = 'Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists';
+export const INDEX_EXISTS_CODE =
+  'Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists';

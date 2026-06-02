@@ -7,7 +7,8 @@ describe('ListingDocument Schema', () => {
 
   beforeAll(() => {
     ListingDocumentModel =
-      mongoose.models.ListingDocument || mongoose.model('ListingDocument', ListingDocumentSchema);
+      mongoose.models.ListingDocument ||
+      mongoose.model('ListingDocument', ListingDocumentSchema);
   });
 
   it('should have the correct collection name', () => {
@@ -17,14 +18,14 @@ describe('ListingDocument Schema', () => {
   it('should have the correct indexes defined', () => {
     const indexes = ListingDocumentSchema.indexes();
 
-    const pgListingIdx = indexes.find(idx => idx[0].pg_listing_id === 1);
+    const pgListingIdx = indexes.find((idx) => idx[0].pg_listing_id === 1);
     expect(pgListingIdx).toBeDefined();
     expect(pgListingIdx?.[1]?.unique).toBe(true);
 
-    const tagsIdx = indexes.find(idx => idx[0].tags === 1);
+    const tagsIdx = indexes.find((idx) => idx[0].tags === 1);
     expect(tagsIdx).toBeDefined();
 
-    const updatedIdx = indexes.find(idx => idx[0].updated_at === -1);
+    const updatedIdx = indexes.find((idx) => idx[0].updated_at === -1);
     expect(updatedIdx).toBeDefined();
   });
 
@@ -89,19 +90,24 @@ describe('ListingDocument Schema', () => {
     const err = doc.validateSync();
     expect(err).toBeDefined();
     expect(err?.errors.photos).toBeDefined();
-    expect(err?.errors.photos.message).toBe('photos exceeds maximum length of 8');
+    expect(err?.errors.photos.message).toBe(
+      'photos exceeds maximum length of 8',
+    );
   });
 
   describe('Pre-save hook - aggregate size limit', () => {
     const hook = createTotalSizePreSaveHook({
-      binaryFields: [{ path: 'photos', isArray: true, sizeField: 'size_bytes' }],
+      binaryFields: [
+        { path: 'photos', isArray: true, sizeField: 'size_bytes' },
+      ],
       maxTotalBytes: 12582912, // 12 MB
     });
 
     it('should pass if the total size of photos is at or below 12 MB', () => {
       const mockDoc = {
         get: (path: string) => {
-          if (path === 'photos') return [{ size_bytes: 6000000 }, { size_bytes: 6582912 }];
+          if (path === 'photos')
+            return [{ size_bytes: 6000000 }, { size_bytes: 6582912 }];
           return null;
         },
       };
@@ -116,7 +122,8 @@ describe('ListingDocument Schema', () => {
     it('should fail if the total size of photos exceeds 12 MB', () => {
       const mockDoc = {
         get: (path: string) => {
-          if (path === 'photos') return [{ size_bytes: 6000000 }, { size_bytes: 6582913 }]; // 1 byte over
+          if (path === 'photos')
+            return [{ size_bytes: 6000000 }, { size_bytes: 6582913 }]; // 1 byte over
           return null;
         },
       };

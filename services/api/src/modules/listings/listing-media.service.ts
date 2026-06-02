@@ -1,4 +1,8 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Listing } from './entities/listing.entity';
@@ -15,8 +19,14 @@ export class ListingMediaService {
   /**
    * Upload media for a listing. Delegates to the new MediaService.
    */
-  async uploadMedia(userId: string, listingId: string, file: Express.Multer.File): Promise<any> {
-    const listing = await this.listingRepository.findOne({ where: { id: listingId } });
+  async uploadMedia(
+    userId: string,
+    listingId: string,
+    file: Express.Multer.File,
+  ): Promise<any> {
+    const listing = await this.listingRepository.findOne({
+      where: { id: listingId },
+    });
     if (!listing) {
       throw new NotFoundException('Annonce introuvable');
     }
@@ -25,7 +35,11 @@ export class ListingMediaService {
       throw new ForbiddenException('Action non autorisée');
     }
 
-    const media = await this.mediaService.upload(file, 'listing_photo', listingId);
+    const media = await this.mediaService.upload(
+      file,
+      'listing_photo',
+      listingId,
+    );
 
     return {
       _id: media._id.toString(),
@@ -39,8 +53,14 @@ export class ListingMediaService {
   /**
    * Delete media for a listing. Delegates to the new MediaService.
    */
-  async deleteMedia(userId: string, listingId: string, mediaId: string): Promise<void> {
-    const listing = await this.listingRepository.findOne({ where: { id: listingId } });
+  async deleteMedia(
+    userId: string,
+    listingId: string,
+    mediaId: string,
+  ): Promise<void> {
+    const listing = await this.listingRepository.findOne({
+      where: { id: listingId },
+    });
     if (!listing) {
       throw new NotFoundException('Annonce introuvable');
     }

@@ -8,11 +8,11 @@ export class QueueHealthController {
   @Get()
   async checkHealth() {
     const health = await this.queueHealthService.getMetrics();
-    
+
     if (health.status === 'error') {
       throw new HttpException(health, HttpStatus.SERVICE_UNAVAILABLE);
     }
-    
+
     return health;
   }
 }

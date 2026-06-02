@@ -28,7 +28,7 @@ describe('Auth Module (e2e)', () => {
       const genRes = await request(app.getHttpServer())
         .post('/v1/auth/sso/qr/generate')
         .expect(200);
-      
+
       expect(genRes.body).toHaveProperty('qr_code');
       // The uuid is encoded in the qr_code, but for the sake of the test we might need
       // a way to extract it. Since we can't decode QR in e2e easily without a library,
@@ -44,7 +44,7 @@ describe('Auth Module (e2e)', () => {
         fc.asyncProperty(fc.uuid(), async (tokenUuid) => {
           // This verifies the Correctness Properties listed in requirements.md
           expect(tokenUuid).toBeDefined();
-        })
+        }),
       );
     });
   });
@@ -58,17 +58,19 @@ describe('Auth Module (e2e)', () => {
             .post('/v1/auth/forgot-password')
             .set('x-forwarded-for', ip)
             .send({ email });
-          
+
           expect(res.status).toBe(200);
-          expect(res.body.message).toBe('Si un compte existe, un email a été envoyé');
+          expect(res.body.message).toBe(
+            'Si un compte existe, un email a été envoyé',
+          );
         }),
-        { numRuns: 5 } // Keep it fast and under the 5/15m rate limit
+        { numRuns: 5 }, // Keep it fast and under the 5/15m rate limit
       );
     });
 
     it('should reset password and invalidate old sessions', async () => {
       const { email, password } = await createTestUser(app);
-      
+
       // Request reset
       await request(app.getHttpServer())
         .post('/v1/auth/forgot-password')
@@ -109,7 +111,7 @@ describe('Auth Module (e2e)', () => {
       const { email, password } = await createTestUser(app);
       // Depending on if TOTP is mandatory, login might require TOTP confirm first.
       const loginRes = await loginUser(app, email, password);
-      
+
       // If TOTP is opt-in, we just get access_token.
       // If we got access_token, we can call disable.
       if (loginRes.body.access_token) {
@@ -117,9 +119,9 @@ describe('Auth Module (e2e)', () => {
           .delete('/v1/auth/totp')
           .set('Authorization', `Bearer ${loginRes.body.access_token}`)
           // Need to provide the code according to spec (often requires a code to disable)
-          // Wait, the spec says DELETE /auth/totp requires code. But if they just enrolled, 
+          // Wait, the spec says DELETE /auth/totp requires code. But if they just enrolled,
           // we need to generate one.
-          .send({ code: '000000' }) 
+          .send({ code: '000000' })
           .expect(400); // 400 because code is invalid, but proves endpoint exists and auth works
       }
     });

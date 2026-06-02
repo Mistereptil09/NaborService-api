@@ -49,12 +49,15 @@ export function createTotalSizePreSaveHook(config: SizeConfig) {
     }
     if (totalBytes > config.maxTotalBytes) {
       const err = new mongoose.Error.ValidationError(this);
-      err.addError('total_size', new mongoose.Error.ValidatorError({
-        message: `Total binary size (${totalBytes} bytes) exceeds maximum of ${config.maxTotalBytes} bytes`,
-        path: 'total_size',
-        value: totalBytes,
-        type: 'maxBytes',
-      }));
+      err.addError(
+        'total_size',
+        new mongoose.Error.ValidatorError({
+          message: `Total binary size (${totalBytes} bytes) exceeds maximum of ${config.maxTotalBytes} bytes`,
+          path: 'total_size',
+          value: totalBytes,
+          type: 'maxBytes',
+        }),
+      );
       if (typeof next === 'function') {
         return next(err);
       }

@@ -15,7 +15,9 @@ export class DataProcessingService {
 
   async isOptedOut(userId: string, processingType: string): Promise<boolean> {
     if (!PROCESSING_TYPES.includes(processingType as ProcessingType)) {
-      this.logger.warn(`Invalid processing type checked: ${processingType} for user ${userId}`);
+      this.logger.warn(
+        `Invalid processing type checked: ${processingType} for user ${userId}`,
+      );
       return false;
     }
 
@@ -28,7 +30,10 @@ export class DataProcessingService {
 
       return record.isRestricted || record.optOuts.includes(processingType);
     } catch (error) {
-      this.logger.error(`Error checking opt-out status for user ${userId}:`, error);
+      this.logger.error(
+        `Error checking opt-out status for user ${userId}:`,
+        error,
+      );
       return false;
     }
   }
@@ -47,13 +52,18 @@ export class DataProcessingService {
 
       return record.optOuts;
     } catch (error) {
-      this.logger.error(`Error getting effective opt-outs for user ${userId}:`, error);
+      this.logger.error(
+        `Error getting effective opt-outs for user ${userId}:`,
+        error,
+      );
       return [];
     }
   }
 
   async setOptOuts(userId: string, optOuts: string[]): Promise<void> {
-    const validOptOuts = optOuts.filter((o) => PROCESSING_TYPES.includes(o as ProcessingType));
+    const validOptOuts = optOuts.filter((o) =>
+      PROCESSING_TYPES.includes(o as ProcessingType),
+    );
     await this.repo.update(
       { userId },
       {
@@ -75,8 +85,13 @@ export class DataProcessingService {
     );
   }
 
-  async createDefault(userId: string, manager?: EntityManager): Promise<UserDataProcessing> {
-    const repo = manager ? manager.getRepository(UserDataProcessing) : this.repo;
+  async createDefault(
+    userId: string,
+    manager?: EntityManager,
+  ): Promise<UserDataProcessing> {
+    const repo = manager
+      ? manager.getRepository(UserDataProcessing)
+      : this.repo;
     const record = repo.create({
       userId,
       optOuts: [],

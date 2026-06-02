@@ -120,9 +120,7 @@ describe('Messaging Entities — TypeORM Metadata', () => {
 
     it('should have composite primary key (user_id, group_id)', () => {
       const meta = dataSource.getMetadata(UsersInGroup);
-      const pkColumns = meta.primaryColumns
-        .map((c) => c.databaseName)
-        .sort();
+      const pkColumns = meta.primaryColumns.map((c) => c.databaseName).sort();
       expect(pkColumns).toEqual(['group_id', 'user_id']);
     });
 
@@ -131,7 +129,9 @@ describe('Messaging Entities — TypeORM Metadata', () => {
       const checks = meta.checks.map((c) => c.name);
       expect(checks).toContain('chk_uig_left');
       const chk = meta.checks.find((c) => c.name === 'chk_uig_left')!;
-      expect(chk.expression).toContain('"left_at" IS NULL OR "left_at" > "joined_at"');
+      expect(chk.expression).toContain(
+        '"left_at" IS NULL OR "left_at" > "joined_at"',
+      );
     });
 
     it('should have CHECK constraint chk_uig_kicked', () => {
@@ -139,7 +139,9 @@ describe('Messaging Entities — TypeORM Metadata', () => {
       const checks = meta.checks.map((c) => c.name);
       expect(checks).toContain('chk_uig_kicked');
       const chk = meta.checks.find((c) => c.name === 'chk_uig_kicked')!;
-      expect(chk.expression).toContain('"kicked_at" IS NULL OR "kicked_at" > "joined_at"');
+      expect(chk.expression).toContain(
+        '"kicked_at" IS NULL OR "kicked_at" > "joined_at"',
+      );
     });
 
     it('should have enum column "role_in_group" with default "message"', () => {
@@ -147,7 +149,7 @@ describe('Messaging Entities — TypeORM Metadata', () => {
       const roleCol = meta.findColumnWithDatabaseName('role_in_group')!;
       expect(roleCol.type).toBe('enum');
       expect(roleCol.enumName).toBe('group_role_enum');
-      expect(roleCol.default).toBe("message");
+      expect(roleCol.default).toBe('message');
     });
 
     it('should have index on group_id', () => {
@@ -285,14 +287,10 @@ describe('Messaging Entities — TypeORM Metadata', () => {
       const groupSentIdx = meta.indices.find(
         (i) => i.name === 'idx_msg_group_sent',
       )!;
-      const groupSentCols = groupSentIdx.columns.map(
-        (c) => c.databaseName,
-      );
+      const groupSentCols = groupSentIdx.columns.map((c) => c.databaseName);
       expect(groupSentCols).toEqual(['group_id', 'sent_at']);
 
-      const senderIdx = meta.indices.find(
-        (i) => i.name === 'idx_msg_sender',
-      )!;
+      const senderIdx = meta.indices.find((i) => i.name === 'idx_msg_sender')!;
       const senderCols = senderIdx.columns.map((c) => c.databaseName);
       expect(senderCols).toEqual(['sender_id']);
     });
@@ -306,9 +304,7 @@ describe('Messaging Entities — TypeORM Metadata', () => {
 
     it('should have composite primary key (message_id, user_id)', () => {
       const meta = dataSource.getMetadata(MessageReadReceipt);
-      const pkColumns = meta.primaryColumns
-        .map((c) => c.databaseName)
-        .sort();
+      const pkColumns = meta.primaryColumns.map((c) => c.databaseName).sort();
       expect(pkColumns).toEqual(['message_id', 'user_id']);
     });
 

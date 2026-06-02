@@ -27,7 +27,11 @@ describe('Feature: gridfs-media-storage, Property 5: Image Conversion to WebP', 
   it('should process image/jpeg, image/png, and image/gif and convert them to image/webp', async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.oneof(fc.constant('image/jpeg'), fc.constant('image/png'), fc.constant('image/gif')),
+        fc.oneof(
+          fc.constant('image/jpeg'),
+          fc.constant('image/png'),
+          fc.constant('image/gif'),
+        ),
         async (mimeType) => {
           const file = {
             buffer: Buffer.from('fake-image-bytes'),
@@ -46,9 +50,9 @@ describe('Feature: gridfs-media-storage, Property 5: Image Conversion to WebP', 
           expect(result.mimetype).toBe('image/webp');
           expect(result.widthPx).toBe(200);
           expect(result.heightPx).toBe(200);
-        }
+        },
       ),
-      { numRuns: 50 }
+      { numRuns: 50 },
     );
   });
 });

@@ -58,14 +58,14 @@ describe('RedisIoAdapter', () => {
 
   it('should apply adapter to server', () => {
     (adapter as any).adapterConstructor = 'mocked-adapter';
-    
+
     const mockServer = { adapter: jest.fn() };
     const createIOServerSpy = jest
       .spyOn(Object.getPrototypeOf(RedisIoAdapter.prototype), 'createIOServer')
       .mockReturnValue(mockServer);
 
     const result = adapter.createIOServer(3000);
-    
+
     expect(createIOServerSpy).toHaveBeenCalledWith(3000, undefined);
     expect(mockServer.adapter).toHaveBeenCalledWith('mocked-adapter');
     expect(result).toBe(mockServer);

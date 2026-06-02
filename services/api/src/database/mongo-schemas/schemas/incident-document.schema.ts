@@ -47,7 +47,8 @@ export class IncidentDocument {
   synced_at: Date;
 }
 
-export const IncidentDocumentSchema = SchemaFactory.createForClass(IncidentDocument);
+export const IncidentDocumentSchema =
+  SchemaFactory.createForClass(IncidentDocument);
 
 // Indexes
 IncidentDocumentSchema.index({ pg_incident_id: 1 }, { unique: true });

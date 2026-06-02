@@ -129,7 +129,9 @@ describe('Polls Domain — TypeORM Metadata', () => {
       const checks = metadata.checks;
       const chk = checks.find((c) => c.name === 'chk_poll_dates');
       expect(chk).toBeDefined();
-      expect(chk!.expression).toContain('"ends_at" IS NULL OR "ends_at" > "starts_at"');
+      expect(chk!.expression).toContain(
+        '"ends_at" IS NULL OR "ends_at" > "starts_at"',
+      );
     });
 
     it('should define index idx_polls_active on (neighbourhood_id, ends_at)', () => {

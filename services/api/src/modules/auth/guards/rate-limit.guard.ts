@@ -10,7 +10,10 @@ import { Reflector } from '@nestjs/core';
 import * as crypto from 'crypto';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../../../database/redis.module';
-import { RATE_LIMIT_KEY, RateLimitOptions } from '../decorators/rate-limit.decorator';
+import {
+  RATE_LIMIT_KEY,
+  RateLimitOptions,
+} from '../decorators/rate-limit.decorator';
 import { RateLimitService } from '../rate-limit.service';
 
 @Injectable()
@@ -107,7 +110,7 @@ export class RateLimitGuard implements CanActivate {
         acc[name] = value;
       }
       return acc;
-    }, {} as Record<string, string>);
+    }, {});
     return cookies['refresh_token'];
   }
 }

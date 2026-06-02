@@ -78,9 +78,7 @@ describe('Listings & Payments — TypeORM Metadata', () => {
 
     it('should have "category_name" VARCHAR NOT NULL', () => {
       const meta = ds.getMetadata(ListingCategory);
-      const col = meta.columns.find(
-        (c) => c.databaseName === 'category_name',
-      );
+      const col = meta.columns.find((c) => c.databaseName === 'category_name');
       expect(col).toBeDefined();
       expect(col!.type).toBe('varchar');
       expect(col!.isNullable).toBe(false);
@@ -122,9 +120,7 @@ describe('Listings & Payments — TypeORM Metadata', () => {
 
     it('should have CHECK constraint "chk_listing_price"', () => {
       const meta = ds.getMetadata(Listing);
-      const check = meta.checks.find(
-        (c) => c.name === 'chk_listing_price',
-      );
+      const check = meta.checks.find((c) => c.name === 'chk_listing_price');
       expect(check).toBeDefined();
       expect(check!.expression).toContain('"price_cents" >= 0');
     });
@@ -140,9 +136,7 @@ describe('Listings & Payments — TypeORM Metadata', () => {
 
     it('should have index "idx_listings_creator" on creator_id', () => {
       const meta = ds.getMetadata(Listing);
-      const idx = meta.indices.find(
-        (i) => i.name === 'idx_listings_creator',
-      );
+      const idx = meta.indices.find((i) => i.name === 'idx_listings_creator');
       expect(idx).toBeDefined();
       expect(idx!.columns.map((c) => c.databaseName)).toContain('creator_id');
     });
@@ -161,9 +155,7 @@ describe('Listings & Payments — TypeORM Metadata', () => {
       const listingType = meta.columns.find(
         (c) => c.databaseName === 'listing_type',
       );
-      const status = meta.columns.find(
-        (c) => c.databaseName === 'status',
-      );
+      const status = meta.columns.find((c) => c.databaseName === 'status');
       expect(listingType).toBeDefined();
       expect(listingType!.type).toBe('enum');
       expect(listingType!.enumName).toBe('listing_type_enum');
@@ -174,9 +166,7 @@ describe('Listings & Payments — TypeORM Metadata', () => {
 
     it('should have a DeleteDateColumn "deleted_at"', () => {
       const meta = ds.getMetadata(Listing);
-      const col = meta.columns.find(
-        (c) => c.databaseName === 'deleted_at',
-      );
+      const col = meta.columns.find((c) => c.databaseName === 'deleted_at');
       expect(col).toBeDefined();
       expect(col!.isDeleteDate).toBe(true);
       expect(col!.type).toBe('timestamptz');
@@ -200,9 +190,7 @@ describe('Listings & Payments — TypeORM Metadata', () => {
 
     it('should have "price_cents" INT NOT NULL default 0', () => {
       const meta = ds.getMetadata(Listing);
-      const col = meta.columns.find(
-        (c) => c.databaseName === 'price_cents',
-      );
+      const col = meta.columns.find((c) => c.databaseName === 'price_cents');
       expect(col).toBeDefined();
       expect(col!.type).toBe('int');
       expect(col!.isNullable).toBe(false);
@@ -230,29 +218,21 @@ describe('Listings & Payments — TypeORM Metadata', () => {
 
     it('should have CHECK constraint "chk_ltx_parties"', () => {
       const meta = ds.getMetadata(ListingTransaction);
-      const check = meta.checks.find(
-        (c) => c.name === 'chk_ltx_parties',
-      );
+      const check = meta.checks.find((c) => c.name === 'chk_ltx_parties');
       expect(check).toBeDefined();
-      expect(check!.expression).toContain(
-        '"provider_id" != "requester_id"',
-      );
+      expect(check!.expression).toContain('"provider_id" != "requester_id"');
     });
 
     it('should have CHECK constraint "chk_ltx_amount"', () => {
       const meta = ds.getMetadata(ListingTransaction);
-      const check = meta.checks.find(
-        (c) => c.name === 'chk_ltx_amount',
-      );
+      const check = meta.checks.find((c) => c.name === 'chk_ltx_amount');
       expect(check).toBeDefined();
       expect(check!.expression).toContain('"amount_cents" >= 0');
     });
 
     it('should have CHECK constraint "chk_ltx_commission"', () => {
       const meta = ds.getMetadata(ListingTransaction);
-      const check = meta.checks.find(
-        (c) => c.name === 'chk_ltx_commission',
-      );
+      const check = meta.checks.find((c) => c.name === 'chk_ltx_commission');
       expect(check).toBeDefined();
       expect(check!.expression).toContain('"commission_cents" >= 0');
     });
@@ -269,8 +249,7 @@ describe('Listings & Payments — TypeORM Metadata', () => {
       const hasUnique =
         meta.uniques.some((u) =>
           u.columns.some((c) => c.databaseName === 'stripe_session_id'),
-        ) ||
-        (col as { isUnique?: boolean }).isUnique === true;
+        ) || (col as { isUnique?: boolean }).isUnique === true;
       expect(hasUnique).toBe(true);
     });
 
@@ -284,19 +263,14 @@ describe('Listings & Payments — TypeORM Metadata', () => {
 
       const hasUnique =
         meta.uniques.some((u) =>
-          u.columns.some(
-            (c) => c.databaseName === 'stripe_payment_intent',
-          ),
-        ) ||
-        (col as { isUnique?: boolean }).isUnique === true;
+          u.columns.some((c) => c.databaseName === 'stripe_payment_intent'),
+        ) || (col as { isUnique?: boolean }).isUnique === true;
       expect(hasUnique).toBe(true);
     });
 
     it('should have index on (listing_id, status)', () => {
       const meta = ds.getMetadata(ListingTransaction);
-      const idx = meta.indices.find(
-        (i) => i.name === 'idx_ltx_listing_status',
-      );
+      const idx = meta.indices.find((i) => i.name === 'idx_ltx_listing_status');
       expect(idx).toBeDefined();
       expect(idx!.columns.map((c) => c.databaseName)).toEqual(
         expect.arrayContaining(['listing_id', 'status']),
@@ -305,31 +279,21 @@ describe('Listings & Payments — TypeORM Metadata', () => {
 
     it('should have index on provider_id', () => {
       const meta = ds.getMetadata(ListingTransaction);
-      const idx = meta.indices.find(
-        (i) => i.name === 'idx_ltx_provider',
-      );
+      const idx = meta.indices.find((i) => i.name === 'idx_ltx_provider');
       expect(idx).toBeDefined();
-      expect(idx!.columns.map((c) => c.databaseName)).toContain(
-        'provider_id',
-      );
+      expect(idx!.columns.map((c) => c.databaseName)).toContain('provider_id');
     });
 
     it('should have index on requester_id', () => {
       const meta = ds.getMetadata(ListingTransaction);
-      const idx = meta.indices.find(
-        (i) => i.name === 'idx_ltx_requester',
-      );
+      const idx = meta.indices.find((i) => i.name === 'idx_ltx_requester');
       expect(idx).toBeDefined();
-      expect(idx!.columns.map((c) => c.databaseName)).toContain(
-        'requester_id',
-      );
+      expect(idx!.columns.map((c) => c.databaseName)).toContain('requester_id');
     });
 
     it('should have "status" enum column with enumName "transaction_status_enum"', () => {
       const meta = ds.getMetadata(ListingTransaction);
-      const col = meta.columns.find(
-        (c) => c.databaseName === 'status',
-      );
+      const col = meta.columns.find((c) => c.databaseName === 'status');
       expect(col).toBeDefined();
       expect(col!.type).toBe('enum');
       expect(col!.enumName).toBe('transaction_status_enum');
@@ -382,9 +346,7 @@ describe('Listings & Payments — TypeORM Metadata', () => {
         (i) => i.name === 'idx_listing_reports_listing',
       );
       expect(idx).toBeDefined();
-      expect(idx!.columns.map((c) => c.databaseName)).toContain(
-        'listing_id',
-      );
+      expect(idx!.columns.map((c) => c.databaseName)).toContain('listing_id');
     });
 
     it('should have index on resolved_at', () => {
@@ -393,16 +355,12 @@ describe('Listings & Payments — TypeORM Metadata', () => {
         (i) => i.name === 'idx_listing_reports_resolved',
       );
       expect(idx).toBeDefined();
-      expect(idx!.columns.map((c) => c.databaseName)).toContain(
-        'resolved_at',
-      );
+      expect(idx!.columns.map((c) => c.databaseName)).toContain('resolved_at');
     });
 
     it('should have "reason" TEXT NOT NULL', () => {
       const meta = ds.getMetadata(ListingReport);
-      const col = meta.columns.find(
-        (c) => c.databaseName === 'reason',
-      );
+      const col = meta.columns.find((c) => c.databaseName === 'reason');
       expect(col).toBeDefined();
       expect(col!.type).toBe('text');
       expect(col!.isNullable).toBe(false);
@@ -445,9 +403,7 @@ describe('Listings & Payments — TypeORM Metadata', () => {
 
     it('should have "action" enum column with enumName "moderation_action_enum"', () => {
       const meta = ds.getMetadata(ListingModerationAction);
-      const col = meta.columns.find(
-        (c) => c.databaseName === 'action',
-      );
+      const col = meta.columns.find((c) => c.databaseName === 'action');
       expect(col).toBeDefined();
       expect(col!.type).toBe('enum');
       expect(col!.enumName).toBe('moderation_action_enum');
@@ -459,9 +415,7 @@ describe('Listings & Payments — TypeORM Metadata', () => {
         (i) => i.name === 'idx_listing_moderation_actions_listing',
       );
       expect(idx).toBeDefined();
-      expect(idx!.columns.map((c) => c.databaseName)).toContain(
-        'listing_id',
-      );
+      expect(idx!.columns.map((c) => c.databaseName)).toContain('listing_id');
     });
 
     it('should have ManyToOne relations to Listing and User', () => {
@@ -482,9 +436,7 @@ describe('Listings & Payments — TypeORM Metadata', () => {
 
     it('should have "reason" TEXT NOT NULL', () => {
       const meta = ds.getMetadata(ListingModerationAction);
-      const col = meta.columns.find(
-        (c) => c.databaseName === 'reason',
-      );
+      const col = meta.columns.find((c) => c.databaseName === 'reason');
       expect(col).toBeDefined();
       expect(col!.type).toBe('text');
       expect(col!.isNullable).toBe(false);

@@ -62,9 +62,14 @@ export class MediaController {
 
   @Get(':mediaId/stream')
   @ApiOperation({ summary: 'Streamer ou télécharger un fichier média' })
-  @ApiOkResponse({ description: 'Flux de données du média (supporte le streaming partiel via l\'entête Range)' })
-  @ApiBadRequestResponse({ description: 'Format d\'identifiant média invalide' })
-  @ApiNotFoundResponse({ description: 'Média ou fichier de stockage introuvable' })
+  @ApiOkResponse({
+    description:
+      "Flux de données du média (supporte le streaming partiel via l'entête Range)",
+  })
+  @ApiBadRequestResponse({ description: "Format d'identifiant média invalide" })
+  @ApiNotFoundResponse({
+    description: 'Média ou fichier de stockage introuvable',
+  })
   async streamMedia(
     @Param('mediaId') mediaId: string,
     @Req() req: any,
@@ -90,7 +95,10 @@ export class MediaController {
     res.setHeader('Content-Type', metadata.mimetype);
 
     if (metadata.owner_type === 'contract') {
-      res.setHeader('Content-Disposition', `attachment; filename="${metadata.original_filename}"`);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${metadata.original_filename}"`,
+      );
     }
 
     const rangeHeader = req.headers.range;
@@ -107,7 +115,13 @@ export class MediaController {
     const start = parseInt(parts[0], 10);
     const end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
 
-    if (isNaN(start) || start < 0 || start >= totalSize || end >= totalSize || start > end) {
+    if (
+      isNaN(start) ||
+      start < 0 ||
+      start >= totalSize ||
+      end >= totalSize ||
+      start > end
+    ) {
       res.setHeader('Content-Range', `bytes */${totalSize}`);
       return res.status(416).send('Range Not Satisfiable');
     }
@@ -117,7 +131,10 @@ export class MediaController {
     res.setHeader('Content-Length', chunkSize.toString());
     res.status(206);
 
-    const downloadStream = this.gridfsService.openDownloadStream(fileId, { start, end });
+    const downloadStream = this.gridfsService.openDownloadStream(fileId, {
+      start,
+      end,
+    });
     downloadStream.pipe(res);
   }
 
@@ -129,9 +146,17 @@ export class MediaController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Téléverser une photo pour une annonce' })
-  @ApiCreatedResponse({ description: 'Photo téléversée, optimisée en WebP et associée à l\'annonce avec succès' })
-  @ApiBadRequestResponse({ description: 'Fichier invalide, trop volumineux, format non supporté, ou limite de photos atteinte (max 8)' })
-  @ApiForbiddenResponse({ description: 'Non autorisé à modifier cette annonce ou action interdite' })
+  @ApiCreatedResponse({
+    description:
+      "Photo téléversée, optimisée en WebP et associée à l'annonce avec succès",
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Fichier invalide, trop volumineux, format non supporté, ou limite de photos atteinte (max 8)',
+  })
+  @ApiForbiddenResponse({
+    description: 'Non autorisé à modifier cette annonce ou action interdite',
+  })
   @ApiNotFoundResponse({ description: 'Annonce introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async uploadListingPhoto(
@@ -139,11 +164,17 @@ export class MediaController {
     @Param('listingId') listingId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    const listing = await this.listingRepository.findOne({ where: { id: listingId } });
+    const listing = await this.listingRepository.findOne({
+      where: { id: listingId },
+    });
     if (!listing) {
       throw new NotFoundException('Annonce introuvable');
     }
-    if (listing.creatorId !== req.user.sub && req.user.role !== 'admin' && req.user.role !== 'moderator') {
+    if (
+      listing.creatorId !== req.user.sub &&
+      req.user.role !== 'admin' &&
+      req.user.role !== 'moderator'
+    ) {
       throw new ForbiddenException('Action non autorisée');
     }
 
@@ -156,9 +187,16 @@ export class MediaController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Téléverser son avatar de profil' })
-  @ApiCreatedResponse({ description: 'Avatar téléversé, optimisé en WebP et mis à jour avec succès' })
-  @ApiBadRequestResponse({ description: 'Fichier invalide, trop volumineux (max 2MB) ou format non supporté' })
-  @ApiForbiddenResponse({ description: 'Non autorisé à modifier cet utilisateur' })
+  @ApiCreatedResponse({
+    description: 'Avatar téléversé, optimisé en WebP et mis à jour avec succès',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Fichier invalide, trop volumineux (max 2MB) ou format non supporté',
+  })
+  @ApiForbiddenResponse({
+    description: 'Non autorisé à modifier cet utilisateur',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async uploadUserAvatar(
     @Req() req: { user: JwtPayload },
@@ -177,9 +215,17 @@ export class MediaController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Téléverser sa bannière de profil' })
-  @ApiCreatedResponse({ description: 'Bannière téléversée, optimisée en WebP et mise à jour avec succès' })
-  @ApiBadRequestResponse({ description: 'Fichier invalide, trop volumineux (max 4MB) ou format non supporté' })
-  @ApiForbiddenResponse({ description: 'Non autorisé à modifier cet utilisateur' })
+  @ApiCreatedResponse({
+    description:
+      'Bannière téléversée, optimisée en WebP et mise à jour avec succès',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Fichier invalide, trop volumineux (max 4MB) ou format non supporté',
+  })
+  @ApiForbiddenResponse({
+    description: 'Non autorisé à modifier cet utilisateur',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async uploadUserBanner(
     @Req() req: { user: JwtPayload },
@@ -197,9 +243,15 @@ export class MediaController {
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Téléverser une image de couverture d\'événement' })
-  @ApiCreatedResponse({ description: 'Couverture d\'événement téléversée, optimisée en WebP et associée avec succès' })
-  @ApiBadRequestResponse({ description: 'Fichier invalide, trop volumineux (max 5MB) ou format non supporté' })
+  @ApiOperation({ summary: "Téléverser une image de couverture d'événement" })
+  @ApiCreatedResponse({
+    description:
+      "Couverture d'événement téléversée, optimisée en WebP et associée avec succès",
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Fichier invalide, trop volumineux (max 5MB) ou format non supporté',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async uploadEventCover(
     @Param('eventId') eventId: string,
@@ -214,8 +266,13 @@ export class MediaController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Téléverser une pièce jointe pour un événement' })
-  @ApiCreatedResponse({ description: 'Pièce jointe téléversée (et potentiellement optimisée/transcodée) et associée avec succès' })
-  @ApiBadRequestResponse({ description: 'Fichier invalide, trop volumineux ou format non supporté' })
+  @ApiCreatedResponse({
+    description:
+      'Pièce jointe téléversée (et potentiellement optimisée/transcodée) et associée avec succès',
+  })
+  @ApiBadRequestResponse({
+    description: 'Fichier invalide, trop volumineux ou format non supporté',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async uploadEventAttachment(
     @Param('eventId') eventId: string,
@@ -229,9 +286,17 @@ export class MediaController {
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Téléverser une photo de preuve de signalement d\'incident' })
-  @ApiCreatedResponse({ description: 'Photo de preuve d\'incident téléversée, optimisée en WebP et associée avec succès' })
-  @ApiBadRequestResponse({ description: 'Fichier invalide, trop volumineux (max 5MB) ou format non supporté' })
+  @ApiOperation({
+    summary: "Téléverser une photo de preuve de signalement d'incident",
+  })
+  @ApiCreatedResponse({
+    description:
+      "Photo de preuve d'incident téléversée, optimisée en WebP et associée avec succès",
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Fichier invalide, trop volumineux (max 5MB) ou format non supporté',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async uploadIncidentPhoto(
     @Param('incidentId') incidentId: string,
@@ -246,8 +311,14 @@ export class MediaController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Téléverser une pièce jointe de message' })
-  @ApiCreatedResponse({ description: 'Pièce jointe de message téléversée (et potentiellement optimisée/transcodée) avec succès' })
-  @ApiBadRequestResponse({ description: 'Fichier invalide, trop volumineux (max 5MB pour images, 50MB autres), format non supporté ou limite atteinte (max 3)' })
+  @ApiCreatedResponse({
+    description:
+      'Pièce jointe de message téléversée (et potentiellement optimisée/transcodée) avec succès',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Fichier invalide, trop volumineux (max 5MB pour images, 50MB autres), format non supporté ou limite atteinte (max 3)',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async uploadMessageAttachment(
     @Param('messageId') messageId: string,
@@ -262,8 +333,13 @@ export class MediaController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Téléverser un PDF de contrat ou reçu' })
-  @ApiCreatedResponse({ description: 'PDF de contrat ou reçu téléversé et enregistré avec succès' })
-  @ApiBadRequestResponse({ description: 'Fichier invalide, trop volumineux, format non PDF, ou doublon de hash SHA-256 détecté' })
+  @ApiCreatedResponse({
+    description: 'PDF de contrat ou reçu téléversé et enregistré avec succès',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Fichier invalide, trop volumineux, format non PDF, ou doublon de hash SHA-256 détecté',
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async uploadContract(
     @Param('transactionId') transactionId: string,
@@ -278,7 +354,9 @@ export class MediaController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Supprimer un fichier média' })
-  @ApiOkResponse({ description: 'Média supprimé avec succès de la base et du stockage GridFS' })
+  @ApiOkResponse({
+    description: 'Média supprimé avec succès de la base et du stockage GridFS',
+  })
   @ApiForbiddenResponse({ description: 'Non autorisé à supprimer ce média' })
   @ApiNotFoundResponse({ description: 'Média introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
@@ -294,11 +372,17 @@ export class MediaController {
         throw new ForbiddenException('Action non autorisée');
       }
     } else if (doc.owner_type === 'listing_photo') {
-      const listing = await this.listingRepository.findOne({ where: { id: doc.owner_id } });
+      const listing = await this.listingRepository.findOne({
+        where: { id: doc.owner_id },
+      });
       if (!listing) {
         throw new NotFoundException('Annonce introuvable');
       }
-      if (listing.creatorId !== req.user.sub && req.user.role !== 'admin' && req.user.role !== 'moderator') {
+      if (
+        listing.creatorId !== req.user.sub &&
+        req.user.role !== 'admin' &&
+        req.user.role !== 'moderator'
+      ) {
         throw new ForbiddenException('Action non autorisée');
       }
     }
@@ -310,10 +394,16 @@ export class MediaController {
   @Patch(':mediaId/caption')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Mettre à jour la légende d\'une photo d\'annonce' })
-  @ApiOkResponse({ description: 'Légende de la photo d\'annonce mise à jour avec succès' })
-  @ApiBadRequestResponse({ description: 'Média n\'est pas une photo d\'annonce ou légende invalide' })
-  @ApiForbiddenResponse({ description: 'Non autorisé à modifier cette annonce' })
+  @ApiOperation({ summary: "Mettre à jour la légende d'une photo d'annonce" })
+  @ApiOkResponse({
+    description: "Légende de la photo d'annonce mise à jour avec succès",
+  })
+  @ApiBadRequestResponse({
+    description: "Média n'est pas une photo d'annonce ou légende invalide",
+  })
+  @ApiForbiddenResponse({
+    description: 'Non autorisé à modifier cette annonce',
+  })
   @ApiNotFoundResponse({ description: 'Média ou annonce introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async updateCaption(
@@ -323,14 +413,20 @@ export class MediaController {
   ) {
     const doc = await this.mediaService.findById(mediaId);
     if (doc.owner_type !== 'listing_photo') {
-      throw new BadRequestException('Média n\'est pas une photo d\'annonce');
+      throw new BadRequestException("Média n'est pas une photo d'annonce");
     }
 
-    const listing = await this.listingRepository.findOne({ where: { id: doc.owner_id } });
+    const listing = await this.listingRepository.findOne({
+      where: { id: doc.owner_id },
+    });
     if (!listing) {
       throw new NotFoundException('Annonce introuvable');
     }
-    if (listing.creatorId !== req.user.sub && req.user.role !== 'admin' && req.user.role !== 'moderator') {
+    if (
+      listing.creatorId !== req.user.sub &&
+      req.user.role !== 'admin' &&
+      req.user.role !== 'moderator'
+    ) {
       throw new ForbiddenException('Action non autorisée');
     }
 
@@ -341,10 +437,12 @@ export class MediaController {
   @Patch('listings/:listingId/photos/reorder')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Réorganiser les photos d\'une annonce' })
+  @ApiOperation({ summary: "Réorganiser les photos d'une annonce" })
   @ApiOkResponse({ description: 'Photos réorganisées avec succès' })
   @ApiBadRequestResponse({ description: 'Données de réorganisation invalides' })
-  @ApiForbiddenResponse({ description: 'Non autorisé à modifier cette annonce' })
+  @ApiForbiddenResponse({
+    description: 'Non autorisé à modifier cette annonce',
+  })
   @ApiNotFoundResponse({ description: 'Annonce introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async reorderPhotos(
@@ -352,11 +450,17 @@ export class MediaController {
     @Param('listingId') listingId: string,
     @Body() dto: ReorderPhotosDto,
   ) {
-    const listing = await this.listingRepository.findOne({ where: { id: listingId } });
+    const listing = await this.listingRepository.findOne({
+      where: { id: listingId },
+    });
     if (!listing) {
       throw new NotFoundException('Annonce introuvable');
     }
-    if (listing.creatorId !== req.user.sub && req.user.role !== 'admin' && req.user.role !== 'moderator') {
+    if (
+      listing.creatorId !== req.user.sub &&
+      req.user.role !== 'admin' &&
+      req.user.role !== 'moderator'
+    ) {
       throw new ForbiddenException('Action non autorisée');
     }
 

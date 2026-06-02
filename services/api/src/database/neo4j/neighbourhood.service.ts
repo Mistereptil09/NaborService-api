@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { Neo4jService } from './neo4j.service';
 import {
   UpsertNeighbourhoodDto,
@@ -67,13 +71,17 @@ export class NeighbourhoodService {
     if (result.records.length === 0) return null;
 
     const record = result.records[0];
-    const node = record.get('n') as any;
+    const node = record.get('n');
     const properties = node.properties;
     const adjacentIds = record.get('adjacentIds') as string[];
 
     const centroidPoint = properties.centroid;
-    const latitude = centroidPoint ? centroidPoint.y || centroidPoint.latitude : 0;
-    const longitude = centroidPoint ? centroidPoint.x || centroidPoint.longitude : 0;
+    const latitude = centroidPoint
+      ? centroidPoint.y || centroidPoint.latitude
+      : 0;
+    const longitude = centroidPoint
+      ? centroidPoint.x || centroidPoint.longitude
+      : 0;
 
     return {
       pgId: properties.pg_id,
@@ -93,7 +101,11 @@ export class NeighbourhoodService {
   /**
    * Proximity centroid query return up to 5 Neighbourhood nodes within a radius
    */
-  async findNearby(lat: number, lng: number, radiusMeters: number): Promise<NearbyNeighbourhood[]> {
+  async findNearby(
+    lat: number,
+    lng: number,
+    radiusMeters: number,
+  ): Promise<NearbyNeighbourhood[]> {
     const cypher = `
       WITH point({latitude: $lat, longitude: $lng, crs: 'wgs-84'}) as queryPoint
       MATCH (n:Neighbourhood)
@@ -102,8 +114,12 @@ export class NeighbourhoodService {
       ORDER BY distanceMeters ASC
       LIMIT 5
     `;
-    const result = await this.neo4jService.run(cypher, { lat, lng, radiusMeters });
-    return result.records.map(record => ({
+    const result = await this.neo4jService.run(cypher, {
+      lat,
+      lng,
+      radiusMeters,
+    });
+    return result.records.map((record) => ({
       pgId: record.get('pgId') as string,
       name: record.get('name') as string,
       city: record.get('city') as string,
@@ -125,7 +141,9 @@ export class NeighbourhoodService {
       throw new NotFoundException(`Neighbourhood with ID ${pgId} not found`);
     }
 
-    const residentCount = this.toNum(checkResult.records[0].get('residentCount'));
+    const residentCount = this.toNum(
+      checkResult.records[0].get('residentCount'),
+    );
     if (residentCount > 0) {
       throw new ConflictException(
         `Neighbourhood has ${residentCount} active residents and cannot be deleted`,
@@ -142,7 +160,10 @@ export class NeighbourhoodService {
   /**
    * Replace ADJACENT_TO relations for the Neighbourhood atomically within a single transaction
    */
-  async replaceAdjacencies(pgId: string, adjacentPgIds: string[]): Promise<void> {
+  async replaceAdjacencies(
+    pgId: string,
+    adjacentPgIds: string[],
+  ): Promise<void> {
     await this.neo4jService.runInTransaction(async (tx) => {
       // 1. Verify existence
       const existResult = await tx.run(

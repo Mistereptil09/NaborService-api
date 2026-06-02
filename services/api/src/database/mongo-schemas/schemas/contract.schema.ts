@@ -54,7 +54,8 @@ export class ListingSnapshot {
   neighbourhood_name: string;
 }
 
-export const ListingSnapshotSchema = SchemaFactory.createForClass(ListingSnapshot);
+export const ListingSnapshotSchema =
+  SchemaFactory.createForClass(ListingSnapshot);
 
 @Schema({ _id: false, timestamps: false })
 export class Signature {

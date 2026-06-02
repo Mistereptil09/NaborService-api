@@ -5,7 +5,8 @@ describe('UserMedia Schema', () => {
   let UserMediaModel: mongoose.Model<any>;
 
   beforeAll(() => {
-    UserMediaModel = mongoose.models.UserMedia || mongoose.model('UserMedia', UserMediaSchema);
+    UserMediaModel =
+      mongoose.models.UserMedia || mongoose.model('UserMedia', UserMediaSchema);
   });
 
   it('should have the correct collection name', () => {
@@ -15,11 +16,13 @@ describe('UserMedia Schema', () => {
   it('should have the correct indexes defined', () => {
     const indexes = UserMediaSchema.indexes();
 
-    const compoundIdx = indexes.find(idx => idx[0].pg_user_id === 1 && idx[0].type === 1);
+    const compoundIdx = indexes.find(
+      (idx) => idx[0].pg_user_id === 1 && idx[0].type === 1,
+    );
     expect(compoundIdx).toBeDefined();
     expect(compoundIdx?.[1]?.unique).toBe(true);
 
-    const uploadedIdx = indexes.find(idx => idx[0].uploaded_at === -1);
+    const uploadedIdx = indexes.find((idx) => idx[0].uploaded_at === -1);
     expect(uploadedIdx).toBeDefined();
   });
 

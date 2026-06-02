@@ -18,7 +18,11 @@ export class ListingReportService {
     private readonly listingRepository: Repository<Listing>,
   ) {}
 
-  async createReport(reporterId: string, listingId: string, reason: string): Promise<ListingReport> {
+  async createReport(
+    reporterId: string,
+    listingId: string,
+    reason: string,
+  ): Promise<ListingReport> {
     if (!reason || reason.trim() === '') {
       throw new BadRequestException('Le motif du signalement est obligatoire');
     }
@@ -40,7 +44,9 @@ export class ListingReportService {
     return this.reportRepository.save(report);
   }
 
-  async getReportedListings(dto: ListListingsDto): Promise<{ data: any[]; total: number }> {
+  async getReportedListings(
+    dto: ListListingsDto,
+  ): Promise<{ data: any[]; total: number }> {
     // We want to fetch listings having at least one unresolved report (resolved_at IS NULL).
     // Sorted by unresolved report count descending.
     const rawData = await this.listingRepository.manager.query(
@@ -88,7 +94,9 @@ export class ListingReportService {
         created_at: new Date(row.created_at),
         reports_count: row.reports_count,
         last_reason: row.last_reason,
-        last_report_at: row.last_report_at ? new Date(row.last_report_at) : null,
+        last_report_at: row.last_report_at
+          ? new Date(row.last_report_at)
+          : null,
       })),
       total,
     };

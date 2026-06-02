@@ -36,14 +36,18 @@ export class UserSocialService {
     @InjectRepository(UsersInGroup)
     private readonly usersInGroupRepository: Repository<UsersInGroup>,
     @Inject('BullQueue_neo4j-sync')
-    private readonly neo4jSyncQueue: { add: (name: string, data: any) => Promise<any> },
+    private readonly neo4jSyncQueue: {
+      add: (name: string, data: any) => Promise<any>;
+    },
   ) {}
 
   async getBlockedUserIds(userId: string): Promise<string[]> {
     const blocks = await this.blockRepository.find({
       where: [{ blockerId: userId }, { blockedId: userId }],
     });
-    const ids = blocks.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId));
+    const ids = blocks.map((b) =>
+      b.blockerId === userId ? b.blockedId : b.blockerId,
+    );
     return [...new Set(ids)];
   }
 
@@ -52,7 +56,9 @@ export class UserSocialService {
       throw new BadRequestException('Vous ne pouvez pas vous suivre vous-même');
     }
 
-    const followedUser = await this.userRepository.findOne({ where: { id: followedId, deletedAt: IsNull() } });
+    const followedUser = await this.userRepository.findOne({
+      where: { id: followedId, deletedAt: IsNull() },
+    });
     if (!followedUser) {
       throw new NotFoundException('Utilisateur cible introuvable');
     }
@@ -76,7 +82,10 @@ export class UserSocialService {
     await this.followRepository.save(follow);
 
     // Publish to Neo4j Sync Queue
-    await this.neo4jSyncQueue.add('user.follows.create', { followerId, followedId });
+    await this.neo4jSyncQueue.add('user.follows.create', {
+      followerId,
+      followedId,
+    });
 
     // Check for mutual follow
     const mutualFollow = await this.followRepository.findOne({
@@ -121,7 +130,10 @@ export class UserSocialService {
         await this.friendshipRepository.save(existingFriendship);
       }
 
-      await this.neo4jSyncQueue.add('user.friends_with.create', { userId1: u1, userId2: u2 });
+      await this.neo4jSyncQueue.add('user.friends_with.create', {
+        userId1: u1,
+        userId2: u2,
+      });
     }
   }
 
@@ -134,7 +146,10 @@ export class UserSocialService {
     }
 
     await this.followRepository.delete({ followerId, followedId });
-    await this.neo4jSyncQueue.add('user.follows.delete', { followerId, followedId });
+    await this.neo4jSyncQueue.add('user.follows.delete', {
+      followerId,
+      followedId,
+    });
 
     // Break mutual friendship
     const u1 = followerId < followedId ? followerId : followedId;
@@ -147,15 +162,23 @@ export class UserSocialService {
     if (friendship) {
       friendship.unfriendedAt = new Date();
       await this.friendshipRepository.save(friendship);
-      await this.neo4jSyncQueue.add('user.friends_with.delete', { userId1: u1, userId2: u2 });
+      await this.neo4jSyncQueue.add('user.friends_with.delete', {
+        userId1: u1,
+        userId2: u2,
+      });
     }
   }
 
   async getFollowers(
     userId: string,
     pagination: PaginationDto = new PaginationDto(),
-  ): Promise<{ data: any[]; meta: { total: number; offset: number; limit: number } }> {
-    const targetUser = await this.userRepository.findOne({ where: { id: userId, deletedAt: IsNull() } });
+  ): Promise<{
+    data: any[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
+    const targetUser = await this.userRepository.findOne({
+      where: { id: userId, deletedAt: IsNull() },
+    });
     if (!targetUser) {
       throw new NotFoundException('Utilisateur introuvable');
     }
@@ -187,8 +210,13 @@ export class UserSocialService {
   async getFollowing(
     userId: string,
     pagination: PaginationDto = new PaginationDto(),
-  ): Promise<{ data: any[]; meta: { total: number; offset: number; limit: number } }> {
-    const targetUser = await this.userRepository.findOne({ where: { id: userId, deletedAt: IsNull() } });
+  ): Promise<{
+    data: any[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
+    const targetUser = await this.userRepository.findOne({
+      where: { id: userId, deletedAt: IsNull() },
+    });
     if (!targetUser) {
       throw new NotFoundException('Utilisateur introuvable');
     }
@@ -220,8 +248,13 @@ export class UserSocialService {
   async getFriends(
     userId: string,
     pagination: PaginationDto = new PaginationDto(),
-  ): Promise<{ data: any[]; meta: { total: number; offset: number; limit: number } }> {
-    const targetUser = await this.userRepository.findOne({ where: { id: userId, deletedAt: IsNull() } });
+  ): Promise<{
+    data: any[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
+    const targetUser = await this.userRepository.findOne({
+      where: { id: userId, deletedAt: IsNull() },
+    });
     if (!targetUser) {
       throw new NotFoundException('Utilisateur introuvable');
     }
@@ -258,10 +291,14 @@ export class UserSocialService {
 
   async block(blockerId: string, blockedId: string): Promise<void> {
     if (blockerId === blockedId) {
-      throw new BadRequestException('Vous ne pouvez pas vous bloquer vous-même');
+      throw new BadRequestException(
+        'Vous ne pouvez pas vous bloquer vous-même',
+      );
     }
 
-    const targetUser = await this.userRepository.findOne({ where: { id: blockedId, deletedAt: IsNull() } });
+    const targetUser = await this.userRepository.findOne({
+      where: { id: blockedId, deletedAt: IsNull() },
+    });
     if (!targetUser) {
       throw new NotFoundException('Utilisateur cible introuvable');
     }
@@ -275,13 +312,28 @@ export class UserSocialService {
 
     const block = this.blockRepository.create({ blockerId, blockedId });
     await this.blockRepository.save(block);
-    await this.neo4jSyncQueue.add('user.blocks.create', { blockerId, blockedId });
+    await this.neo4jSyncQueue.add('user.blocks.create', {
+      blockerId,
+      blockedId,
+    });
 
     // Clean up follows in both directions
-    await this.followRepository.delete({ followerId: blockerId, followedId: blockedId });
-    await this.followRepository.delete({ followerId: blockedId, followedId: blockerId });
-    await this.neo4jSyncQueue.add('user.follows.delete', { followerId: blockerId, followedId: blockedId });
-    await this.neo4jSyncQueue.add('user.follows.delete', { followerId: blockedId, followedId: blockerId });
+    await this.followRepository.delete({
+      followerId: blockerId,
+      followedId: blockedId,
+    });
+    await this.followRepository.delete({
+      followerId: blockedId,
+      followedId: blockerId,
+    });
+    await this.neo4jSyncQueue.add('user.follows.delete', {
+      followerId: blockerId,
+      followedId: blockedId,
+    });
+    await this.neo4jSyncQueue.add('user.follows.delete', {
+      followerId: blockedId,
+      followedId: blockerId,
+    });
 
     // Clean up friendships
     const u1 = blockerId < blockedId ? blockerId : blockedId;
@@ -294,7 +346,10 @@ export class UserSocialService {
     if (friendship) {
       friendship.unfriendedAt = new Date();
       await this.friendshipRepository.save(friendship);
-      await this.neo4jSyncQueue.add('user.friends_with.delete', { userId1: u1, userId2: u2 });
+      await this.neo4jSyncQueue.add('user.friends_with.delete', {
+        userId1: u1,
+        userId2: u2,
+      });
     }
   }
 
@@ -307,13 +362,19 @@ export class UserSocialService {
     }
 
     await this.blockRepository.delete({ blockerId, blockedId });
-    await this.neo4jSyncQueue.add('user.blocks.delete', { blockerId, blockedId });
+    await this.neo4jSyncQueue.add('user.blocks.delete', {
+      blockerId,
+      blockedId,
+    });
   }
 
   async getBlocked(
     userId: string,
     pagination: PaginationDto = new PaginationDto(),
-  ): Promise<{ data: any[]; meta: { total: number; offset: number; limit: number } }> {
+  ): Promise<{
+    data: any[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
     const [blocks, total] = await this.blockRepository.findAndCount({
       where: { blockerId: userId },
       relations: ['blocked'],
@@ -338,12 +399,18 @@ export class UserSocialService {
     };
   }
 
-  async report(reporterId: string, targetId: string, reason: string): Promise<void> {
+  async report(
+    reporterId: string,
+    targetId: string,
+    reason: string,
+  ): Promise<void> {
     if (!reason || reason.trim() === '') {
       throw new BadRequestException('Le motif du signalement est obligatoire');
     }
 
-    const targetUser = await this.userRepository.findOne({ where: { id: targetId, deletedAt: IsNull() } });
+    const targetUser = await this.userRepository.findOne({
+      where: { id: targetId, deletedAt: IsNull() },
+    });
     if (!targetUser) {
       throw new NotFoundException('Utilisateur cible introuvable');
     }

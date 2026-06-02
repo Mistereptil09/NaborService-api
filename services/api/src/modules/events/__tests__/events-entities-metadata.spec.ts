@@ -85,9 +85,7 @@ describe('Events Entities — TypeORM Metadata', () => {
 
     it('should have a OneToMany relation (children)', () => {
       const metadata = dataSource.getMetadata(EvenementsCategory);
-      const rel = metadata.relations.find(
-        (r) => r.propertyName === 'children',
-      );
+      const rel = metadata.relations.find((r) => r.propertyName === 'children');
       expect(rel).toBeDefined();
       expect(rel!.relationType).toBe('one-to-many');
       expect(rel!.type).toBe(EvenementsCategory);
@@ -109,14 +107,14 @@ describe('Events Entities — TypeORM Metadata', () => {
       expect(pkColumns[0].databaseName).toBe('id');
       expect(pkColumns[0].type).toBe('uuid');
       expect(typeof pkColumns[0].default).toBe('function');
-      expect((pkColumns[0].default as () => string)()).toBe('uuid_generate_v7()');
+      expect((pkColumns[0].default as () => string)()).toBe(
+        'uuid_generate_v7()',
+      );
     });
 
     it('should define creator_id as uuid NOT NULL', () => {
       const metadata = dataSource.getMetadata(Evenement);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'creator_id',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'creator_id');
       expect(col).toBeDefined();
       expect(col!.type).toBe('uuid');
       expect(col!.isNullable).toBe(false);
@@ -139,16 +137,18 @@ describe('Events Entities — TypeORM Metadata', () => {
       expect(col!.type).toBe('enum');
       expect(col!.enumName).toBe('event_status_enum');
       expect(col!.enum).toEqual([
-        'draft', 'published', 'open', 'cancelled', 'completed',
+        'draft',
+        'published',
+        'open',
+        'cancelled',
+        'completed',
       ]);
-      expect(col!.default).toBe("draft");
+      expect(col!.default).toBe('draft');
     });
 
     it('should define cost_cents as int NOT NULL with default 0', () => {
       const metadata = dataSource.getMetadata(Evenement);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'cost_cents',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'cost_cents');
       expect(col).toBeDefined();
       expect(col!.type).toBe('int');
       expect(col!.isNullable).toBe(false);
@@ -181,9 +181,7 @@ describe('Events Entities — TypeORM Metadata', () => {
       const startsAt = metadata.columns.find(
         (c) => c.databaseName === 'starts_at',
       );
-      const endsAt = metadata.columns.find(
-        (c) => c.databaseName === 'ends_at',
-      );
+      const endsAt = metadata.columns.find((c) => c.databaseName === 'ends_at');
       expect(startsAt).toBeDefined();
       expect(startsAt!.type).toBe('timestamptz');
       expect(startsAt!.isNullable).toBe(true);
@@ -194,9 +192,7 @@ describe('Events Entities — TypeORM Metadata', () => {
 
     it('should have deleted_at as DeleteDateColumn (timestamptz)', () => {
       const metadata = dataSource.getMetadata(Evenement);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'deleted_at',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'deleted_at');
       expect(col).toBeDefined();
       expect(col!.type).toBe('timestamptz');
       expect(col!.isDeleteDate).toBe(true);
@@ -246,9 +242,7 @@ describe('Events Entities — TypeORM Metadata', () => {
 
     it('should have index idx_events_creator on creator_id', () => {
       const metadata = dataSource.getMetadata(Evenement);
-      const idx = metadata.indices.find(
-        (i) => i.name === 'idx_events_creator',
-      );
+      const idx = metadata.indices.find((i) => i.name === 'idx_events_creator');
       expect(idx).toBeDefined();
       const idxColumns = idx!.columns.map((c) => c.databaseName);
       expect(idxColumns).toEqual(['creator_id']);
@@ -264,9 +258,7 @@ describe('Events Entities — TypeORM Metadata', () => {
 
     it('should have ManyToOne relation to User (creator)', () => {
       const metadata = dataSource.getMetadata(Evenement);
-      const rel = metadata.relations.find(
-        (r) => r.propertyName === 'creator',
-      );
+      const rel = metadata.relations.find((r) => r.propertyName === 'creator');
       expect(rel).toBeDefined();
       expect(rel!.relationType).toBe('many-to-one');
       expect(rel!.type).toBe(User);
@@ -274,9 +266,7 @@ describe('Events Entities — TypeORM Metadata', () => {
 
     it('should have ManyToOne relation to EvenementsCategory (nullable)', () => {
       const metadata = dataSource.getMetadata(Evenement);
-      const rel = metadata.relations.find(
-        (r) => r.propertyName === 'category',
-      );
+      const rel = metadata.relations.find((r) => r.propertyName === 'category');
       expect(rel).toBeDefined();
       expect(rel!.relationType).toBe('many-to-one');
       expect(rel!.type).toBe(EvenementsCategory);
@@ -311,9 +301,7 @@ describe('Events Entities — TypeORM Metadata', () => {
 
     it('should define user_id as uuid NOT NULL', () => {
       const metadata = dataSource.getMetadata(EventParticipant);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'user_id',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'user_id');
       expect(col).toBeDefined();
       expect(col!.type).toBe('uuid');
       expect(col!.isNullable).toBe(false);
@@ -321,9 +309,7 @@ describe('Events Entities — TypeORM Metadata', () => {
 
     it('should define event_id as uuid NOT NULL', () => {
       const metadata = dataSource.getMetadata(EventParticipant);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'event_id',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'event_id');
       expect(col).toBeDefined();
       expect(col!.type).toBe('uuid');
       expect(col!.isNullable).toBe(false);
@@ -336,7 +322,7 @@ describe('Events Entities — TypeORM Metadata', () => {
       expect(col!.type).toBe('enum');
       expect(col!.enumName).toBe('participant_status_enum');
       expect(col!.enum).toEqual(['registered', 'waitlisted', 'cancelled']);
-      expect(col!.default).toBe("waitlisted");
+      expect(col!.default).toBe('waitlisted');
     });
 
     it('should define payment_status as enum using payment_status_enum with default free', () => {
@@ -348,7 +334,7 @@ describe('Events Entities — TypeORM Metadata', () => {
       expect(col!.type).toBe('enum');
       expect(col!.enumName).toBe('payment_status_enum');
       expect(col!.enum).toEqual(['free', 'pending', 'completed', 'refunded']);
-      expect(col!.default).toBe("free");
+      expect(col!.default).toBe('free');
     });
 
     it('should define stripe_session_id as varchar nullable UNIQUE', () => {
@@ -359,8 +345,11 @@ describe('Events Entities — TypeORM Metadata', () => {
       expect(col).toBeDefined();
       expect(col!.type).toBe('varchar');
       expect(col!.isNullable).toBe(true);
-      const hasUnique = (col as { isUnique?: boolean }).isUnique === true ||
-        metadata.uniques.some((u) => u.columns.some((c) => c.databaseName === 'stripe_session_id'));
+      const hasUnique =
+        (col as { isUnique?: boolean }).isUnique === true ||
+        metadata.uniques.some((u) =>
+          u.columns.some((c) => c.databaseName === 'stripe_session_id'),
+        );
       expect(hasUnique).toBe(true);
     });
 
@@ -372,8 +361,11 @@ describe('Events Entities — TypeORM Metadata', () => {
       expect(col).toBeDefined();
       expect(col!.type).toBe('varchar');
       expect(col!.isNullable).toBe(true);
-      const hasUnique = (col as { isUnique?: boolean }).isUnique === true ||
-        metadata.uniques.some((u) => u.columns.some((c) => c.databaseName === 'stripe_payment_intent'));
+      const hasUnique =
+        (col as { isUnique?: boolean }).isUnique === true ||
+        metadata.uniques.some((u) =>
+          u.columns.some((c) => c.databaseName === 'stripe_payment_intent'),
+        );
       expect(hasUnique).toBe(true);
     });
 

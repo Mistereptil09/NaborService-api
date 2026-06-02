@@ -55,9 +55,7 @@ describe('Polls & Incidents Entities — TypeORM Metadata', () => {
 
     it('should have index idx_polls_creator on creator_id', () => {
       const metadata = dataSource.getMetadata(Poll);
-      const idx = metadata.indices.find(
-        (i) => i.name === 'idx_polls_creator',
-      );
+      const idx = metadata.indices.find((i) => i.name === 'idx_polls_creator');
       expect(idx).toBeDefined();
       const colNames = idx!.columns.map((c) => c.databaseName);
       expect(colNames).toEqual(['creator_id']);
@@ -65,9 +63,7 @@ describe('Polls & Incidents Entities — TypeORM Metadata', () => {
 
     it('should have nullable closed_by FK column (uuid)', () => {
       const metadata = dataSource.getMetadata(Poll);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'closed_by',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'closed_by');
       expect(col).toBeDefined();
       expect(col!.type).toBe('uuid');
       expect(col!.isNullable).toBe(true);
@@ -75,9 +71,7 @@ describe('Polls & Incidents Entities — TypeORM Metadata', () => {
 
     it('should define poll_type as enum with enumName poll_type_enum', () => {
       const metadata = dataSource.getMetadata(Poll);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'poll_type',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'poll_type');
       expect(col).toBeDefined();
       expect(col!.type).toBe('enum');
       expect(col!.enumName).toBe('poll_type_enum');
@@ -86,9 +80,7 @@ describe('Polls & Incidents Entities — TypeORM Metadata', () => {
 
     it('should have DeleteDateColumn for soft delete', () => {
       const metadata = dataSource.getMetadata(Poll);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'deleted_at',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'deleted_at');
       expect(col).toBeDefined();
       expect(col!.isDeleteDate).toBe(true);
       expect(col!.type).toBe('timestamptz');
@@ -155,9 +147,7 @@ describe('Polls & Incidents Entities — TypeORM Metadata', () => {
 
     it('should have composite primary key (user_id, option_id)', () => {
       const metadata = dataSource.getMetadata(Vote);
-      const pkNames = metadata.primaryColumns
-        .map((c) => c.databaseName)
-        .sort();
+      const pkNames = metadata.primaryColumns.map((c) => c.databaseName).sort();
       expect(pkNames).toEqual(['option_id', 'user_id']);
     });
 
@@ -206,9 +196,7 @@ describe('Polls & Incidents Entities — TypeORM Metadata', () => {
 
     it('should have index idx_incidents_feed on (neighbourhood_id, status)', () => {
       const metadata = dataSource.getMetadata(Incident);
-      const idx = metadata.indices.find(
-        (i) => i.name === 'idx_incidents_feed',
-      );
+      const idx = metadata.indices.find((i) => i.name === 'idx_incidents_feed');
       expect(idx).toBeDefined();
       const colNames = idx!.columns.map((c) => c.databaseName);
       expect(colNames).toContain('neighbourhood_id');
@@ -217,9 +205,7 @@ describe('Polls & Incidents Entities — TypeORM Metadata', () => {
 
     it('should define severity as enum with enumName incident_severity_enum', () => {
       const metadata = dataSource.getMetadata(Incident);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'severity',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'severity');
       expect(col).toBeDefined();
       expect(col!.type).toBe('enum');
       expect(col!.enumName).toBe('incident_severity_enum');

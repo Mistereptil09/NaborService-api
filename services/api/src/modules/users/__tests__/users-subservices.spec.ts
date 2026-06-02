@@ -58,11 +58,13 @@ describe('Users Module Services Unit Tests', () => {
         findByOwner: jest.fn(),
       };
 
-      mediaService = new UserMediaService(mockMediaService as any);
+      mediaService = new UserMediaService(mockMediaService);
     });
 
     it('should upload avatar successfully and process using sharp', async () => {
-      mockMediaService.upload.mockResolvedValue({ _id: { toString: () => 'new-media-id' } });
+      mockMediaService.upload.mockResolvedValue({
+        _id: { toString: () => 'new-media-id' },
+      });
 
       const mockFile = {
         buffer: Buffer.from('fake-img'),
@@ -70,13 +72,23 @@ describe('Users Module Services Unit Tests', () => {
         mimetype: 'image/png',
       } as Express.Multer.File;
 
-      const mediaId = await mediaService.uploadMedia('user-1', mockFile, 'avatar');
+      const mediaId = await mediaService.uploadMedia(
+        'user-1',
+        mockFile,
+        'avatar',
+      );
       expect(mediaId).toBe('new-media-id');
-      expect(mockMediaService.upload).toHaveBeenCalledWith(mockFile, 'user_avatar', 'user-1');
+      expect(mockMediaService.upload).toHaveBeenCalledWith(
+        mockFile,
+        'user_avatar',
+        'user-1',
+      );
     });
 
     it('should throw PayloadTooLargeException if avatar exceeds size limit', async () => {
-      mockMediaService.upload.mockRejectedValue(new Error('Taille du fichier dépasse la limite'));
+      mockMediaService.upload.mockRejectedValue(
+        new Error('Taille du fichier dépasse la limite'),
+      );
 
       const mockFile = {
         buffer: Buffer.from('fake-img'),
@@ -84,13 +96,15 @@ describe('Users Module Services Unit Tests', () => {
         mimetype: 'image/png',
       } as Express.Multer.File;
 
-      await expect(mediaService.uploadMedia('user-1', mockFile, 'avatar')).rejects.toThrow(
-        'Taille du fichier dépasse la limite',
-      );
+      await expect(
+        mediaService.uploadMedia('user-1', mockFile, 'avatar'),
+      ).rejects.toThrow('Taille du fichier dépasse la limite');
     });
 
     it('should throw UnsupportedMediaTypeException if format is invalid', async () => {
-      mockMediaService.upload.mockRejectedValue(new Error('Format de fichier non supporté'));
+      mockMediaService.upload.mockRejectedValue(
+        new Error('Format de fichier non supporté'),
+      );
 
       const mockFile = {
         buffer: Buffer.from('fake-img'),
@@ -98,23 +112,26 @@ describe('Users Module Services Unit Tests', () => {
         mimetype: 'image/svg+xml',
       } as Express.Multer.File;
 
-      await expect(mediaService.uploadMedia('user-1', mockFile, 'avatar')).rejects.toThrow(
-        'Format de fichier non supporté',
-      );
+      await expect(
+        mediaService.uploadMedia('user-1', mockFile, 'avatar'),
+      ).rejects.toThrow('Format de fichier non supporté');
     });
 
     it('should delete media successfully and set pg reference to null', async () => {
-      mockMediaService.findByOwner.mockResolvedValue([{ _id: { toString: () => 'media-id' } }]);
+      mockMediaService.findByOwner.mockResolvedValue([
+        { _id: { toString: () => 'media-id' } },
+      ]);
       mockMediaService.delete.mockResolvedValue(undefined);
 
       await mediaService.deleteMedia('user-1', 'avatar');
 
-      expect(mockMediaService.findByOwner).toHaveBeenCalledWith('user_avatar', 'user-1');
+      expect(mockMediaService.findByOwner).toHaveBeenCalledWith(
+        'user_avatar',
+        'user-1',
+      );
       expect(mockMediaService.delete).toHaveBeenCalledWith('media-id');
     });
   });
-
-
 
   // ----------------------------------------------------
   // UserPreferencesService
@@ -135,7 +152,11 @@ describe('Users Module Services Unit Tests', () => {
         save: jest.fn(),
       } as unknown as jest.Mocked<Repository<UserNotificationPreferences>>;
 
-      preferencesService = new UserPreferencesService(mockUserRepo, mockNotifRepo, {} as any);
+      preferencesService = new UserPreferencesService(
+        mockUserRepo,
+        mockNotifRepo,
+        {} as any,
+      );
     });
 
     it('should get and update locale active preference', async () => {
@@ -147,13 +168,15 @@ describe('Users Module Services Unit Tests', () => {
 
       const updated = await preferencesService.updateLocale('user-1', 'fr');
       expect(updated.locale).toBe('fr');
-      expect(mockUserRepo.update).toHaveBeenCalledWith('user-1', { locale: 'fr' });
+      expect(mockUserRepo.update).toHaveBeenCalledWith('user-1', {
+        locale: 'fr',
+      });
     });
 
     it('should throw BadRequestException if update locale is invalid', async () => {
-      await expect(preferencesService.updateLocale('user-1', 'de')).rejects.toThrow(
-        'Locale non supporté',
-      );
+      await expect(
+        preferencesService.updateLocale('user-1', 'de'),
+      ).rejects.toThrow('Locale non supporté');
     });
   });
 
@@ -207,7 +230,9 @@ describe('Users Module Services Unit Tests', () => {
         totpCode: '123456',
       });
 
-      expect(mockUserRepo.update).toHaveBeenCalledWith('user-1', { firstName: 'NewName' });
+      expect(mockUserRepo.update).toHaveBeenCalledWith('user-1', {
+        firstName: 'NewName',
+      });
     });
 
     it('should add opt-out successfully if not already opted out', async () => {
@@ -216,7 +241,10 @@ describe('Users Module Services Unit Tests', () => {
 
       await rgpdService.addOptOut('user-1', 'discovery');
 
-      expect(mockDataProcessingService.setOptOuts).toHaveBeenCalledWith('user-1', ['discovery']);
+      expect(mockDataProcessingService.setOptOuts).toHaveBeenCalledWith(
+        'user-1',
+        ['discovery'],
+      );
     });
   });
 
@@ -269,7 +297,7 @@ describe('Users Module Services Unit Tests', () => {
         mockDataProcessingService,
         mockNeo4jService,
         mockQueue,
-        { get: jest.fn(), set: jest.fn() } as any
+        { get: jest.fn(), set: jest.fn() } as any,
       );
     });
 
@@ -280,7 +308,9 @@ describe('Users Module Services Unit Tests', () => {
       mockSwipeRepo.findOne.mockResolvedValue(null);
       mockSwipeRepo.create.mockReturnValue({} as any);
 
-      await discoveryService.swipe('user-1', 'target-user', { direction: 'like' });
+      await discoveryService.swipe('user-1', 'target-user', {
+        direction: 'like',
+      });
 
       expect(mockSwipeRepo.save).toHaveBeenCalled();
       expect(mockQueue.add).toHaveBeenCalledWith('user.swipe', {
@@ -343,7 +373,14 @@ describe('Users Module Services Unit Tests', () => {
         mockFriendshipRepo,
         mockBlockRepo,
         mockReportRepo,
-        { create: jest.fn(), save: jest.fn().mockImplementation((g) => Promise.resolve({ ...g, id: 'group-id' })) } as any, // chatGroupRepo
+        {
+          create: jest.fn(),
+          save: jest
+            .fn()
+            .mockImplementation((g) =>
+              Promise.resolve({ ...g, id: 'group-id' }),
+            ),
+        } as any, // chatGroupRepo
         { create: jest.fn(), save: jest.fn() } as any, // usersInGroupRepo
         mockQueue,
       );
@@ -355,7 +392,9 @@ describe('Users Module Services Unit Tests', () => {
       mockUserRepo.findOne.mockResolvedValue(mockTarget);
 
       mockBlockRepo.findOne.mockResolvedValue(null);
-      mockFollowRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({} as any); // follow back exists
+      mockFollowRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({} as any); // follow back exists
 
       mockFollowRepo.create.mockReturnValue({} as any);
       mockFriendshipRepo.findOne.mockResolvedValue(null);
@@ -383,8 +422,14 @@ describe('Users Module Services Unit Tests', () => {
       await socialService.block('user-1', 'user-2');
 
       expect(mockBlockRepo.save).toHaveBeenCalled();
-      expect(mockFollowRepo.delete).toHaveBeenCalledWith({ followerId: 'user-1', followedId: 'user-2' });
-      expect(mockFollowRepo.delete).toHaveBeenCalledWith({ followerId: 'user-2', followedId: 'user-1' });
+      expect(mockFollowRepo.delete).toHaveBeenCalledWith({
+        followerId: 'user-1',
+        followedId: 'user-2',
+      });
+      expect(mockFollowRepo.delete).toHaveBeenCalledWith({
+        followerId: 'user-2',
+        followedId: 'user-1',
+      });
     });
 
     it('should report user successfully with reason', async () => {

@@ -5,11 +5,19 @@ export function validateEmailPayload(payload: any): payload is EmailJobPayload {
 
   const { recipient, subject, templateName, templateVariables } = payload;
 
-  if (typeof recipient !== 'string' || recipient.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(recipient)) {
+  if (
+    typeof recipient !== 'string' ||
+    recipient.length > 254 ||
+    !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(recipient)
+  ) {
     return false;
   }
 
-  if (typeof subject !== 'string' || subject.trim() === '' || subject.length > 200) {
+  if (
+    typeof subject !== 'string' ||
+    subject.trim() === '' ||
+    subject.length > 200
+  ) {
     return false;
   }
 

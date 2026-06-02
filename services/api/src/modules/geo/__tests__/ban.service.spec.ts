@@ -1,13 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { 
-  BanService, 
-  AddressValidationException, 
+import {
+  BanService,
+  AddressValidationException,
   BanUnavailableException,
   BanTimeoutException,
   BanServerException,
-  NoResultsError
+  NoResultsError,
 } from '../ban.service';
-import { HttpRetryService, HttpRequestFailedException, HttpRequestTimeoutException } from '../../../common/http-retry/http-retry.service';
+import {
+  HttpRetryService,
+  HttpRequestFailedException,
+  HttpRequestTimeoutException,
+} from '../../../common/http-retry/http-retry.service';
 
 describe('BanService', () => {
   let service: BanService;
@@ -43,31 +47,42 @@ describe('BanService', () => {
             {
               type: 'Feature',
               geometry: { type: 'Point', coordinates: [2.35, 48.85] },
-              properties: { score: 0.9, label: 'Paris' }
-            }
-          ]
-        })
+              properties: { score: 0.9, label: 'Paris' },
+            },
+          ],
+        }),
       };
 
-      (httpRetryService.fetchWithRetry as jest.Mock).mockResolvedValue(mockResponse);
+      (httpRetryService.fetchWithRetry as jest.Mock).mockResolvedValue(
+        mockResponse,
+      );
 
       const result = await service.geocode('Paris France');
 
       expect(httpRetryService.fetchWithRetry).toHaveBeenCalledWith(
         'http://ban:7878/search/?q=Paris%20France',
         {},
-        expect.any(Object)
+        expect.any(Object),
       );
       expect(result).toEqual({
         latitude: 48.85,
         longitude: 2.35,
-        confidence: 0.9
+        confidence: 0.9,
       });
     });
 
     it('should append limit parameter if valid', async () => {
       (httpRetryService.fetchWithRetry as jest.Mock).mockResolvedValue({
-        json: async () => ({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [0, 0] }, properties: { score: 1 } }] })
+        json: async () => ({
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [0, 0] },
+              properties: { score: 1 },
+            },
+          ],
+        }),
       });
 
       await service.geocode('Test', 5);
@@ -75,18 +90,24 @@ describe('BanService', () => {
       expect(httpRetryService.fetchWithRetry).toHaveBeenCalledWith(
         'http://ban:7878/search/?q=Test&limit=5',
         {},
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
     it('should map HttpRequestTimeoutException to BanTimeoutException', async () => {
-      (httpRetryService.fetchWithRetry as jest.Mock).mockRejectedValue(new HttpRequestTimeoutException());
+      (httpRetryService.fetchWithRetry as jest.Mock).mockRejectedValue(
+        new HttpRequestTimeoutException(),
+      );
 
-      await expect(service.geocode('Test')).rejects.toThrow(BanTimeoutException);
+      await expect(service.geocode('Test')).rejects.toThrow(
+        BanTimeoutException,
+      );
     });
-    
+
     it('should map HttpRequestFailedException to BanServerException', async () => {
-      (httpRetryService.fetchWithRetry as jest.Mock).mockRejectedValue(new HttpRequestFailedException('Failed', 500));
+      (httpRetryService.fetchWithRetry as jest.Mock).mockRejectedValue(
+        new HttpRequestFailedException('Failed', 500),
+      );
 
       await expect(service.geocode('Test')).rejects.toThrow(BanServerException);
     });

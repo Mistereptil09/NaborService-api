@@ -16,7 +16,16 @@ describe('Social Network Entities — TypeORM Metadata', () => {
       type: 'postgres',
       host: 'fake',
       database: 'fake',
-      entities: [User, ChatGroup, Listing, ListingCategory, Follow, Friendship, UserBlock, UserSwipe],
+      entities: [
+        User,
+        ChatGroup,
+        Listing,
+        ListingCategory,
+        Follow,
+        Friendship,
+        UserBlock,
+        UserSwipe,
+      ],
       synchronize: false,
     });
     (dataSource as unknown as { buildMetadatas(): void }).buildMetadatas();
@@ -78,9 +87,7 @@ describe('Social Network Entities — TypeORM Metadata', () => {
 
     it('should have index idx_follow_reverse on (followed_id, follower_id)', () => {
       const metadata = dataSource.getMetadata(Follow);
-      const idx = metadata.indices.find(
-        (i) => i.name === 'idx_follow_reverse',
-      );
+      const idx = metadata.indices.find((i) => i.name === 'idx_follow_reverse');
       expect(idx).toBeDefined();
       const idxColumns = idx!.columns.map((c) => c.databaseName);
       expect(idxColumns).toEqual(['followed_id', 'follower_id']);
@@ -115,14 +122,14 @@ describe('Social Network Entities — TypeORM Metadata', () => {
       expect(pkColumns[0].databaseName).toBe('id');
       expect(pkColumns[0].type).toBe('uuid');
       expect(typeof pkColumns[0].default).toBe('function');
-      expect((pkColumns[0].default as () => string)()).toBe('uuid_generate_v7()');
+      expect((pkColumns[0].default as () => string)()).toBe(
+        'uuid_generate_v7()',
+      );
     });
 
     it('should define user1_id as uuid NOT NULL', () => {
       const metadata = dataSource.getMetadata(Friendship);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'user1_id',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'user1_id');
       expect(col).toBeDefined();
       expect(col!.type).toBe('uuid');
       expect(col!.isNullable).toBe(false);
@@ -130,9 +137,7 @@ describe('Social Network Entities — TypeORM Metadata', () => {
 
     it('should define user2_id as uuid NOT NULL', () => {
       const metadata = dataSource.getMetadata(Friendship);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'user2_id',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'user2_id');
       expect(col).toBeDefined();
       expect(col!.type).toBe('uuid');
       expect(col!.isNullable).toBe(false);
@@ -162,9 +167,7 @@ describe('Social Network Entities — TypeORM Metadata', () => {
 
     it('should define group_id as uuid nullable', () => {
       const metadata = dataSource.getMetadata(Friendship);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'group_id',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'group_id');
       expect(col).toBeDefined();
       expect(col!.type).toBe('uuid');
       expect(col!.isNullable).toBe(true);
@@ -233,9 +236,7 @@ describe('Social Network Entities — TypeORM Metadata', () => {
 
     it('should define blocker_id as uuid NOT NULL', () => {
       const metadata = dataSource.getMetadata(UserBlock);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'blocker_id',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'blocker_id');
       expect(col).toBeDefined();
       expect(col!.type).toBe('uuid');
       expect(col!.isNullable).toBe(false);
@@ -243,9 +244,7 @@ describe('Social Network Entities — TypeORM Metadata', () => {
 
     it('should define blocked_id as uuid NOT NULL', () => {
       const metadata = dataSource.getMetadata(UserBlock);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'blocked_id',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'blocked_id');
       expect(col).toBeDefined();
       expect(col!.type).toBe('uuid');
       expect(col!.isNullable).toBe(false);
@@ -253,9 +252,7 @@ describe('Social Network Entities — TypeORM Metadata', () => {
 
     it('should define blocked_at as timestamptz NOT NULL with default now()', () => {
       const metadata = dataSource.getMetadata(UserBlock);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'blocked_at',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'blocked_at');
       expect(col).toBeDefined();
       expect(col!.type).toBe('timestamptz');
       expect(col!.isNullable).toBe(false);
@@ -312,9 +309,7 @@ describe('Social Network Entities — TypeORM Metadata', () => {
 
     it('should define swiper_id as uuid NOT NULL', () => {
       const metadata = dataSource.getMetadata(UserSwipe);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'swiper_id',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'swiper_id');
       expect(col).toBeDefined();
       expect(col!.type).toBe('uuid');
       expect(col!.isNullable).toBe(false);
@@ -322,9 +317,7 @@ describe('Social Network Entities — TypeORM Metadata', () => {
 
     it('should define swiped_id as uuid NOT NULL', () => {
       const metadata = dataSource.getMetadata(UserSwipe);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'swiped_id',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'swiped_id');
       expect(col).toBeDefined();
       expect(col!.type).toBe('uuid');
       expect(col!.isNullable).toBe(false);
@@ -332,9 +325,7 @@ describe('Social Network Entities — TypeORM Metadata', () => {
 
     it('should define direction as enum using swipe_direction_enum', () => {
       const metadata = dataSource.getMetadata(UserSwipe);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'direction',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'direction');
       expect(col).toBeDefined();
       expect(col!.type).toBe('enum');
       expect(col!.enumName).toBe('swipe_direction_enum');
@@ -343,9 +334,7 @@ describe('Social Network Entities — TypeORM Metadata', () => {
 
     it('should define swiped_at as timestamptz NOT NULL with default now()', () => {
       const metadata = dataSource.getMetadata(UserSwipe);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'swiped_at',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'swiped_at');
       expect(col).toBeDefined();
       expect(col!.type).toBe('timestamptz');
       expect(col!.isNullable).toBe(false);

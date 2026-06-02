@@ -1,9 +1,16 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { EventDocument, EventDocumentDocument } from '../../database/mongo-schemas/schemas/event-document.schema';
+import {
+  EventDocument,
+  EventDocumentDocument,
+} from '../../database/mongo-schemas/schemas/event-document.schema';
 import { Evenement } from './entities/evenement.entity';
 import { UpdateContentDto } from './dto/event-routes.dtos';
 
@@ -23,7 +30,9 @@ export class EventContentService {
       throw new NotFoundException('Event not found');
     }
 
-    let document = await this.eventDocumentModel.findOne({ pg_event_id: eventId }).lean();
+    let document = await this.eventDocumentModel
+      .findOne({ pg_event_id: eventId })
+      .lean();
     if (!document) {
       // Create empty document
       const newDoc = new this.eventDocumentModel({
@@ -44,8 +53,13 @@ export class EventContentService {
       body_html: document.body_html,
       programme: document.programme,
       location: document.location,
-      cover: document.cover ? { mimetype: document.cover.mimetype, size_bytes: document.cover.size_bytes } : null,
-      attachments: document.attachments.map(a => ({
+      cover: document.cover
+        ? {
+            mimetype: document.cover.mimetype,
+            size_bytes: document.cover.size_bytes,
+          }
+        : null,
+      attachments: document.attachments.map((a) => ({
         name: a.name,
         mimetype: a.mimetype,
         size_bytes: a.size_bytes,
@@ -64,7 +78,9 @@ export class EventContentService {
       throw new ForbiddenException('Only the owner can update the content');
     }
 
-    let document = await this.eventDocumentModel.findOne({ pg_event_id: eventId });
+    let document = await this.eventDocumentModel.findOne({
+      pg_event_id: eventId,
+    });
     if (!document) {
       document = new this.eventDocumentModel({
         pg_event_id: eventId,

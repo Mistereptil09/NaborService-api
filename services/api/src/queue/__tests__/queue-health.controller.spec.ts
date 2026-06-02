@@ -34,15 +34,19 @@ describe('QueueHealthController', () => {
   it('should return metrics when available', async () => {
     const metrics = { status: 'ok', timestamp: '2023-01-01', queues: {} };
     jest.spyOn(service, 'getMetrics').mockResolvedValue(metrics as any);
-    
+
     const result = await controller.checkHealth();
     expect(result).toBe(metrics);
   });
 
   it('should throw HttpException when Redis is unreachable', async () => {
-    const metrics = { status: 'error', timestamp: '2023-01-01', message: 'Metrics temporarily unavailable' };
+    const metrics = {
+      status: 'error',
+      timestamp: '2023-01-01',
+      message: 'Metrics temporarily unavailable',
+    };
     jest.spyOn(service, 'getMetrics').mockResolvedValue(metrics as any);
-    
+
     try {
       await controller.checkHealth();
       fail('Should have thrown HttpException');

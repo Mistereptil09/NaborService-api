@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { QueueEvents } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 
@@ -29,7 +34,7 @@ export class QueueFailureListener implements OnModuleInit, OnModuleDestroy {
 
     for (const queueName of queues) {
       const queueEvents = new QueueEvents(queueName, { connection });
-      
+
       queueEvents.on('failed', ({ jobId, failedReason }) => {
         this.logger.error({
           event: 'job_failed',
@@ -39,7 +44,7 @@ export class QueueFailureListener implements OnModuleInit, OnModuleDestroy {
           timestamp: new Date().toISOString(),
         });
       });
-      
+
       this.queueEventsList.push(queueEvents);
     }
   }

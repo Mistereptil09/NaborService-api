@@ -5,7 +5,9 @@ describe('EventTicket Schema', () => {
   let EventTicketModel: mongoose.Model<any>;
 
   beforeAll(() => {
-    EventTicketModel = mongoose.models.EventTicket || mongoose.model('EventTicket', EventTicketSchema);
+    EventTicketModel =
+      mongoose.models.EventTicket ||
+      mongoose.model('EventTicket', EventTicketSchema);
   });
 
   it('should have the correct collection name', () => {
@@ -15,15 +17,19 @@ describe('EventTicket Schema', () => {
   it('should have the correct indexes defined', () => {
     const indexes = EventTicketSchema.indexes();
 
-    const compoundIdx = indexes.find(idx => idx[0].pg_event_id === 1 && idx[0].pg_user_id === 1);
+    const compoundIdx = indexes.find(
+      (idx) => idx[0].pg_event_id === 1 && idx[0].pg_user_id === 1,
+    );
     expect(compoundIdx).toBeDefined();
     expect(compoundIdx?.[1]?.unique).toBe(true);
 
-    const hmacIdx = indexes.find(idx => idx[0]['qr_payload.hmac_sha256'] === 1);
+    const hmacIdx = indexes.find(
+      (idx) => idx[0]['qr_payload.hmac_sha256'] === 1,
+    );
     expect(hmacIdx).toBeDefined();
     expect(hmacIdx?.[1]?.unique).toBe(true);
 
-    const issuedIdx = indexes.find(idx => idx[0].issued_at === -1);
+    const issuedIdx = indexes.find((idx) => idx[0].issued_at === -1);
     expect(issuedIdx).toBeDefined();
   });
 

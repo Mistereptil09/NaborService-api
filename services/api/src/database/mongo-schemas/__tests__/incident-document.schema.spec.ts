@@ -6,24 +6,27 @@ describe('IncidentDocument Schema', () => {
 
   beforeAll(() => {
     IncidentDocumentModel =
-      mongoose.models.IncidentDocument || mongoose.model('IncidentDocument', IncidentDocumentSchema);
+      mongoose.models.IncidentDocument ||
+      mongoose.model('IncidentDocument', IncidentDocumentSchema);
   });
 
   it('should have the correct collection name', () => {
-    expect(IncidentDocumentSchema.options.collection).toBe('incident_documents');
+    expect(IncidentDocumentSchema.options.collection).toBe(
+      'incident_documents',
+    );
   });
 
   it('should have the correct indexes defined', () => {
     const indexes = IncidentDocumentSchema.indexes();
 
-    const pgIncidentIdx = indexes.find(idx => idx[0].pg_incident_id === 1);
+    const pgIncidentIdx = indexes.find((idx) => idx[0].pg_incident_id === 1);
     expect(pgIncidentIdx).toBeDefined();
     expect(pgIncidentIdx?.[1]?.unique).toBe(true);
 
-    const syncedIdx = indexes.find(idx => idx[0].synced_at === -1);
+    const syncedIdx = indexes.find((idx) => idx[0].synced_at === -1);
     expect(syncedIdx).toBeDefined();
 
-    const updatedIdx = indexes.find(idx => idx[0].updated_at === -1);
+    const updatedIdx = indexes.find((idx) => idx[0].updated_at === -1);
     expect(updatedIdx).toBeDefined();
   });
 

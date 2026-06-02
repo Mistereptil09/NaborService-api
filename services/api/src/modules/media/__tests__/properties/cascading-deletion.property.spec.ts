@@ -33,29 +33,28 @@ describe('Feature: gridfs-media-storage, Property 17: Cascading Deletion', () =>
 
   it('should call GridFSService.delete with the referenced gridfs_file_id when a MediaFile is deleted', async () => {
     await fc.assert(
-      fc.asyncProperty(
-        fc.constant(null),
-        async () => {
-          const mediaId = new Types.ObjectId();
-          const gridfsFileId = new Types.ObjectId();
+      fc.asyncProperty(fc.constant(null), async () => {
+        const mediaId = new Types.ObjectId();
+        const gridfsFileId = new Types.ObjectId();
 
-          const mockDoc = {
-            _id: mediaId,
-            gridfs_file_id: gridfsFileId,
-            owner_type: 'contract',
-            owner_id: 'trans-123',
-            toObject: jest.fn().mockReturnValue({ _id: mediaId, gridfs_file_id: gridfsFileId }),
-          };
+        const mockDoc = {
+          _id: mediaId,
+          gridfs_file_id: gridfsFileId,
+          owner_type: 'contract',
+          owner_id: 'trans-123',
+          toObject: jest
+            .fn()
+            .mockReturnValue({ _id: mediaId, gridfs_file_id: gridfsFileId }),
+        };
 
-          mockMediaModel.findById.mockResolvedValue(mockDoc);
-          mockMediaModel.deleteOne.mockResolvedValue(undefined);
+        mockMediaModel.findById.mockResolvedValue(mockDoc);
+        mockMediaModel.deleteOne.mockResolvedValue(undefined);
 
-          await mediaService.delete(mediaId.toString());
+        await mediaService.delete(mediaId.toString());
 
-          expect(mockGridFSService.delete).toHaveBeenCalledWith(gridfsFileId);
-        }
-      ),
-      { numRuns: 50 }
+        expect(mockGridFSService.delete).toHaveBeenCalledWith(gridfsFileId);
+      }),
+      { numRuns: 50 },
     );
   });
 });

@@ -40,7 +40,13 @@ export class MediaService {
     let allowedMimeTypes: string[] = [];
     let maxSizeBytes = 52428800; // 50MB default
 
-    const standardImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    const standardImageTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+    ];
     const standardVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
     const standardAudioTypes = ['audio/mpeg', 'audio/ogg', 'audio/wav'];
     const standardDocTypes = ['application/pdf'];
@@ -118,19 +124,26 @@ export class MediaService {
         owner_id: ownerId,
       });
       if (count >= 3) {
-        throw new ConflictException('Nombre maximum de pièces jointes atteint (3)');
+        throw new ConflictException(
+          'Nombre maximum de pièces jointes atteint (3)',
+        );
       }
     }
 
     // 2. Enforce duplicate contracts checking
     if (ownerType === 'contract') {
-      const sha256 = crypto.createHash('sha256').update(file.buffer).digest('hex');
+      const sha256 = crypto
+        .createHash('sha256')
+        .update(file.buffer)
+        .digest('hex');
       const duplicate = await this.mediaFileModel.findOne({
         owner_type: 'contract',
         sha256_hash: sha256,
       });
       if (duplicate) {
-        throw new ConflictException('Duplicate document: a contract with identical content already exists');
+        throw new ConflictException(
+          'Duplicate document: a contract with identical content already exists',
+        );
       }
     }
 
@@ -140,9 +153,14 @@ export class MediaService {
         owner_id: ownerId,
         owner_type: { $in: ['event_cover', 'event_attachment'] },
       });
-      const currentTotalBytes = existingMedia.reduce((sum, item) => sum + item.size_bytes, 0);
+      const currentTotalBytes = existingMedia.reduce(
+        (sum, item) => sum + item.size_bytes,
+        0,
+      );
       if (currentTotalBytes + file.size > 14155776) {
-        throw new PayloadTooLargeException('Combined media size for this event would exceed 13.5 MB');
+        throw new PayloadTooLargeException(
+          'Combined media size for this event would exceed 13.5 MB',
+        );
       }
     }
 
@@ -193,11 +211,17 @@ export class MediaService {
         owner_type: 'listing_photo',
         owner_id: ownerId,
       });
-      const maxOrder = existingPhotos.length > 0 ? Math.max(...existingPhotos.map((p) => p.order || 0)) : -1;
+      const maxOrder =
+        existingPhotos.length > 0
+          ? Math.max(...existingPhotos.map((p) => p.order || 0))
+          : -1;
       mediaDoc.order = maxOrder + 1;
       mediaDoc.caption = options?.caption || null;
     } else if (ownerType === 'contract') {
-      mediaDoc.sha256_hash = crypto.createHash('sha256').update(file.buffer).digest('hex');
+      mediaDoc.sha256_hash = crypto
+        .createHash('sha256')
+        .update(file.buffer)
+        .digest('hex');
       mediaDoc.contract_type = options?.contractType || 'contract';
     } else if (ownerType === 'incident_photo') {
       mediaDoc.taken_at = options?.takenAt || new Date();
@@ -244,13 +268,17 @@ export class MediaService {
 
     // Clean up PostgreSQL references if user media is deleted
     if (doc.owner_type === 'user_avatar') {
-      const user = await this.userRepository.findOne({ where: { id: doc.owner_id } });
+      const user = await this.userRepository.findOne({
+        where: { id: doc.owner_id },
+      });
       if (user) {
         user.profilePictureMongoId = null;
         await this.userRepository.save(user);
       }
     } else if (doc.owner_type === 'user_banner') {
-      const user = await this.userRepository.findOne({ where: { id: doc.owner_id } });
+      const user = await this.userRepository.findOne({
+        where: { id: doc.owner_id },
+      });
       if (user) {
         user.bannerMongoId = null;
         await this.userRepository.save(user);
@@ -286,8 +314,14 @@ export class MediaService {
   /**
    * Get all media files for an owner.
    */
-  async findByOwner(ownerType: OwnerType, ownerId: string): Promise<MediaFileDocument[]> {
-    return this.mediaFileModel.find({ owner_type: ownerType, owner_id: ownerId });
+  async findByOwner(
+    ownerType: OwnerType,
+    ownerId: string,
+  ): Promise<MediaFileDocument[]> {
+    return this.mediaFileModel.find({
+      owner_type: ownerType,
+      owner_id: ownerId,
+    });
   }
 
   /**
@@ -307,24 +341,32 @@ export class MediaService {
     // Validation: check for duplicates
     const uniqueIds = new Set(mediaIds);
     if (uniqueIds.size !== mediaIds.length) {
-      throw new BadRequestException('Reorder array is invalid: contains duplicate IDs');
+      throw new BadRequestException(
+        'Reorder array is invalid: contains duplicate IDs',
+      );
     }
 
     // Validation: check size matches existing photos count exactly
     if (mediaIds.length !== existingIds.length) {
-      throw new BadRequestException('Reorder array is invalid: does not match existing photos count');
+      throw new BadRequestException(
+        'Reorder array is invalid: does not match existing photos count',
+      );
     }
 
     // Validation: check all mediaIds belong to this listing
     for (const id of mediaIds) {
       if (!existingIds.includes(id)) {
-        throw new BadRequestException(`Reorder array is invalid: photo ${id} does not belong to listing`);
+        throw new BadRequestException(
+          `Reorder array is invalid: photo ${id} does not belong to listing`,
+        );
       }
     }
 
     // Assign contiguous orders matching Permutation index
     for (let i = 0; i < mediaIds.length; i++) {
-      const photo = existingPhotos.find((p) => p._id.toString() === mediaIds[i]);
+      const photo = existingPhotos.find(
+        (p) => p._id.toString() === mediaIds[i],
+      );
       if (photo) {
         photo.order = i;
         await photo.save();
@@ -338,7 +380,7 @@ export class MediaService {
   async updateCaption(mediaId: string, caption: string | null): Promise<void> {
     const photo = await this.mediaFileModel.findById(mediaId);
     if (!photo || photo.owner_type !== 'listing_photo') {
-      throw new NotFoundException('Photo de l\'annonce introuvable');
+      throw new NotFoundException("Photo de l'annonce introuvable");
     }
 
     if (caption && caption.length > 280) {

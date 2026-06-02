@@ -105,22 +105,40 @@ describe('AuthService', () => {
 
   describe('register', () => {
     it('should create user and preferences in a transaction successfully', async () => {
-      const dto = { email: 'test@test.com', firstName: 'John', lastName: 'Doe', password: 'Password1!' };
+      const dto = {
+        email: 'test@test.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        password: 'Password1!',
+      };
       mockManager.findOne.mockResolvedValueOnce(null);
       (argon2.hash as jest.Mock).mockResolvedValueOnce('hashed-pwd');
       mockManager.create.mockImplementation((entity, data) => data);
-      mockManager.save.mockImplementation((data) => ({ id: 'saved-id', ...data }));
+      mockManager.save.mockImplementation((data) => ({
+        id: 'saved-id',
+        ...data,
+      }));
 
       const result = await service.register(dto);
 
       expect(dataSource.transaction).toHaveBeenCalled();
-      expect(mockManager.findOne).toHaveBeenCalledWith(User, { where: { email: dto.email } });
-      expect(argon2.hash).toHaveBeenCalledWith(dto.password, expect.objectContaining({ type: 'argon2id' }));
+      expect(mockManager.findOne).toHaveBeenCalledWith(User, {
+        where: { email: dto.email },
+      });
+      expect(argon2.hash).toHaveBeenCalledWith(
+        dto.password,
+        expect.objectContaining({ type: 'argon2id' }),
+      );
       expect(result).toEqual({ message: 'Compte créé avec succès' });
     });
 
     it('should throw ConflictException if email is in use', async () => {
-      const dto = { email: 'test@test.com', firstName: 'John', lastName: 'Doe', password: 'Password1!' };
+      const dto = {
+        email: 'test@test.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        password: 'Password1!',
+      };
       mockManager.findOne.mockResolvedValueOnce({ id: 'existing' });
 
       await expect(service.register(dto)).rejects.toThrow(ConflictException);
@@ -133,15 +151,24 @@ describe('AuthService', () => {
       userRepo.findOne.mockResolvedValueOnce(null);
 
       await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
-      expect(argon2.verify).toHaveBeenCalledWith(expect.any(String), 'password');
+      expect(argon2.verify).toHaveBeenCalledWith(
+        expect.any(String),
+        'password',
+      );
     });
 
     it('should throw UnauthorizedException if user is soft deleted', async () => {
       const dto = { email: 'test@test.com', password: 'password' };
-      userRepo.findOne.mockResolvedValueOnce({ id: 'id', deletedAt: new Date() });
+      userRepo.findOne.mockResolvedValueOnce({
+        id: 'id',
+        deletedAt: new Date(),
+      });
 
       await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
-      expect(argon2.verify).toHaveBeenCalledWith(expect.any(String), 'password');
+      expect(argon2.verify).toHaveBeenCalledWith(
+        expect.any(String),
+        'password',
+      );
     });
 
     it('should throw UnauthorizedException if password incorrect', async () => {
@@ -155,7 +182,12 @@ describe('AuthService', () => {
 
     it('should return challenge if TOTP enabled', async () => {
       const dto = { email: 'test@test.com', password: 'password' };
-      const user = { id: 'id', passwordHash: 'hash', deletedAt: null, totpSecret: 'secret' } as User;
+      const user = {
+        id: 'id',
+        passwordHash: 'hash',
+        deletedAt: null,
+        totpSecret: 'secret',
+      } as User;
       userRepo.findOne.mockResolvedValueOnce(user);
       (argon2.verify as jest.Mock).mockResolvedValueOnce(true);
       totpService.isUserBlocked.mockResolvedValueOnce(false);
@@ -165,12 +197,21 @@ describe('AuthService', () => {
 
       expect(totpService.isUserBlocked).toHaveBeenCalledWith('id');
       expect(totpService.createChallenge).toHaveBeenCalledWith('id', 'login');
-      expect(result).toEqual({ challenge: 'totp_required', challenge_token: 'challenge-token' });
+      expect(result).toEqual({
+        challenge: 'totp_required',
+        challenge_token: 'challenge-token',
+      });
     });
 
     it('should return setup challenge if TOTP disabled (mandatory TOTP)', async () => {
       const dto = { email: 'test@test.com', password: 'password' };
-      const user = { id: 'id', email: 'test@test.com', passwordHash: 'hash', deletedAt: null, totpSecret: null } as User;
+      const user = {
+        id: 'id',
+        email: 'test@test.com',
+        passwordHash: 'hash',
+        deletedAt: null,
+        totpSecret: null,
+      } as User;
       userRepo.findOne.mockResolvedValueOnce(user);
       (argon2.verify as jest.Mock).mockResolvedValueOnce(true);
       totpService.isUserBlocked.mockResolvedValueOnce(false);
@@ -181,8 +222,15 @@ describe('AuthService', () => {
 
       const result = await service.login(dto);
 
-      expect(totpService.createSetupChallenge).toHaveBeenCalledWith('id', 'test@test.com');
-      expect(result).toEqual({ challenge: 'totp_setup_required', challenge_token: 'setup-token', otpauthUrl: 'otpauth://...' });
+      expect(totpService.createSetupChallenge).toHaveBeenCalledWith(
+        'id',
+        'test@test.com',
+      );
+      expect(result).toEqual({
+        challenge: 'totp_setup_required',
+        challenge_token: 'setup-token',
+        otpauthUrl: 'otpauth://...',
+      });
     });
   });
 });

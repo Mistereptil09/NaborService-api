@@ -42,7 +42,10 @@ describe('Feature: gridfs-media-storage, Property 12: Contract SHA-256 Integrity
         fc.uint8Array({ minLength: 1, maxLength: 1000 }),
         async (data) => {
           const buffer = Buffer.from(data);
-          const expectedHash = crypto.createHash('sha256').update(buffer).digest('hex');
+          const expectedHash = crypto
+            .createHash('sha256')
+            .update(buffer)
+            .digest('hex');
 
           const file = {
             buffer,
@@ -73,11 +76,15 @@ describe('Feature: gridfs-media-storage, Property 12: Contract SHA-256 Integrity
           mockModelInstance.findOne = mockMediaModel.findOne;
           (mediaService as any).mediaFileModel = mockModelInstance;
 
-          const result = await mediaService.upload(file, 'contract', 'trans-123');
+          const result = await mediaService.upload(
+            file,
+            'contract',
+            'trans-123',
+          );
           expect(result.sha256_hash).toBe(expectedHash);
-        }
+        },
       ),
-      { numRuns: 50 }
+      { numRuns: 50 },
     );
   });
 });

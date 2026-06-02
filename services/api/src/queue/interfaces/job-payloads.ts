@@ -1,5 +1,10 @@
 export interface Neo4jSyncJobPayload {
-  operation: 'upsert-user' | 'upsert-listing' | 'upsert-event' | 'update-relationship' | 'update-properties';
+  operation:
+    | 'upsert-user'
+    | 'upsert-listing'
+    | 'upsert-event'
+    | 'update-relationship'
+    | 'update-properties';
   data: Record<string, any>;
 }
 

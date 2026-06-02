@@ -15,20 +15,29 @@ describe('Property 15: GeoJSON FeatureCollection Validation', () => {
           // Object without type FeatureCollection
           fc.record({ type: fc.string() }),
           // Object with type FeatureCollection but features is not array
-          fc.record({ type: fc.constant('FeatureCollection'), features: fc.object() })
+          fc.record({
+            type: fc.constant('FeatureCollection'),
+            features: fc.object(),
+          }),
         ),
         (invalidInput) => {
-          expect(() => parseFeatureCollection(invalidInput)).toThrow(BanParseException);
-          
+          expect(() => parseFeatureCollection(invalidInput)).toThrow(
+            BanParseException,
+          );
+
           try {
             parseFeatureCollection(invalidInput);
           } catch (error) {
-            expect(error.message).toContain('Invalid GeoJSON FeatureCollection');
-            expect(error.message.length).toBeLessThanOrEqual(500 + 'Invalid GeoJSON FeatureCollection: '.length);
+            expect(error.message).toContain(
+              'Invalid GeoJSON FeatureCollection',
+            );
+            expect(error.message.length).toBeLessThanOrEqual(
+              500 + 'Invalid GeoJSON FeatureCollection: '.length,
+            );
           }
-        }
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

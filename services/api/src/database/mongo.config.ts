@@ -9,8 +9,16 @@ export const mongoConfig: MongooseModuleAsyncOptions = {
   useFactory: async (config: ConfigService) => {
     const host = requireEnv(config, 'MONGO_HOST', 'MongoDB');
     const port = config.get<string>('MONGO_PORT') || '27017';
-    const username = requireEnv(config, 'MONGO_INITDB_ROOT_USERNAME', 'MongoDB');
-    const password = requireEnv(config, 'MONGO_INITDB_ROOT_PASSWORD', 'MongoDB');
+    const username = requireEnv(
+      config,
+      'MONGO_INITDB_ROOT_USERNAME',
+      'MongoDB',
+    );
+    const password = requireEnv(
+      config,
+      'MONGO_INITDB_ROOT_PASSWORD',
+      'MongoDB',
+    );
     const database = config.get<string>('MONGO_DB') || 'nabor_db';
 
     const uri = `mongodb://${username}:${password}@${host}:${port}/${database}?authSource=admin`;

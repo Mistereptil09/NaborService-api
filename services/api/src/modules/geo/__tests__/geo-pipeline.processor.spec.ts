@@ -64,27 +64,44 @@ describe('GeoPipelineProcessor', () => {
   });
 
   it('should orchestrate user geocoding correctly', async () => {
-    (banService.geocode as jest.Mock).mockResolvedValue({ latitude: 48, longitude: 2, confidence: 0.9 });
-    (neo4jGeoService.assignNeighbourhood as jest.Mock).mockResolvedValue({ neighbourhoodId: 'nb-1', method: 'polygon' });
+    (banService.geocode as jest.Mock).mockResolvedValue({
+      latitude: 48,
+      longitude: 2,
+      confidence: 0.9,
+    });
+    (neo4jGeoService.assignNeighbourhood as jest.Mock).mockResolvedValue({
+      neighbourhoodId: 'nb-1',
+      method: 'polygon',
+    });
 
     await processor.processUserGeocode('user-1', 'Paris');
 
     expect(banService.geocode).toHaveBeenCalledWith('Paris');
     expect(neo4jGeoService.assignNeighbourhood).toHaveBeenCalledWith(48, 2);
-    expect(neo4jService.run).toHaveBeenCalledWith(expect.stringContaining('MERGE (e)-[newR:LIVES_IN]->(n)'), {
-      entityPgId: 'user-1',
-      neighbourhoodId: 'nb-1'
-    });
+    expect(neo4jService.run).toHaveBeenCalledWith(
+      expect.stringContaining('MERGE (e)-[newR:LIVES_IN]->(n)'),
+      {
+        entityPgId: 'user-1',
+        neighbourhoodId: 'nb-1',
+      },
+    );
   });
 
   it('should remove relationships if no neighbourhood is found', async () => {
-    (banService.geocode as jest.Mock).mockResolvedValue({ latitude: 48, longitude: 2, confidence: 0.9 });
+    (banService.geocode as jest.Mock).mockResolvedValue({
+      latitude: 48,
+      longitude: 2,
+      confidence: 0.9,
+    });
     (neo4jGeoService.assignNeighbourhood as jest.Mock).mockResolvedValue(null);
 
     await processor.processUserGeocode('user-1', 'Paris');
 
-    expect(neo4jService.run).toHaveBeenCalledWith(expect.stringContaining('DELETE r'), {
-      entityPgId: 'user-1'
-    });
+    expect(neo4jService.run).toHaveBeenCalledWith(
+      expect.stringContaining('DELETE r'),
+      {
+        entityPgId: 'user-1',
+      },
+    );
   });
 });

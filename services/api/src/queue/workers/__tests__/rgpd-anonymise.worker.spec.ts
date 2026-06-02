@@ -39,24 +39,27 @@ describe('RgpdAnonymiseWorker', () => {
 
     await worker.process({ data: { userId: 'usr-1' } } as any);
 
-    expect(mockManager.save).toHaveBeenCalledWith(expect.objectContaining({
-      firstName: expect.stringMatching(/^Anonymized-[a-f0-9]{16}$/),
-      lastName: expect.stringMatching(/^Anonymized-[a-f0-9]{16}$/),
-      email: expect.stringMatching(/^anonymized-[a-f0-9]{16}@deleted\.user$/),
-      bio: null,
-    }));
-    
+    expect(mockManager.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        firstName: expect.stringMatching(/^Anonymized-[a-f0-9]{16}$/),
+        lastName: expect.stringMatching(/^Anonymized-[a-f0-9]{16}$/),
+        email: expect.stringMatching(/^anonymized-[a-f0-9]{16}@deleted\.user$/),
+        bio: null,
+      }),
+    );
+
     expect(mockManager.update).toHaveBeenCalledWith(
       UserSession,
       expect.objectContaining({ userId: 'usr-1' }),
-      expect.objectContaining({ revokedAt: expect.any(Date) })
+      expect.objectContaining({ revokedAt: expect.any(Date) }),
     );
   });
 
   it('should throw UnrecoverableError if user not found', async () => {
     mockManager.findOne.mockResolvedValueOnce(null);
 
-    await expect(worker.process({ data: { userId: 'usr-2' } } as any))
-      .rejects.toThrow(UnrecoverableError);
+    await expect(
+      worker.process({ data: { userId: 'usr-2' } } as any),
+    ).rejects.toThrow(UnrecoverableError);
   });
 });

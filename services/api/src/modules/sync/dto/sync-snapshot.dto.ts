@@ -4,7 +4,8 @@ import { IsDate, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class GetSnapshotQueryDto {
   @ApiProperty({
-    description: 'Timestamp ISO de la dernière synchronisation (moins 30 secondes pour overlap)',
+    description:
+      'Timestamp ISO de la dernière synchronisation (moins 30 secondes pour overlap)',
     example: '2023-10-01T12:00:00Z',
   })
   @IsDate()
@@ -12,7 +13,7 @@ export class GetSnapshotQueryDto {
   since: Date;
 
   @ApiPropertyOptional({
-    description: 'Nombre maximal d\'entités à retourner',
+    description: "Nombre maximal d'entités à retourner",
     default: 500,
     maximum: 500,
   })
@@ -24,7 +25,8 @@ export class GetSnapshotQueryDto {
   limit?: number = 500;
 
   @ApiPropertyOptional({
-    description: 'Curseur pour la pagination (si has_more = true dans la page précédente)',
+    description:
+      'Curseur pour la pagination (si has_more = true dans la page précédente)',
   })
   @IsOptional()
   @IsString()
@@ -32,13 +34,17 @@ export class GetSnapshotQueryDto {
 }
 
 export class SnapshotResponseDto {
-  @ApiProperty({ description: 'Nouveau timestamp serveur à stocker comme last_sync_at' })
+  @ApiProperty({
+    description: 'Nouveau timestamp serveur à stocker comme last_sync_at',
+  })
   sync_at: Date;
 
-  @ApiProperty({ description: 'Indique s\'il reste des entités à synchroniser' })
+  @ApiProperty({ description: "Indique s'il reste des entités à synchroniser" })
   has_more: boolean;
 
-  @ApiPropertyOptional({ description: 'Curseur pour récupérer la page suivante' })
+  @ApiPropertyOptional({
+    description: 'Curseur pour récupérer la page suivante',
+  })
   cursor?: string;
 
   @ApiPropertyOptional()

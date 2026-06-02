@@ -10,7 +10,10 @@ import { Model } from 'mongoose';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
-import { Contract, ContractDocument } from '../../database/mongo-schemas/schemas/contract.schema';
+import {
+  Contract,
+  ContractDocument,
+} from '../../database/mongo-schemas/schemas/contract.schema';
 import { User } from '../users/entities/user.entity';
 import { ListingTransactionService } from './listing-transaction.service';
 import { TotpService } from '../auth/totp.service';
@@ -48,7 +51,8 @@ export class ListingSignatureService {
       throw new BadRequestException('Code TOTP invalide');
     }
 
-    const transaction = await this.transactionService.findByListingId(listingId);
+    const transaction =
+      await this.transactionService.findByListingId(listingId);
     await this.transactionService.verifyPartyAccess(userId, transaction);
 
     const contract = await this.contractModel.findOne({
@@ -85,12 +89,17 @@ export class ListingSignatureService {
     }
 
     // Verify SHA-256 PDF integrity using the new MediaService & GridFSService
-    const mediaFiles = await this.mediaService.findByOwner('contract', transaction.id);
+    const mediaFiles = await this.mediaService.findByOwner(
+      'contract',
+      transaction.id,
+    );
     const contractFile = mediaFiles.find((m) => m.contract_type === 'contract');
     if (!contractFile) {
       throw new NotFoundException('Contrat introuvable');
     }
-    const gridfsFile = await this.gridfsService.download(contractFile.gridfs_file_id);
+    const gridfsFile = await this.gridfsService.download(
+      contractFile.gridfs_file_id,
+    );
     const computedHash = crypto
       .createHash('sha256')
       .update(gridfsFile.buffer)
@@ -117,8 +126,13 @@ export class ListingSignatureService {
     };
   }
 
-  async getContract(userId: string, listingId: string, type: 'contract' | 'receipt'): Promise<ContractDocument> {
-    const transaction = await this.transactionService.findByListingId(listingId);
+  async getContract(
+    userId: string,
+    listingId: string,
+    type: 'contract' | 'receipt',
+  ): Promise<ContractDocument> {
+    const transaction =
+      await this.transactionService.findByListingId(listingId);
     await this.transactionService.verifyPartyAccess(userId, transaction);
 
     const doc = await this.contractModel.findOne({
@@ -127,7 +141,9 @@ export class ListingSignatureService {
     });
 
     if (!doc) {
-      throw new NotFoundException(`Aucun ${type === 'contract' ? 'contrat' : 'reçu'} trouvé pour cette annonce`);
+      throw new NotFoundException(
+        `Aucun ${type === 'contract' ? 'contrat' : 'reçu'} trouvé pour cette annonce`,
+      );
     }
 
     return doc;
@@ -142,7 +158,8 @@ export class ListingSignatureService {
     mimetype: string;
     sizeBytes: number;
   }> {
-    const transaction = await this.transactionService.findByListingId(listingId);
+    const transaction =
+      await this.transactionService.findByListingId(listingId);
     await this.transactionService.verifyPartyAccess(userId, transaction);
 
     const doc = await this.contractModel.findOne({
@@ -151,16 +168,23 @@ export class ListingSignatureService {
     });
 
     if (!doc) {
-      throw new NotFoundException(`Aucun ${type === 'contract' ? 'contrat' : 'reçu'} trouvé pour cette annonce`);
+      throw new NotFoundException(
+        `Aucun ${type === 'contract' ? 'contrat' : 'reçu'} trouvé pour cette annonce`,
+      );
     }
 
-    const mediaFiles = await this.mediaService.findByOwner('contract', transaction.id);
+    const mediaFiles = await this.mediaService.findByOwner(
+      'contract',
+      transaction.id,
+    );
     const contractFile = mediaFiles.find((m) => m.contract_type === type);
     if (!contractFile) {
       throw new NotFoundException('Fichier de contrat introuvable');
     }
 
-    const stream = this.gridfsService.openDownloadStream(contractFile.gridfs_file_id);
+    const stream = this.gridfsService.openDownloadStream(
+      contractFile.gridfs_file_id,
+    );
 
     return {
       stream,

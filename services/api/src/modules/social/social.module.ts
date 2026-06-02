@@ -6,7 +6,9 @@ import { UserBlock } from './entities/user-block.entity';
 import { UserSwipe } from './entities/user-swipe.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Follow, Friendship, UserBlock, UserSwipe])],
+  imports: [
+    TypeOrmModule.forFeature([Follow, Friendship, UserBlock, UserSwipe]),
+  ],
   exports: [TypeOrmModule],
 })
 export class SocialModule {}

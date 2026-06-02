@@ -11,7 +11,10 @@ import { Model } from 'mongoose';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Listing } from './entities/listing.entity';
-import { ListingDocument, ListingDocumentDocument } from '../../database/mongo-schemas/schemas/listing-document.schema';
+import {
+  ListingDocument,
+  ListingDocumentDocument,
+} from '../../database/mongo-schemas/schemas/listing-document.schema';
 import { UpdateContentDto } from './dto/listing-routes.dtos';
 import { ListingStatusEnum } from '../../common/enums';
 import { ListingsService } from './listings.service';
@@ -33,7 +36,9 @@ export class ListingContentService {
       throw new NotFoundException('Contenu introuvable');
     }
 
-    const doc = await this.listingDocumentModel.findOne({ pg_listing_id: listingId }).lean();
+    const doc = await this.listingDocumentModel
+      .findOne({ pg_listing_id: listingId })
+      .lean();
     if (!doc) {
       throw new NotFoundException('Contenu introuvable');
     }
@@ -56,7 +61,11 @@ export class ListingContentService {
     };
   }
 
-  async updateContent(userId: string, listingId: string, dto: UpdateContentDto): Promise<any> {
+  async updateContent(
+    userId: string,
+    listingId: string,
+    dto: UpdateContentDto,
+  ): Promise<any> {
     const listing = await this.listingsService.findOne(listingId);
 
     if (listing.creatorId !== userId) {
@@ -64,10 +73,14 @@ export class ListingContentService {
     }
 
     if (listing.status !== ListingStatusEnum.OPEN) {
-      throw new ConflictException('Modification impossible : l\'annonce n\'est plus ouverte');
+      throw new ConflictException(
+        "Modification impossible : l'annonce n'est plus ouverte",
+      );
     }
 
-    let doc = await this.listingDocumentModel.findOne({ pg_listing_id: listingId });
+    let doc = await this.listingDocumentModel.findOne({
+      pg_listing_id: listingId,
+    });
 
     if (doc) {
       if (dto.body_html !== undefined) doc.body_html = dto.body_html;
@@ -84,7 +97,7 @@ export class ListingContentService {
         updated_at: new Date(),
       });
       const savedDoc = await doc.save();
-      
+
       listing.mongoDocumentId = savedDoc._id.toString();
       await this.listingRepository.save(listing);
     }

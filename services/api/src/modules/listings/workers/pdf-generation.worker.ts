@@ -6,7 +6,10 @@ import { Model } from 'mongoose';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
-import { Contract, ContractDocument } from '../../../database/mongo-schemas/schemas/contract.schema';
+import {
+  Contract,
+  ContractDocument,
+} from '../../../database/mongo-schemas/schemas/contract.schema';
 import { ListingTransaction } from '../entities/listing-transaction.entity';
 import { Listing } from '../entities/listing.entity';
 import { PdfGenerationJobPayload } from '../../../queue/interfaces/job-payloads';
@@ -17,7 +20,9 @@ import { getBackoffDelay } from '../../../queue/utils/backoff-strategy';
   concurrency: 1,
   settings: {
     backoffStrategy: (attemptsMade: number, type: string) => {
-      return type === 'custom' ? getBackoffDelay('pdf-generation', attemptsMade) : 1000;
+      return type === 'custom'
+        ? getBackoffDelay('pdf-generation', attemptsMade)
+        : 1000;
     },
   },
 })
@@ -41,14 +46,19 @@ export class PdfGenerationWorker extends WorkerHost {
     }
   }
 
-  async processJob(jobName: string, data: { transactionId: string }): Promise<any> {
+  async processJob(
+    jobName: string,
+    data: { transactionId: string },
+  ): Promise<any> {
     const transaction = await this.transactionRepository.findOne({
       where: { id: data.transactionId },
       relations: ['provider', 'requester'],
     });
 
     if (!transaction) {
-      throw new NotFoundException(`Transaction ${data.transactionId} non trouvée`);
+      throw new NotFoundException(
+        `Transaction ${data.transactionId} non trouvée`,
+      );
     }
 
     const listing = await this.listingRepository.findOne({
@@ -56,7 +66,9 @@ export class PdfGenerationWorker extends WorkerHost {
     });
 
     if (!listing) {
-      throw new NotFoundException(`Annonce pour la transaction ${data.transactionId} non trouvée`);
+      throw new NotFoundException(
+        `Annonce pour la transaction ${data.transactionId} non trouvée`,
+      );
     }
 
     const providerName = `${transaction.provider.firstName} ${transaction.provider.lastName}`;
@@ -98,7 +110,10 @@ Prestataire             Demandeur`;
     }
 
     const pdfBuffer = Buffer.from(pdfContent, 'utf8');
-    const sha256Hash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
+    const sha256Hash = crypto
+      .createHash('sha256')
+      .update(pdfBuffer)
+      .digest('hex');
 
     // Store in MongoDB Contracts collection
     const contract = new this.contractModel({

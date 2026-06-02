@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection, Types, mongo } from 'mongoose';
 import { Readable } from 'stream';
@@ -8,7 +12,9 @@ export class GridFSService {
   private bucket: mongo.GridFSBucket;
 
   constructor(@InjectConnection() private readonly connection: Connection) {
-    this.bucket = new mongo.GridFSBucket(this.connection.db!, { bucketName: 'fs' });
+    this.bucket = new mongo.GridFSBucket(this.connection.db!, {
+      bucketName: 'fs',
+    });
   }
 
   /**
@@ -32,15 +38,19 @@ export class GridFSService {
       readableStream
         .pipe(uploadStream)
         .on('finish', () => {
-          resolve(uploadStream.id as Types.ObjectId);
+          resolve(uploadStream.id);
         })
         .on('error', async (error) => {
           try {
-            await this.delete(uploadStream.id as Types.ObjectId);
+            await this.delete(uploadStream.id);
           } catch (cleanupError) {
             // Ignore cleanup error, propagate original error
           }
-          reject(new InternalServerErrorException(`GridFS upload failed: ${error.message}`));
+          reject(
+            new InternalServerErrorException(
+              `GridFS upload failed: ${error.message}`,
+            ),
+          );
         });
     });
   }
@@ -72,7 +82,11 @@ export class GridFSService {
           });
         })
         .on('error', (error) => {
-          reject(new NotFoundException(`Failed to download file from GridFS: ${error.message}`));
+          reject(
+            new NotFoundException(
+              `Failed to download file from GridFS: ${error.message}`,
+            ),
+          );
         });
     });
   }
@@ -88,7 +102,9 @@ export class GridFSService {
     try {
       return this.bucket.openDownloadStream(fileId, options);
     } catch (error) {
-      throw new NotFoundException(`File with ID ${fileId} not found in GridFS: ${(error as Error).message}`);
+      throw new NotFoundException(
+        `File with ID ${fileId} not found in GridFS: ${(error as Error).message}`,
+      );
     }
   }
 
@@ -121,7 +137,9 @@ export class GridFSService {
     try {
       await this.bucket.delete(fileId);
     } catch (error) {
-      throw new InternalServerErrorException(`Failed to delete GridFS file: ${(error as Error).message}`);
+      throw new InternalServerErrorException(
+        `Failed to delete GridFS file: ${(error as Error).message}`,
+      );
     }
   }
 }

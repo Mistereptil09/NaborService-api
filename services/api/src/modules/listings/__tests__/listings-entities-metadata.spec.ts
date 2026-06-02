@@ -66,9 +66,7 @@ describe('Listings & Payments Entities — TypeORM Metadata', () => {
 
     it('should have a OneToMany "children" relation', () => {
       const metadata = dataSource.getMetadata(ListingCategory);
-      const rel = metadata.relations.find(
-        (r) => r.propertyName === 'children',
-      );
+      const rel = metadata.relations.find((r) => r.propertyName === 'children');
       expect(rel).toBeDefined();
       expect(rel!.relationType).toBe('one-to-many');
       expect(rel!.type).toBe(ListingCategory);
@@ -115,14 +113,14 @@ describe('Listings & Payments Entities — TypeORM Metadata', () => {
       expect(pkColumns[0].databaseName).toBe('id');
       expect(pkColumns[0].type).toBe('uuid');
       expect(typeof pkColumns[0].default).toBe('function');
-      expect((pkColumns[0].default as () => string)()).toBe('uuid_generate_v7()');
+      expect((pkColumns[0].default as () => string)()).toBe(
+        'uuid_generate_v7()',
+      );
     });
 
     it('should have CHECK constraint "chk_listing_price"', () => {
       const metadata = dataSource.getMetadata(Listing);
-      const check = metadata.checks.find(
-        (c) => c.name === 'chk_listing_price',
-      );
+      const check = metadata.checks.find((c) => c.name === 'chk_listing_price');
       expect(check).toBeDefined();
       expect(check!.expression).toContain('"price_cents" >= 0');
     });
@@ -174,9 +172,7 @@ describe('Listings & Payments Entities — TypeORM Metadata', () => {
 
     it('should have a DeleteDateColumn "deleted_at"', () => {
       const metadata = dataSource.getMetadata(Listing);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'deleted_at',
-      );
+      const col = metadata.columns.find((c) => c.databaseName === 'deleted_at');
       expect(col).toBeDefined();
       expect(col!.isDeleteDate).toBe(true);
       expect(col!.type).toBe('timestamptz');
@@ -225,23 +221,21 @@ describe('Listings & Payments Entities — TypeORM Metadata', () => {
       expect(pkColumns[0].databaseName).toBe('id');
       expect(pkColumns[0].type).toBe('uuid');
       expect(typeof pkColumns[0].default).toBe('function');
-      expect((pkColumns[0].default as () => string)()).toBe('uuid_generate_v7()');
+      expect((pkColumns[0].default as () => string)()).toBe(
+        'uuid_generate_v7()',
+      );
     });
 
     it('should have CHECK constraint "chk_ltx_parties"', () => {
       const metadata = dataSource.getMetadata(ListingTransaction);
-      const check = metadata.checks.find(
-        (c) => c.name === 'chk_ltx_parties',
-      );
+      const check = metadata.checks.find((c) => c.name === 'chk_ltx_parties');
       expect(check).toBeDefined();
       expect(check!.expression).toContain('"provider_id" != "requester_id"');
     });
 
     it('should have CHECK constraint "chk_ltx_amount"', () => {
       const metadata = dataSource.getMetadata(ListingTransaction);
-      const check = metadata.checks.find(
-        (c) => c.name === 'chk_ltx_amount',
-      );
+      const check = metadata.checks.find((c) => c.name === 'chk_ltx_amount');
       expect(check).toBeDefined();
       expect(check!.expression).toContain('"amount_cents" >= 0');
     });
@@ -298,18 +292,14 @@ describe('Listings & Payments Entities — TypeORM Metadata', () => {
 
     it('should have index on provider_id', () => {
       const metadata = dataSource.getMetadata(ListingTransaction);
-      const idx = metadata.indices.find(
-        (i) => i.name === 'idx_ltx_provider',
-      );
+      const idx = metadata.indices.find((i) => i.name === 'idx_ltx_provider');
       expect(idx).toBeDefined();
       expect(idx!.columns.map((c) => c.databaseName)).toContain('provider_id');
     });
 
     it('should have index on requester_id', () => {
       const metadata = dataSource.getMetadata(ListingTransaction);
-      const idx = metadata.indices.find(
-        (i) => i.name === 'idx_ltx_requester',
-      );
+      const idx = metadata.indices.find((i) => i.name === 'idx_ltx_requester');
       expect(idx).toBeDefined();
       expect(idx!.columns.map((c) => c.databaseName)).toContain('requester_id');
     });
@@ -360,7 +350,9 @@ describe('Listings & Payments Entities — TypeORM Metadata', () => {
       expect(pkColumns[0].databaseName).toBe('id');
       expect(pkColumns[0].type).toBe('uuid');
       expect(typeof pkColumns[0].default).toBe('function');
-      expect((pkColumns[0].default as () => string)()).toBe('uuid_generate_v7()');
+      expect((pkColumns[0].default as () => string)()).toBe(
+        'uuid_generate_v7()',
+      );
     });
 
     it('should have index on listing_id', () => {
@@ -421,7 +413,9 @@ describe('Listings & Payments Entities — TypeORM Metadata', () => {
       expect(pkColumns[0].databaseName).toBe('id');
       expect(pkColumns[0].type).toBe('uuid');
       expect(typeof pkColumns[0].default).toBe('function');
-      expect((pkColumns[0].default as () => string)()).toBe('uuid_generate_v7()');
+      expect((pkColumns[0].default as () => string)()).toBe(
+        'uuid_generate_v7()',
+      );
     });
 
     it('should have "action" enum column with enumName "moderation_action_enum"', () => {

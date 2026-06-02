@@ -50,11 +50,16 @@ export class UserRgpdService {
     }
   }
 
-  async rectifyPersonalData(userId: string, dto: RectifyDataDto): Promise<void> {
+  async rectifyPersonalData(
+    userId: string,
+    dto: RectifyDataDto,
+  ): Promise<void> {
     await this.verifyUserTotp(userId, dto.totpCode);
 
     if (dto.email) {
-      const existing = await this.userRepository.findOne({ where: { email: dto.email } });
+      const existing = await this.userRepository.findOne({
+        where: { email: dto.email },
+      });
       if (existing && existing.id !== userId) {
         throw new ConflictException('Email déjà utilisé');
       }
@@ -75,14 +80,21 @@ export class UserRgpdService {
       throw new BadRequestException('Type de traitement invalide');
     }
 
-    const isOpted = await this.dataProcessingService.isOptedOut(userId, processingType);
+    const isOpted = await this.dataProcessingService.isOptedOut(
+      userId,
+      processingType,
+    );
     if (isOpted) {
       throw new ConflictException('Déjà opposé à ce traitement');
     }
 
-    const record = await this.dataProcessingRepository.findOne({ where: { userId } });
+    const record = await this.dataProcessingRepository.findOne({
+      where: { userId },
+    });
     const currentOptOuts = record ? record.optOuts : [];
-    const updatedOptOuts = Array.from(new Set([...currentOptOuts, processingType]));
+    const updatedOptOuts = Array.from(
+      new Set([...currentOptOuts, processingType]),
+    );
 
     await this.dataProcessingService.setOptOuts(userId, updatedOptOuts);
   }
@@ -96,7 +108,9 @@ export class UserRgpdService {
       throw new BadRequestException('Type de traitement invalide');
     }
 
-    const record = await this.dataProcessingRepository.findOne({ where: { userId } });
+    const record = await this.dataProcessingRepository.findOne({
+      where: { userId },
+    });
     if (!record) {
       throw new NotFoundException('Préférences RGPD introuvables');
     }
@@ -110,7 +124,9 @@ export class UserRgpdService {
   }
 
   async activateRestriction(userId: string): Promise<void> {
-    const record = await this.dataProcessingRepository.findOne({ where: { userId } });
+    const record = await this.dataProcessingRepository.findOne({
+      where: { userId },
+    });
     if (record && record.isRestricted) {
       throw new ConflictException('Limitation déjà active');
     }

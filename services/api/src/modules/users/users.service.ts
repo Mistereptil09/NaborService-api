@@ -34,13 +34,19 @@ export class UsersService {
     private readonly totpService: TotpService,
     private readonly sessionService: SessionService,
     @Inject('BullQueue_neo4j-sync')
-    private readonly neo4jSyncQueue: { add: (name: string, data: any) => Promise<any> },
+    private readonly neo4jSyncQueue: {
+      add: (name: string, data: any) => Promise<any>;
+    },
     @Inject('BullQueue_rgpd-anonymise')
-    private readonly rgpdAnonymiseQueue: { add: (name: string, data: any) => Promise<any> },
+    private readonly rgpdAnonymiseQueue: {
+      add: (name: string, data: any) => Promise<any>;
+    },
   ) {}
 
   async findById(id: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { id, deletedAt: IsNull() } });
+    const user = await this.userRepository.findOne({
+      where: { id, deletedAt: IsNull() },
+    });
     if (!user) {
       throw new NotFoundException('Utilisateur introuvable');
     }
@@ -95,7 +101,10 @@ export class UsersService {
     }
   }
 
-  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<Partial<User>> {
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+  ): Promise<Partial<User>> {
     const user = await this.findById(userId);
 
     // If sensitive field (email) is provided, verify TOTP
@@ -106,7 +115,9 @@ export class UsersService {
       await this.verifyUserTotp(userId, dto.totpCode);
 
       // Check unique email constraint
-      const existing = await this.userRepository.findOne({ where: { email: dto.email } });
+      const existing = await this.userRepository.findOne({
+        where: { email: dto.email },
+      });
       if (existing && existing.id !== userId) {
         throw new ConflictException('Email déjà utilisé');
       }
@@ -117,7 +128,8 @@ export class UsersService {
     if (dto.lastName !== undefined) updatePayload.lastName = dto.lastName;
     if (dto.bio !== undefined) updatePayload.bio = dto.bio;
     if (dto.visibility !== undefined) updatePayload.visibility = dto.visibility;
-    if (dto.messagePolicy !== undefined) updatePayload.messagePolicy = dto.messagePolicy;
+    if (dto.messagePolicy !== undefined)
+      updatePayload.messagePolicy = dto.messagePolicy;
 
     let neighbourhoodChanged = false;
     if (dto.neighbourhoodId !== undefined) {
@@ -155,7 +167,10 @@ export class UsersService {
     await this.userRepository.save(user);
 
     // Publish to Neo4j Sync Queue and Anonymise queue
-    await this.neo4jSyncQueue.add('user.soft_delete', { userId, deletedAt: now });
+    await this.neo4jSyncQueue.add('user.soft_delete', {
+      userId,
+      deletedAt: now,
+    });
     await this.rgpdAnonymiseQueue.add('user.anonymise', { userId });
 
     // Revoke all sessions
@@ -172,7 +187,9 @@ export class UsersService {
         [userId],
       );
     } catch (err) {
-      throw new InternalServerErrorException(`Impossible d'exporter les annonces : ${err.message}`);
+      throw new InternalServerErrorException(
+        `Impossible d'exporter les annonces : ${err.message}`,
+      );
     }
 
     let messages;
@@ -182,7 +199,9 @@ export class UsersService {
         [userId],
       );
     } catch (err) {
-      throw new InternalServerErrorException(`Impossible d'exporter les messages : ${err.message}`);
+      throw new InternalServerErrorException(
+        `Impossible d'exporter les messages : ${err.message}`,
+      );
     }
 
     let eventParticipations;
@@ -192,7 +211,9 @@ export class UsersService {
         [userId],
       );
     } catch (err) {
-      throw new InternalServerErrorException(`Impossible d'exporter les participations aux événements : ${err.message}`);
+      throw new InternalServerErrorException(
+        `Impossible d'exporter les participations aux événements : ${err.message}`,
+      );
     }
 
     let votes;
@@ -202,7 +223,9 @@ export class UsersService {
         [userId],
       );
     } catch (err) {
-      throw new InternalServerErrorException(`Impossible d'exporter les votes : ${err.message}`);
+      throw new InternalServerErrorException(
+        `Impossible d'exporter les votes : ${err.message}`,
+      );
     }
 
     let socialGraph;
@@ -221,7 +244,9 @@ export class UsersService {
       );
       socialGraph = { followers, following, blocked };
     } catch (err) {
-      throw new InternalServerErrorException(`Impossible d'exporter le graphe social : ${err.message}`);
+      throw new InternalServerErrorException(
+        `Impossible d'exporter le graphe social : ${err.message}`,
+      );
     }
 
     let incidents;
@@ -231,7 +256,9 @@ export class UsersService {
         [userId],
       );
     } catch (err) {
-      throw new InternalServerErrorException(`Impossible d'exporter les incidents : ${err.message}`);
+      throw new InternalServerErrorException(
+        `Impossible d'exporter les incidents : ${err.message}`,
+      );
     }
 
     return {
@@ -293,7 +320,9 @@ export class UsersService {
 
   async getPublicProfile(requesterId: string, targetId: string): Promise<any> {
     // Check target exists and not deleted
-    const target = await this.userRepository.findOne({ where: { id: targetId, deletedAt: IsNull() } });
+    const target = await this.userRepository.findOne({
+      where: { id: targetId, deletedAt: IsNull() },
+    });
     if (!target) {
       throw new NotFoundException('Utilisateur introuvable');
     }
@@ -320,8 +349,12 @@ export class UsersService {
 
     if (target.visibility === VisibilityEnum.FRIENDS) {
       // Check mutual follow
-      const f1 = await this.followRepository.findOne({ where: { followerId: requesterId, followedId: targetId } });
-      const f2 = await this.followRepository.findOne({ where: { followerId: targetId, followedId: requesterId } });
+      const f1 = await this.followRepository.findOne({
+        where: { followerId: requesterId, followedId: targetId },
+      });
+      const f2 = await this.followRepository.findOne({
+        where: { followerId: targetId, followedId: requesterId },
+      });
       const isMutual = f1 && f2;
 
       if (!isMutual) {

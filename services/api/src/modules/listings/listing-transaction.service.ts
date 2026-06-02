@@ -25,7 +25,9 @@ export class ListingTransactionService {
     commissionCents: number = 0,
   ): Promise<ListingTransaction> {
     if (providerId === requesterId) {
-      throw new BadRequestException('Le créateur ne peut pas exprimer d\'intérêt sur sa propre annonce');
+      throw new BadRequestException(
+        "Le créateur ne peut pas exprimer d'intérêt sur sa propre annonce",
+      );
     }
 
     const transaction = this.transactionRepository.create({
@@ -51,7 +53,9 @@ export class ListingTransactionService {
     return transaction;
   }
 
-  async findOneByListingId(listingId: string): Promise<ListingTransaction | null> {
+  async findOneByListingId(
+    listingId: string,
+  ): Promise<ListingTransaction | null> {
     return this.transactionRepository.findOne({
       where: { listingId },
     });
@@ -68,8 +72,14 @@ export class ListingTransactionService {
     return transaction;
   }
 
-  async verifyPartyAccess(userId: string, transaction: ListingTransaction): Promise<void> {
-    if (transaction.providerId !== userId && transaction.requesterId !== userId) {
+  async verifyPartyAccess(
+    userId: string,
+    transaction: ListingTransaction,
+  ): Promise<void> {
+    if (
+      transaction.providerId !== userId &&
+      transaction.requesterId !== userId
+    ) {
       throw new ForbiddenException('Action non autorisée');
     }
   }

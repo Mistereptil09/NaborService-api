@@ -12,7 +12,10 @@ describe('Feature: neo4j-init-service, Property 3: Init service graceful skip of
 
     await fc.assert(
       fc.asyncProperty(
-        fc.array(fc.integer({ min: 0, max: 9 }), { minLength: 0, maxLength: 10 }), // indices of skipped indexes
+        fc.array(fc.integer({ min: 0, max: 9 }), {
+          minLength: 0,
+          maxLength: 10,
+        }), // indices of skipped indexes
         async (skippedIndexes) => {
           const uniqueSkips = Array.from(new Set(skippedIndexes));
 

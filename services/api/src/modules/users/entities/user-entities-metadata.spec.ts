@@ -12,7 +12,12 @@ describe('User & Authentication entities metadata', () => {
       type: 'postgres',
       host: 'fake',
       database: 'fake',
-      entities: [User, UserSession, UserNotificationPreferences, UserDataProcessing],
+      entities: [
+        User,
+        UserSession,
+        UserNotificationPreferences,
+        UserDataProcessing,
+      ],
       synchronize: false,
     });
     (dataSource as unknown as { buildMetadatas(): void }).buildMetadatas();
@@ -56,9 +61,7 @@ describe('User & Authentication entities metadata', () => {
 
     it('should have uuid primary key with uuid_generate_v7() default', () => {
       const metadata = dataSource.getMetadata(User);
-      const idColumn = metadata.columns.find(
-        (c) => c.databaseName === 'id',
-      )!;
+      const idColumn = metadata.columns.find((c) => c.databaseName === 'id')!;
       expect(idColumn.type).toBe('uuid');
       expect(idColumn.isPrimary).toBe(true);
       expect(typeof idColumn.default).toBe('function');
@@ -105,11 +108,9 @@ describe('User & Authentication entities metadata', () => {
 
     it('should have locale column with length 5 and default "fr"', () => {
       const metadata = dataSource.getMetadata(User);
-      const locale = metadata.columns.find(
-        (c) => c.databaseName === 'locale',
-      )!;
+      const locale = metadata.columns.find((c) => c.databaseName === 'locale')!;
       expect(locale.length).toBe('5');
-      expect(locale.default).toBe("fr");
+      expect(locale.default).toBe('fr');
     });
 
     it('should have enum columns with correct enumName', () => {
@@ -135,9 +136,9 @@ describe('User & Authentication entities metadata', () => {
       const findCol = (name: string) =>
         metadata.columns.find((c) => c.databaseName === name)!;
 
-      expect(findCol('visibility').default).toBe("public");
-      expect(findCol('message_policy').default).toBe("open");
-      expect(findCol('role').default).toBe("resident");
+      expect(findCol('visibility').default).toBe('public');
+      expect(findCol('message_policy').default).toBe('open');
+      expect(findCol('role').default).toBe('resident');
     });
 
     it('should have unique constraints on email and stripe_account_id', () => {
@@ -146,13 +147,19 @@ describe('User & Authentication entities metadata', () => {
         metadata.columns.find((c) => c.databaseName === name)!;
 
       const emailCol = findCol('email');
-      const hasEmailUnique = (emailCol as { isUnique?: boolean }).isUnique === true ||
-        metadata.uniques.some(u => u.columns.some(c => c.databaseName === 'email'));
+      const hasEmailUnique =
+        (emailCol as { isUnique?: boolean }).isUnique === true ||
+        metadata.uniques.some((u) =>
+          u.columns.some((c) => c.databaseName === 'email'),
+        );
       expect(hasEmailUnique).toBe(true);
 
       const stripeCol = findCol('stripe_account_id');
-      const hasStripeUnique = (stripeCol as { isUnique?: boolean }).isUnique === true ||
-        metadata.uniques.some(u => u.columns.some(c => c.databaseName === 'stripe_account_id'));
+      const hasStripeUnique =
+        (stripeCol as { isUnique?: boolean }).isUnique === true ||
+        metadata.uniques.some((u) =>
+          u.columns.some((c) => c.databaseName === 'stripe_account_id'),
+        );
       expect(hasStripeUnique).toBe(true);
     });
 
@@ -168,9 +175,7 @@ describe('User & Authentication entities metadata', () => {
 
     it('should have idx_users_role index', () => {
       const metadata = dataSource.getMetadata(User);
-      const index = metadata.indices.find(
-        (i) => i.name === 'idx_users_role',
-      );
+      const index = metadata.indices.find((i) => i.name === 'idx_users_role');
       expect(index).toBeDefined();
       const indexColumns = index!.columns.map((c) => c.databaseName);
       expect(indexColumns).toContain('role');
@@ -240,9 +245,7 @@ describe('User & Authentication entities metadata', () => {
 
     it('should have uuid primary key with uuid_generate_v7() default', () => {
       const metadata = dataSource.getMetadata(UserSession);
-      const idColumn = metadata.columns.find(
-        (c) => c.databaseName === 'id',
-      )!;
+      const idColumn = metadata.columns.find((c) => c.databaseName === 'id')!;
       expect(idColumn.type).toBe('uuid');
       expect(idColumn.isPrimary).toBe(true);
       expect(typeof idColumn.default).toBe('function');
@@ -301,9 +304,8 @@ describe('User & Authentication entities metadata', () => {
 
     it('should have unique index on refresh_token_hash', () => {
       const metadata = dataSource.getMetadata(UserSession);
-      const index = metadata.indices.find(
-        (i) =>
-          i.columns.some((c) => c.databaseName === 'refresh_token_hash'),
+      const index = metadata.indices.find((i) =>
+        i.columns.some((c) => c.databaseName === 'refresh_token_hash'),
       );
       expect(index).toBeDefined();
       expect(index!.isUnique).toBe(true);
@@ -311,24 +313,24 @@ describe('User & Authentication entities metadata', () => {
 
     it('should have index on user_id', () => {
       const metadata = dataSource.getMetadata(UserSession);
-      const index = metadata.indices.find(
-        (i) => i.columns.some((c) => c.databaseName === 'user_id'),
+      const index = metadata.indices.find((i) =>
+        i.columns.some((c) => c.databaseName === 'user_id'),
       );
       expect(index).toBeDefined();
     });
 
     it('should have index on expires_at', () => {
       const metadata = dataSource.getMetadata(UserSession);
-      const index = metadata.indices.find(
-        (i) => i.columns.some((c) => c.databaseName === 'expires_at'),
+      const index = metadata.indices.find((i) =>
+        i.columns.some((c) => c.databaseName === 'expires_at'),
       );
       expect(index).toBeDefined();
     });
 
     it('should have index on revoked_at', () => {
       const metadata = dataSource.getMetadata(UserSession);
-      const index = metadata.indices.find(
-        (i) => i.columns.some((c) => c.databaseName === 'revoked_at'),
+      const index = metadata.indices.find((i) =>
+        i.columns.some((c) => c.databaseName === 'revoked_at'),
       );
       expect(index).toBeDefined();
     });

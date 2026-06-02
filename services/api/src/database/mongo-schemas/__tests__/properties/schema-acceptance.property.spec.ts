@@ -18,16 +18,24 @@ describe('Property 1: Valid document acceptance', () => {
   let IncidentDocumentModel: mongoose.Model<any>;
 
   beforeAll(() => {
-    UserMediaModel = mongoose.models.UserMedia || mongoose.model('UserMedia', UserMediaSchema);
+    UserMediaModel =
+      mongoose.models.UserMedia || mongoose.model('UserMedia', UserMediaSchema);
     ListingDocumentModel =
-      mongoose.models.ListingDocument || mongoose.model('ListingDocument', ListingDocumentSchema);
-    ContractModel = mongoose.models.Contract || mongoose.model('Contract', ContractSchema);
-    MessageModel = mongoose.models.Message || mongoose.model('Message', MessageSchema);
+      mongoose.models.ListingDocument ||
+      mongoose.model('ListingDocument', ListingDocumentSchema);
+    ContractModel =
+      mongoose.models.Contract || mongoose.model('Contract', ContractSchema);
+    MessageModel =
+      mongoose.models.Message || mongoose.model('Message', MessageSchema);
     EventDocumentModel =
-      mongoose.models.EventDocument || mongoose.model('EventDocument', EventDocumentSchema);
-    EventTicketModel = mongoose.models.EventTicket || mongoose.model('EventTicket', EventTicketSchema);
+      mongoose.models.EventDocument ||
+      mongoose.model('EventDocument', EventDocumentSchema);
+    EventTicketModel =
+      mongoose.models.EventTicket ||
+      mongoose.model('EventTicket', EventTicketSchema);
     IncidentDocumentModel =
-      mongoose.models.IncidentDocument || mongoose.model('IncidentDocument', IncidentDocumentSchema);
+      mongoose.models.IncidentDocument ||
+      mongoose.model('IncidentDocument', IncidentDocumentSchema);
   });
 
   it('should accept valid UserMedia documents', () => {
@@ -56,25 +64,29 @@ describe('Property 1: Valid document acceptance', () => {
 
   it('should accept valid ListingDocument documents', () => {
     fc.assert(
-      fc.property(fc.string({ minLength: 1 }), fc.string({ minLength: 1 }), (pg_listing_id, body_html) => {
-        const doc = new ListingDocumentModel({
-          pg_listing_id,
-          body_html,
-          photos: [
-            {
-              data: Buffer.from('img'),
-              mimetype: 'image/png',
-              size_bytes: 1000,
-              order: 1,
-              uploaded_at: new Date(),
-            },
-          ],
-          tags: ['test'],
-          created_at: new Date(),
-          updated_at: new Date(),
-        });
-        expect(doc.validateSync()).toBeUndefined();
-      }),
+      fc.property(
+        fc.string({ minLength: 1 }),
+        fc.string({ minLength: 1 }),
+        (pg_listing_id, body_html) => {
+          const doc = new ListingDocumentModel({
+            pg_listing_id,
+            body_html,
+            photos: [
+              {
+                data: Buffer.from('img'),
+                mimetype: 'image/png',
+                size_bytes: 1000,
+                order: 1,
+                uploaded_at: new Date(),
+              },
+            ],
+            tags: ['test'],
+            created_at: new Date(),
+            updated_at: new Date(),
+          });
+          expect(doc.validateSync()).toBeUndefined();
+        },
+      ),
       { numRuns: 50 },
     );
   });
@@ -136,7 +148,12 @@ describe('Property 1: Valid document acceptance', () => {
         fc.string({ minLength: 1 }),
         fc.string({ minLength: 1 }),
         fc.string({ minLength: 1 }),
-        fc.oneof(fc.constant('text'), fc.constant('image'), fc.constant('file'), fc.constant('voice')),
+        fc.oneof(
+          fc.constant('text'),
+          fc.constant('image'),
+          fc.constant('file'),
+          fc.constant('voice'),
+        ),
         (pg_message_id, pg_group_id, pg_sender_id, type) => {
           const doc = new MessageModel({
             pg_message_id,
@@ -159,58 +176,70 @@ describe('Property 1: Valid document acceptance', () => {
 
   it('should accept valid EventDocument documents', () => {
     fc.assert(
-      fc.property(fc.string({ minLength: 1 }), fc.string({ minLength: 1 }), (pg_event_id, body_html) => {
-        const doc = new EventDocumentModel({
-          pg_event_id,
-          body_html,
-          cover: null,
-          programme: [],
-          location: { address: null, geocode: null },
-          attachments: [],
-          created_at: new Date(),
-          updated_at: new Date(),
-        });
-        expect(doc.validateSync()).toBeUndefined();
-      }),
+      fc.property(
+        fc.string({ minLength: 1 }),
+        fc.string({ minLength: 1 }),
+        (pg_event_id, body_html) => {
+          const doc = new EventDocumentModel({
+            pg_event_id,
+            body_html,
+            cover: null,
+            programme: [],
+            location: { address: null, geocode: null },
+            attachments: [],
+            created_at: new Date(),
+            updated_at: new Date(),
+          });
+          expect(doc.validateSync()).toBeUndefined();
+        },
+      ),
       { numRuns: 50 },
     );
   });
 
   it('should accept valid EventTicket documents', () => {
     fc.assert(
-      fc.property(fc.string({ minLength: 1 }), fc.string({ minLength: 1 }), (pg_event_id, pg_user_id) => {
-        const doc = new EventTicketModel({
-          pg_event_id,
-          pg_user_id,
-          qr_payload: {
-            event_id: pg_event_id,
-            user_id: pg_user_id,
-            first_name: 'Name',
-            custom_value: null,
-            hmac_sha256: 'hmac',
-          },
-          qr_png: Buffer.from('png'),
-          issued_at: new Date(),
-        });
-        expect(doc.validateSync()).toBeUndefined();
-      }),
+      fc.property(
+        fc.string({ minLength: 1 }),
+        fc.string({ minLength: 1 }),
+        (pg_event_id, pg_user_id) => {
+          const doc = new EventTicketModel({
+            pg_event_id,
+            pg_user_id,
+            qr_payload: {
+              event_id: pg_event_id,
+              user_id: pg_user_id,
+              first_name: 'Name',
+              custom_value: null,
+              hmac_sha256: 'hmac',
+            },
+            qr_png: Buffer.from('png'),
+            issued_at: new Date(),
+          });
+          expect(doc.validateSync()).toBeUndefined();
+        },
+      ),
       { numRuns: 50 },
     );
   });
 
   it('should accept valid IncidentDocument documents', () => {
     fc.assert(
-      fc.property(fc.string({ minLength: 1 }), fc.string({ minLength: 1 }), (pg_incident_id, body) => {
-        const doc = new IncidentDocumentModel({
-          pg_incident_id,
-          body,
-          photos: [],
-          created_at: new Date(),
-          updated_at: new Date(),
-          synced_at: new Date(),
-        });
-        expect(doc.validateSync()).toBeUndefined();
-      }),
+      fc.property(
+        fc.string({ minLength: 1 }),
+        fc.string({ minLength: 1 }),
+        (pg_incident_id, body) => {
+          const doc = new IncidentDocumentModel({
+            pg_incident_id,
+            body,
+            photos: [],
+            created_at: new Date(),
+            updated_at: new Date(),
+            synced_at: new Date(),
+          });
+          expect(doc.validateSync()).toBeUndefined();
+        },
+      ),
       { numRuns: 50 },
     );
   });

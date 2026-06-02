@@ -19,20 +19,24 @@ describe('Property 3: Address Input Validation', () => {
       fc.property(
         fc.oneof(
           fc.constant(''),
-          fc.string({ minLength: 1, maxLength: 50 }).map(s => s.replace(/./g, ' ')), // Whitespace only
-          fc.string({ minLength: 201 })
+          fc
+            .string({ minLength: 1, maxLength: 50 })
+            .map((s) => s.replace(/./g, ' ')), // Whitespace only
+          fc.string({ minLength: 201 }),
         ),
         (invalidAddress) => {
-          expect(() => banService.validateAddress(invalidAddress)).toThrow(AddressValidationException);
-          
+          expect(() => banService.validateAddress(invalidAddress)).toThrow(
+            AddressValidationException,
+          );
+
           try {
             banService.validateAddress(invalidAddress);
           } catch (error) {
             expect(error.message).toContain('Address must');
           }
-        }
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

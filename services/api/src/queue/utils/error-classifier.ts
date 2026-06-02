@@ -11,7 +11,9 @@ const TRANSIENT_ERROR_PATTERNS = [
 ];
 
 export function classifyAndThrow(error: Error): never {
-  const isTransient = TRANSIENT_ERROR_PATTERNS.some((p) => p.test(error.message));
+  const isTransient = TRANSIENT_ERROR_PATTERNS.some((p) =>
+    p.test(error.message),
+  );
   if (isTransient) {
     throw error;
   }

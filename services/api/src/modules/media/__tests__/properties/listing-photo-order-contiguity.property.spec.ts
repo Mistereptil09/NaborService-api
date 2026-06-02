@@ -32,43 +32,40 @@ describe('Feature: gridfs-media-storage, Property 9: Listing Photo Order Contigu
 
   it('should recalculate contiguous orders from 0 to N-2 after a photo deletion', async () => {
     await fc.assert(
-      fc.asyncProperty(
-        fc.integer({ min: 2, max: 8 }),
-        async (n) => {
-          const listingId = 'listing-uuid-123';
-          const deletedPhotoId = new Types.ObjectId();
-          const targetIndex = Math.floor(Math.random() * n);
+      fc.asyncProperty(fc.integer({ min: 2, max: 8 }), async (n) => {
+        const listingId = 'listing-uuid-123';
+        const deletedPhotoId = new Types.ObjectId();
+        const targetIndex = Math.floor(Math.random() * n);
 
-          const photos: any[] = [];
-          for (let i = 0; i < n; i++) {
-            const id = i === targetIndex ? deletedPhotoId : new Types.ObjectId();
-            photos.push({
-              _id: id,
-              owner_type: 'listing_photo',
-              owner_id: listingId,
-              gridfs_file_id: new Types.ObjectId(),
-              order: i,
-              save: jest.fn().mockResolvedValue(undefined),
-              toObject: jest.fn().mockReturnValue({ _id: id, order: i }),
-            });
-          }
-
-          const deletedPhoto = photos[targetIndex];
-          mockMediaModel.findById.mockResolvedValue(deletedPhoto);
-          mockMediaModel.deleteOne.mockResolvedValue(undefined);
-
-          const remainingPhotos = photos.filter((p) => p._id !== deletedPhotoId);
-          mockMediaModel.find.mockResolvedValue(remainingPhotos);
-
-          await mediaService.delete(deletedPhotoId.toString());
-
-          remainingPhotos.forEach((photo, idx) => {
-            expect(photo.order).toBe(idx);
-            expect(photo.save).toHaveBeenCalled();
+        const photos: any[] = [];
+        for (let i = 0; i < n; i++) {
+          const id = i === targetIndex ? deletedPhotoId : new Types.ObjectId();
+          photos.push({
+            _id: id,
+            owner_type: 'listing_photo',
+            owner_id: listingId,
+            gridfs_file_id: new Types.ObjectId(),
+            order: i,
+            save: jest.fn().mockResolvedValue(undefined),
+            toObject: jest.fn().mockReturnValue({ _id: id, order: i }),
           });
         }
-      ),
-      { numRuns: 50 }
+
+        const deletedPhoto = photos[targetIndex];
+        mockMediaModel.findById.mockResolvedValue(deletedPhoto);
+        mockMediaModel.deleteOne.mockResolvedValue(undefined);
+
+        const remainingPhotos = photos.filter((p) => p._id !== deletedPhotoId);
+        mockMediaModel.find.mockResolvedValue(remainingPhotos);
+
+        await mediaService.delete(deletedPhotoId.toString());
+
+        remainingPhotos.forEach((photo, idx) => {
+          expect(photo.order).toBe(idx);
+          expect(photo.save).toHaveBeenCalled();
+        });
+      }),
+      { numRuns: 50 },
     );
   });
 });

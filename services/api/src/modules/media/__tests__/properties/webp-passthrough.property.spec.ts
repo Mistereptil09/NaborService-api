@@ -50,9 +50,9 @@ describe('Feature: gridfs-media-storage, Property 6: WebP and Non-Image Passthro
             file.originalname,
             mimeType,
           );
-        }
+        },
       ),
-      { numRuns: 50 }
+      { numRuns: 50 },
     );
   });
 });

@@ -14,7 +14,11 @@ describe('Feature: neo4j-init-service, Property 4: Non-"already exists" errors p
       fc.asyncProperty(
         fc
           .string()
-          .filter((code) => code !== INDEX_EXISTS_CODE && code !== 'Neo.TransientError.General.DatabaseUnavailable'),
+          .filter(
+            (code) =>
+              code !== INDEX_EXISTS_CODE &&
+              code !== 'Neo.TransientError.General.DatabaseUnavailable',
+          ),
         async (errorCode) => {
           const schemaError = {
             code: errorCode,

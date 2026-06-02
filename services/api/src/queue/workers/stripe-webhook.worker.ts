@@ -15,7 +15,9 @@ import { getBackoffDelay } from '../utils/backoff-strategy';
   concurrency: 5,
   settings: {
     backoffStrategy: (attemptsMade: number, type: string) => {
-      return type === 'custom' ? getBackoffDelay('stripe-webhook', attemptsMade) : 1000;
+      return type === 'custom'
+        ? getBackoffDelay('stripe-webhook', attemptsMade)
+        : 1000;
     },
   },
 })
@@ -27,10 +29,14 @@ export class StripeWebhookWorker extends WorkerHost {
       const { eventType, eventId, eventData } = job.data;
 
       if (job.id !== eventId) {
-        this.logger.warn(`Job ID (${job.id}) does not match Stripe Event ID (${eventId})`);
+        this.logger.warn(
+          `Job ID (${job.id}) does not match Stripe Event ID (${eventId})`,
+        );
       }
 
-      this.logger.log(`Processing Stripe webhook: ${eventType} (Event ID: ${eventId})`);
+      this.logger.log(
+        `Processing Stripe webhook: ${eventType} (Event ID: ${eventId})`,
+      );
 
       switch (eventType) {
         case 'payment_intent.succeeded':
@@ -40,7 +46,6 @@ export class StripeWebhookWorker extends WorkerHost {
         default:
           this.logger.log(`Unhandled Stripe event type: ${eventType}`);
       }
-
     } catch (error: any) {
       classifyAndThrow(error);
     }

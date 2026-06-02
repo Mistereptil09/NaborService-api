@@ -47,7 +47,12 @@ export class Poll {
   @Column({ name: 'ends_at', type: 'timestamptz', nullable: true })
   endsAt: Date | null;
 
-  @Column({ name: 'is_anonymous', type: 'boolean', nullable: false, default: false })
+  @Column({
+    name: 'is_anonymous',
+    type: 'boolean',
+    nullable: false,
+    default: false,
+  })
   isAnonymous: boolean;
 
   @Column({ name: 'closed_at', type: 'timestamptz', nullable: true })

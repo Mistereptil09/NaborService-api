@@ -14,7 +14,9 @@ import { EventStatusEnum, ParticipantStatusEnum } from '../../common/enums';
   concurrency: 10,
   settings: {
     backoffStrategy: (attemptsMade: number, type: string) => {
-      return type === 'custom' ? getBackoffDelay('event-register', attemptsMade) : 1000;
+      return type === 'custom'
+        ? getBackoffDelay('event-register', attemptsMade)
+        : 1000;
     },
   },
 })
@@ -31,7 +33,7 @@ export class EventRegisterWorker extends WorkerHost {
   async process(job: Job<EventRegisterJobPayload>): Promise<any> {
     try {
       const { eventId, userId } = job.data;
-      
+
       await this.dataSource.transaction(async (manager) => {
         const event = await manager.findOne(Evenement, {
           where: { id: eventId },
@@ -43,15 +45,24 @@ export class EventRegisterWorker extends WorkerHost {
         }
 
         if (event.status !== EventStatusEnum.OPEN) {
-          throw new UnrecoverableError(`Event ${eventId} is not open for registration (status: ${event.status})`);
+          throw new UnrecoverableError(
+            `Event ${eventId} is not open for registration (status: ${event.status})`,
+          );
         }
-        
+
         const participantCount = await manager.count(EventParticipant, {
           where: { eventId, status: ParticipantStatusEnum.REGISTERED },
         });
 
-        if (event.maxParticipants && participantCount >= event.maxParticipants) {
-          this.eventsGateway.emitRegistrationFailed(eventId, userId, 'EVENT_FULL');
+        if (
+          event.maxParticipants &&
+          participantCount >= event.maxParticipants
+        ) {
+          this.eventsGateway.emitRegistrationFailed(
+            eventId,
+            userId,
+            'EVENT_FULL',
+          );
           throw new UnrecoverableError(`Event ${eventId} is full`);
         }
 
@@ -61,23 +72,27 @@ export class EventRegisterWorker extends WorkerHost {
 
         if (existing) {
           if (existing.status === ParticipantStatusEnum.REGISTERED) {
-            throw new UnrecoverableError(`User ${userId} already registered for event ${eventId}`);
+            throw new UnrecoverableError(
+              `User ${userId} already registered for event ${eventId}`,
+            );
           } else {
             existing.status = ParticipantStatusEnum.REGISTERED;
             await manager.save(existing);
           }
         } else {
-          const participant = manager.create(EventParticipant, { 
-            eventId, 
+          const participant = manager.create(EventParticipant, {
+            eventId,
             userId,
-            status: ParticipantStatusEnum.REGISTERED
+            status: ParticipantStatusEnum.REGISTERED,
           });
           await manager.save(participant);
         }
       });
 
-      this.eventsGateway.emitParticipantAdded(job.data.eventId, job.data.userId);
-
+      this.eventsGateway.emitParticipantAdded(
+        job.data.eventId,
+        job.data.userId,
+      );
     } catch (error: any) {
       if (error instanceof UnrecoverableError) {
         throw error;

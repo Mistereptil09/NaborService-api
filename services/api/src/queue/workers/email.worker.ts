@@ -34,22 +34,30 @@ export class EmailWorker extends WorkerHost {
         throw new UnrecoverableError(`Invalid email payload for job ${job.id}`);
       }
 
-      const payload = job.data as EmailJobPayload;
+      const payload = job.data;
 
       // 1. Resolve User by email
-      const user = await this.dataSource.getRepository(User).findOne({ where: { email: payload.recipient } });
+      const user = await this.dataSource
+        .getRepository(User)
+        .findOne({ where: { email: payload.recipient } });
 
       if (user) {
-        const canReceive = await this.userPreferencesService.canReceiveEmail(user.id, payload.templateName);
+        const canReceive = await this.userPreferencesService.canReceiveEmail(
+          user.id,
+          payload.templateName,
+        );
         if (!canReceive) {
-          this.logger.log(`Skipping email to ${payload.recipient} (Template: ${payload.templateName}): opted out via preferences`);
+          this.logger.log(
+            `Skipping email to ${payload.recipient} (Template: ${payload.templateName}): opted out via preferences`,
+          );
           return { skipped: true, reason: 'user_preference_opt_out' };
         }
       }
 
       // Invoking mock email transport service
-      this.logger.log(`Sending email to ${payload.recipient} (Template: ${payload.templateName})`);
-
+      this.logger.log(
+        `Sending email to ${payload.recipient} (Template: ${payload.templateName})`,
+      );
     } catch (error: any) {
       classifyAndThrow(error);
     }

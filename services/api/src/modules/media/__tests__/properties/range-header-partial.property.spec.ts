@@ -38,7 +38,8 @@ describe('Feature: gridfs-media-storage, Property 7: Range Header Partial Conten
           const totalSize = buffer.length;
 
           const start = Math.floor(Math.random() * (totalSize - 2));
-          const end = Math.floor(Math.random() * (totalSize - start - 1)) + start;
+          const end =
+            Math.floor(Math.random() * (totalSize - start - 1)) + start;
 
           const mediaId = new Types.ObjectId().toString();
           const gridfsFileId = new Types.ObjectId();
@@ -57,9 +58,11 @@ describe('Feature: gridfs-media-storage, Property 7: Range Header Partial Conten
             read() {
               this.push(buffer.subarray(start, end + 1));
               this.push(null);
-            }
+            },
           });
-          mockGridFSService.openDownloadStream.mockReturnValue(mockDownloadStream);
+          mockGridFSService.openDownloadStream.mockReturnValue(
+            mockDownloadStream,
+          );
 
           const req = {
             headers: {
@@ -80,7 +83,10 @@ describe('Feature: gridfs-media-storage, Property 7: Range Header Partial Conten
               return this;
             },
             write(chunk: any) {
-              this.body = Buffer.concat([this.body, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
+              this.body = Buffer.concat([
+                this.body,
+                Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+              ]);
               return true;
             },
             end() {},
@@ -90,8 +96,12 @@ describe('Feature: gridfs-media-storage, Property 7: Range Header Partial Conten
               }
               return this;
             },
-            once() { return this; },
-            emit() { return this; }
+            once() {
+              return this;
+            },
+            emit() {
+              return this;
+            },
           };
 
           mockDownloadStream.on('end', () => {
@@ -101,11 +111,15 @@ describe('Feature: gridfs-media-storage, Property 7: Range Header Partial Conten
           await mediaController.streamMedia(mediaId, req, res);
 
           expect(res.statusCode).toBe(206);
-          expect(res.headers['content-range']).toBe(`bytes ${start}-${end}/${totalSize}`);
-          expect(res.headers['content-length']).toBe((end - start + 1).toString());
-        }
+          expect(res.headers['content-range']).toBe(
+            `bytes ${start}-${end}/${totalSize}`,
+          );
+          expect(res.headers['content-length']).toBe(
+            (end - start + 1).toString(),
+          );
+        },
       ),
-      { numRuns: 50 }
+      { numRuns: 50 },
     );
   });
 });

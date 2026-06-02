@@ -7,7 +7,11 @@ import { REDIS_CLIENT } from '../../../database/redis.module';
 import { TokenService } from '../token.service';
 import { SessionService } from '../session.service';
 import { SsoGateway } from '../sso.gateway';
-import { HttpException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 
 describe('SsoService', () => {
   let service: SsoService;
@@ -81,8 +85,13 @@ describe('SsoService', () => {
       const qr = await service.generateQr(ip);
 
       expect(qr).toContain('data:image/png;base64,');
-      expect(mockRedisClient.incr).toHaveBeenCalledWith(`rate:sso:generate:${ip}`);
-      expect(mockRedisClient.expire).toHaveBeenCalledWith(`rate:sso:generate:${ip}`, 60);
+      expect(mockRedisClient.incr).toHaveBeenCalledWith(
+        `rate:sso:generate:${ip}`,
+      );
+      expect(mockRedisClient.expire).toHaveBeenCalledWith(
+        `rate:sso:generate:${ip}`,
+        60,
+      );
       expect(mockRedisClient.set).toHaveBeenCalled();
       expect(mockRedisClient.sadd).toHaveBeenCalled();
     });
@@ -92,7 +101,7 @@ describe('SsoService', () => {
       mockRedisClient.incr.mockResolvedValueOnce(6); // rate limit count > 5
 
       await expect(service.generateQr(ip)).rejects.toThrow(
-        new HttpException('Too many SSO requests from this IP', 429)
+        new HttpException('Too many SSO requests from this IP', 429),
       );
     });
 
@@ -106,7 +115,7 @@ describe('SsoService', () => {
       mockRedisClient.exists.mockResolvedValue(1);
 
       await expect(service.generateQr(ip)).rejects.toThrow(
-        new HttpException('Too many active SSO sessions for this IP', 429)
+        new HttpException('Too many active SSO sessions for this IP', 429),
       );
     });
 
@@ -121,7 +130,10 @@ describe('SsoService', () => {
       const qr = await service.generateQr(ip);
 
       expect(qr).toContain('data:image/png;base64,');
-      expect(mockRedisClient.srem).toHaveBeenCalledWith(`sso:ip_keys:${ip}`, 'sso:qr:key1');
+      expect(mockRedisClient.srem).toHaveBeenCalledWith(
+        `sso:ip_keys:${ip}`,
+        'sso:qr:key1',
+      );
     });
   });
 
@@ -138,7 +150,7 @@ describe('SsoService', () => {
       };
 
       mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(mockPayload));
-      mockUserRepository.findOne.mockResolvedValueOnce({ id: userId } as User);
+      mockUserRepository.findOne.mockResolvedValueOnce({ id: userId });
 
       await service.validateQr(tokenUuid, userId, 'TestAgent');
 
@@ -157,19 +169,21 @@ describe('SsoService', () => {
         ssoKey,
         expect.stringContaining('"status":"validated"'),
         'EX',
-        60
+        60,
       );
       expect(mockSsoGateway.emitQrValidated).toHaveBeenCalledWith(
         tokenUuid,
         'mock-access-token',
-        'mock-refresh-token'
+        'mock-refresh-token',
       );
     });
 
     it('should throw NotFoundException if SSO session does not exist', async () => {
       mockRedisClient.get.mockResolvedValueOnce(null);
 
-      await expect(service.validateQr('uuid', 'user')).rejects.toThrow(NotFoundException);
+      await expect(service.validateQr('uuid', 'user')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw Conflict Exception if SSO session is already validated', async () => {
@@ -181,7 +195,9 @@ describe('SsoService', () => {
       };
       mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(mockPayload));
 
-      await expect(service.validateQr('uuid', 'user')).rejects.toThrow(HttpException);
+      await expect(service.validateQr('uuid', 'user')).rejects.toThrow(
+        HttpException,
+      );
     });
 
     it('should throw UnauthorizedException if user not found', async () => {
@@ -194,7 +210,9 @@ describe('SsoService', () => {
       mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(mockPayload));
       mockUserRepository.findOne.mockResolvedValueOnce(null);
 
-      await expect(service.validateQr('uuid', 'user')).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateQr('uuid', 'user')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 

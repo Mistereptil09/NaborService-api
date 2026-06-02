@@ -16,6 +16,8 @@ export class ResetPasswordDto {
   })
   @IsString()
   @IsNotEmpty({ message: 'Le mot de passe est requis' })
-  @MinLength(12, { message: 'Le mot de passe doit contenir au moins 12 caractères' })
+  @MinLength(12, {
+    message: 'Le mot de passe doit contenir au moins 12 caractères',
+  })
   password: string;
 }
