@@ -58,7 +58,7 @@ export class AuthController {
     private readonly userSecurityService: UserSecurityService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -482,8 +482,9 @@ export class AuthController {
   @ApiBadRequestResponse({ description: 'Trop de requêtes' })
   async generateSsoQr(@Req() req: Express.Request) {
     const ip = req.ip || this.getIpAddress(req);
-    const qrDataUri = await this.ssoService.generateQr(ip);
-    return { qr_code: qrDataUri };
+    const baseUrl = process.env.APP_BASE_URL ?? 'https://yourapp.com';
+    const { qr, scanUrl } = await this.ssoService.generateQr(ip, baseUrl);
+    return { qr_code: qr, scan_url: scanUrl };
   }
 
   @Post('sso/qr/validate')
