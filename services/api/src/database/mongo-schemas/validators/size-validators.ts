@@ -55,8 +55,13 @@ export function createTotalSizePreSaveHook(config: SizeConfig) {
         value: totalBytes,
         type: 'maxBytes',
       }));
-      return next(err);
+      if (typeof next === 'function') {
+        return next(err);
+      }
+      throw err;
     }
-    next();
+    if (typeof next === 'function') {
+      next();
+    }
   };
 }

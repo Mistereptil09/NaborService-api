@@ -20,6 +20,8 @@ import { ListingTransaction } from '../listings/entities/listing-transaction.ent
 import { ChatGroup } from '../messaging/entities/chat-group.entity';
 import { Poll } from '../polls/entities/poll.entity';
 import { Vote } from '../polls/entities/vote.entity';
+import { SyncConflict } from './entities/sync-conflict.entity';
+import { EntityPatchHandler } from './handlers/entity-patch.handler';
 
 @Injectable()
 export class SyncService {
@@ -38,6 +40,8 @@ export class SyncService {
     @InjectRepository(ChatGroup) private readonly chatGroupRepository: Repository<ChatGroup>,
     @InjectRepository(Poll) private readonly pollRepository: Repository<Poll>,
     @InjectRepository(Vote) private readonly voteRepository: Repository<Vote>,
+    @InjectRepository(SyncConflict) private readonly syncConflictRepository: Repository<SyncConflict>,
+    private readonly entityPatchHandler: EntityPatchHandler,
   ) {}
 
   async getSnapshot(dto: GetSnapshotQueryDto): Promise<SnapshotResponseDto> {
@@ -129,63 +133,46 @@ export class SyncService {
   }
 
   async syncUpdates(dto: SyncUpdatesBatchDto): Promise<any> {
-    const isProcessed = await this.checkIdempotence(dto.jobId);
-    if (isProcessed) {
-      return { success: true, message: 'Job already processed' };
+    const cachedResponse = await this.checkIdempotence(dto.jobId);
+    if (cachedResponse) {
+      return cachedResponse;
     }
 
     const conflicts: any[] = [];
     let updatedCount = 0;
 
     for (const update of dto.updates) {
-      const { entity_type, entity_id, changes } = update;
+      const result = await this.entityPatchHandler.handlePatch(update);
       
-      const sensitiveFields = ['passwordHash', 'password_hash', 'totpSecret', 'totp_secret', 'stripeAccountId', 'stripe_account_id'];
-      for (const field of sensitiveFields) {
-        if (field in changes) delete changes[field];
-      }
-
-      if (Object.keys(changes).length === 0) continue;
-
-      let repo: Repository<any> | null = null;
-      if (entity_type === 'user') repo = this.userRepository;
-      else if (entity_type === 'listing') repo = this.listingRepository;
-      else if (entity_type === 'event') repo = this.eventRepository;
-      else if (entity_type === 'incident') repo = this.incidentRepository;
-
-      if (repo) {
-        const existing = await repo.findOne({ where: { id: entity_id } });
-        if (existing) {
-          await repo.update(entity_id, changes);
-          updatedCount++;
-        }
-      } else if (entity_type === 'neighbourhood') {
-        const setClauses: string[] = [];
-        const params: any = { pgId: entity_id };
-        for (const [k, v] of Object.entries(changes)) {
-          setClauses.push(`n.${k} = $${k}`);
-          params[k] = v;
-        }
-        if (setClauses.length > 0) {
-          const cypher = `MATCH (n:Neighbourhood { pg_id: $pgId }) SET ${setClauses.join(', ')}, n.updated_at = datetime()`;
-          await this.neo4jService.run(cypher, params);
-          updatedCount++;
-        }
+      if (result.status === 'conflict') {
+        const conflictRecord = this.syncConflictRepository.create(result.conflict);
+        await this.syncConflictRepository.save(conflictRecord);
+        conflicts.push(conflictRecord);
+      } else if (result.status === 'success' && result.processed) {
+        updatedCount++;
       }
     }
 
-    await this.markJobProcessed(dto.jobId);
-    return { success: true, conflicts, processedCount: updatedCount };
+    const finalResponse = { success: true, conflicts, processedCount: updatedCount };
+    await this.markJobProcessed(dto.jobId, finalResponse);
+    return finalResponse;
   }
 
-  private async checkIdempotence(jobId: string): Promise<boolean> {
+  private async checkIdempotence(jobId: string): Promise<any | null> {
     const key = `sync:job:${jobId}`;
     const exists = await this.redisClient.get(key);
-    return exists === '1';
+    if (exists) {
+      try {
+        return JSON.parse(exists);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
   }
 
-  private async markJobProcessed(jobId: string): Promise<void> {
+  private async markJobProcessed(jobId: string, response: any): Promise<void> {
     const key = `sync:job:${jobId}`;
-    await this.redisClient.set(key, '1', 'EX', 86400);
+    await this.redisClient.set(key, JSON.stringify(response), 'EX', 86400);
   }
 }

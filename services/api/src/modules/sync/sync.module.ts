@@ -16,6 +16,8 @@ import { ListingTransaction } from '../listings/entities/listing-transaction.ent
 import { ChatGroup } from '../messaging/entities/chat-group.entity';
 import { Poll } from '../polls/entities/poll.entity';
 import { Vote } from '../polls/entities/vote.entity';
+import { SyncConflict } from './entities/sync-conflict.entity';
+import { EntityPatchHandler } from './handlers/entity-patch.handler';
 
 @Module({
   imports: [
@@ -32,10 +34,11 @@ import { Vote } from '../polls/entities/vote.entity';
       ChatGroup,
       Poll,
       Vote,
+      SyncConflict,
     ]),
   ],
   controllers: [SyncController],
-  providers: [SyncService],
+  providers: [SyncService, EntityPatchHandler],
   exports: [SyncService],
 })
 export class SyncModule {}

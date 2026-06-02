@@ -1,8 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { Evenement } from './entities/evenement.entity';
 import { EventParticipant } from './entities/event-participant.entity';
 import { ChatGroup } from '../messaging/entities/chat-group.entity';
@@ -18,7 +16,6 @@ export class EventStateMachineService {
     private readonly participantRepo: Repository<EventParticipant>,
     @InjectRepository(ChatGroup)
     private readonly chatGroupRepo: Repository<ChatGroup>,
-    @InjectQueue('neo4j-sync') private readonly neo4jSyncQueue: Queue,
     private readonly eventsGateway: EventsGateway,
   ) {}
 
@@ -42,9 +39,6 @@ export class EventStateMachineService {
     
     event.groupId = savedGroup.id;
     await this.eventRepo.save(event);
-
-    // Sync to Neo4j
-    await this.neo4jSyncQueue.add('sync-event', { eventId, action: 'publish' });
 
     return { success: true };
   }

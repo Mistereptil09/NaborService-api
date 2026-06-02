@@ -99,7 +99,12 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   - Intégration de verrous pessimistes PostgreSQL (`SELECT FOR UPDATE`) dans `EventRegisterWorker` pour prévenir les conditions de course lors des réservations.
   - Création de `QueueHealthService` et `QueueHealthController` (`GET /health/queues`) pour l'observabilité temps réel des files d'attente.
   - Implémentation de `QueueFailureListener` et `ErrorClassifier` pour la journalisation structurée globale des échecs de jobs.
-- **Système de Synchronisation** : Refonte de la synchronisation hors ligne bidirectionnelle (API ↔ SQLite Java Desktop). Consolidation des opérations d'écriture vers une route générique permissive (`POST /sync/updates`) accessible aux administrateurs et modérateurs. Le système gère nativement l'idempotence via des jobs Redis, et permet l'édition transverse (`incident`, `user`, `listing`, `event`, `neighbourhood`) tout en nettoyant rigoureusement les champs sensibles (mot de passe, totp, stripe_account_id). Toutes les créations (inserts) d'incidents ou de signalements repasseront désormais par les routes REST standards.
+- **Système de Synchronisation (Architecture Offline-First)** : 
+  - Refonte de la synchronisation hors ligne bidirectionnelle (API ↔ SQLite Java Desktop).
+  - Implémentation du `EntityPatchHandler` pour centraliser la logique de patch avec des whitelists stricts par entité (interdisant la modification de champs sensibles comme les rôles ou mots de passe).
+  - Détection manuelle des conflits : comparaison de `client.updated_at` avec `server.updatedAt`. En cas de conflit (données client obsolètes), l'update est rejeté et journalisé de manière sécurisée dans la nouvelle table `sync_conflicts`.
+  - Idempotence persistante via Redis : mise en cache de la réponse JSON complète de la synchronisation. En cas de retry réseau du client, la même réponse exacte est retournée sans duplication d'écritures.
+  - Suppression de la modification des entités `neighbourhood` via la route de synchronisation.
 - **Spec listings-routes-cdc** : création complète de la spécification (requirements.md, design.md, tasks.md) pour le module Annonces & Services (25 requirements, 13 propriétés de correction, 18 tâches d'implémentation).
 - Implémentation complète et migration vers le système de stockage média découpé GridFS sous `src/modules/media/` :
   - **`GridFSService`** : Intégration bas niveau avec le pilote natif MongoDB pour fragmenter les flux binaires en chunks de 255 Ko, avec suppression atomique (chunks + fichiers) et verrous transactionnels assurant un nettoyage complet en cas d'échec d'écriture.

@@ -17,7 +17,9 @@ import { Neo4jSyncService } from '../../database/neo4j/neo4j-sync.service';
 export class Neo4jSyncWorker extends WorkerHost {
   private readonly logger = new Logger(Neo4jSyncWorker.name);
 
-  constructor(private readonly neo4jSyncService: Neo4jSyncService) {
+  constructor(
+    private readonly neo4jSyncService: Neo4jSyncService,
+  ) {
     super();
   }
 
@@ -32,16 +34,21 @@ export class Neo4jSyncWorker extends WorkerHost {
           break;
         case 'upsert-listing':
           await this.neo4jSyncService.upsertListing({
-            ...data,
+            pgId: data.id || data.pgId,
+            listingType: data.listing_type || data.listingType,
+            status: data.status,
+            neighbourhoodId: data.neighbourhood_id || data.neighbourhoodId,
             createdAt: new Date(data.createdAt || data.created_at || Date.now()),
           } as any);
           break;
         case 'upsert-event':
           await this.neo4jSyncService.upsertEvent({
-            ...data,
+            pgId: data.id || data.pgId,
+            status: data.status,
+            neighbourhoodId: data.neighbourhood_id || data.neighbourhoodId,
             startsAt: new Date(data.startsAt || data.starts_at || Date.now()),
+            costCents: data.cost_cents !== undefined ? data.cost_cents : data.costCents,
           } as any);
-          break;
         case 'update-relationship':
           if (data.type === 'FOLLOWS') {
             await this.neo4jSyncService.createFollows(data.followerId, data.followedId);
@@ -70,7 +77,6 @@ export class Neo4jSyncWorker extends WorkerHost {
           break;
         case 'user.swipe':
           await this.neo4jSyncService.createSwipe(data.swiperId, data.swipedId, data.direction);
-          break;
         case 'user.blocks.create':
           await this.neo4jSyncService.createBlocks(data.blockerId, data.blockedId);
           break;

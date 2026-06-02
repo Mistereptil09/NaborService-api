@@ -29,7 +29,6 @@ export class EventsService {
     @InjectRepository(UserBlock)
     private readonly blockRepo: Repository<UserBlock>,
     @InjectQueue('event-register') private readonly registerQueue: Queue,
-    @InjectQueue('neo4j-sync') private readonly neo4jSyncQueue: Queue,
     @InjectQueue('waitlist-promote') private readonly promoteQueue: Queue,
   ) {}
 
@@ -125,11 +124,10 @@ export class EventsService {
       throw new ConflictException('Event is not open for registration');
     }
 
-    // async registration via BullMQ (Concurrency = 1 guarantees no overselling)
     await this.registerQueue.add(
       'register',
       { eventId: id, userId },
-      { jobId: `${id}:${userId}`, attempts: 3, backoff: { type: 'exponential', delay: 500 } }
+      { jobId: `${id}_${userId}`, attempts: 3, backoff: { type: 'exponential', delay: 500 } }
     );
     return { success: true };
   }
@@ -195,9 +193,6 @@ export class EventsService {
       });
     }
     await this.swipeRepo.save(swipe);
-
-    // Sync to Neo4j
-    await this.neo4jSyncQueue.add('sync-swipe', { eventId: id, userId, direction });
   }
 
   async getChatGroup(id: string, userId: string) {
