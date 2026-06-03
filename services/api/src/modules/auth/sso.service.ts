@@ -98,7 +98,7 @@ export class SsoService {
     await this.redis.expire(activeKeysSetKey, 130);
 
     // Encode the full scan URL so any phone camera opens the web client directly
-    const scanUrl = `${baseUrl}/sso/scan?token=${tokenUuid}`;
+    const scanUrl = `${baseUrl}/auth/sso/validate?token=${tokenUuid}`;
     const qr = await qrcode.toDataURL(scanUrl);
 
     return { qr, scanUrl };

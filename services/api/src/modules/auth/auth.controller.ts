@@ -105,7 +105,9 @@ export class AuthController {
   @ApiUnauthorizedResponse({
     description: 'Code TOTP ou token de setup invalide/expiré',
   })
-  @ApiBadRequestResponse({ description: 'Données de validation invalides' })
+  @ApiBadRequestResponse({
+    description: 'Données de validation invalides',
+  })
   async confirmSetup(
     @Body() dto: TotpVerifyDto, // Reuse the same DTO since it has challenge_token and code
     @Req() req: Express.Request,
@@ -482,7 +484,7 @@ export class AuthController {
   @ApiBadRequestResponse({ description: 'Trop de requêtes' })
   async generateSsoQr(@Req() req: Express.Request) {
     const ip = req.ip || this.getIpAddress(req);
-    const baseUrl = process.env.APP_BASE_URL ?? 'https://yourapp.com';
+    const baseUrl = process.env.APP_BASE_URL ?? 'http://localhost:3000/v1';
     const { qr, scanUrl } = await this.ssoService.generateQr(ip, baseUrl);
     return { qr_code: qr, scan_url: scanUrl };
   }
