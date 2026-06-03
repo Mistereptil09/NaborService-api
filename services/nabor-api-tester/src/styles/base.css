@@ -1,0 +1,59 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--space-16);
+}
+
+body {
+  min-height: 100dvh;
+  line-height: 1.5;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+img, picture, video, canvas, svg { display: block; max-width: 100%; height: auto; }
+input, button, textarea, select { font: inherit; color: inherit; }
+h1, h2, h3, h4 { text-wrap: balance; line-height: 1.15; }
+p { text-wrap: pretty; max-width: 72ch; }
+button { cursor: pointer; background: none; border: none; }
+table { border-collapse: collapse; width: 100%; }
+
+a, button, [role="button"], input, textarea, select {
+  transition: color var(--transition), background var(--transition),
+              border-color var(--transition), box-shadow var(--transition);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+::selection {
+  background: color-mix(in oklch, var(--color-primary) 25%, transparent);
+  color: var(--color-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-faint); }
