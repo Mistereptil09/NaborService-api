@@ -44,9 +44,12 @@ export class EntityPatchHandler {
       entity_type,
       entity_id,
       changes,
-      updated_at: clientUpdatedAtStr,
+      base_updated_at: clientBaseUpdatedAtStr,
     } = update;
-    const clientUpdatedAt = new Date(clientUpdatedAtStr);
+    // base_updated_at is the entity's updated_at from the last server snapshot,
+    // NOT the client's local clock — both timestamps originate from PostgreSQL,
+    // so this comparison is immune to client clock skew.
+    const clientBaseUpdatedAt = new Date(clientBaseUpdatedAtStr);
 
     const allowedFields = this.whitelists[entity_type] || [];
     const sanitizedChanges: Record<string, any> = {};
@@ -85,17 +88,26 @@ export class EntityPatchHandler {
       return { status: 'success', processed: false }; // Entity not found, ignore
     }
 
-    // Conflict detection
+    // Conflict detection: if the server's updated_at is newer than the
+    // base version the client worked from, someone else modified this entity
+    // on the server since the client's last snapshot → conflict.
     const serverUpdatedAt =
       existing.updatedAt || existing.createdAt || new Date(0);
-    if (serverUpdatedAt > clientUpdatedAt) {
+    if (serverUpdatedAt.getTime() > clientBaseUpdatedAt.getTime()) {
+      // Determine which specific fields are in conflict
+      const conflictedFields = Object.keys(sanitizedChanges).filter(
+        (field) => existing[field] !== undefined,
+      );
+
       return {
         status: 'conflict',
         conflict: {
           entityType: entity_type,
           entityId: entity_id,
+          fieldName: conflictedFields.length === 1 ? conflictedFields[0] : null,
           clientData: changes,
           serverData: existing,
+          detectedAt: new Date(),
         },
       };
     }

@@ -174,6 +174,16 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   - Remplacement de la récupération Neo4j de `neighbourhoods` dans le snapshot delta par la synchronisation native TypeORM de 7 entités : `listing_categories`, `event_categories`, `poll_options`, `event_participants`, `users_in_group`, `follows`, et `friendships`.
   - Tri chronologique dynamique adapté aux colonnes temporelles spécifiques (`registeredAt`, `joinedAt`, `votedAt`, `followedAt`, `friendedAt` en plus de `updatedAt` / `createdAt`).
   - Suppression de la dépendance à `Neo4jService` dans le module de synchronisation.
+- **Refactoring du module Sync — détection de conflits, pagination et réponse par entité** :
+  - Correction de l'algorithme de détection de conflits : remplacement de la comparaison dépendante de l'horloge locale par `server.updated_at > base_updated_at`, où `base_updated_at` est un horodatage serveur écho par le client — immunisé contre le clock skew.
+  - Renommage du champ DTO `updated_at` → `base_updated_at` avec documentation explicite.
+  - Implémentation de la pagination par curseur dans `GET /sync/snapshot`.
+  - Correction du timestamp `sync_at` : déplacé en fin de traitement.
+  - Amélioration des soft-deletes pour les entités sans `updated_at`.
+  - Nouveau format de réponse pour `POST /sync/updates` : statut par entité (`applied` / `conflict` / `skipped`) avec `has_conflicts`, `applied_count`, `conflict_count`.
+  - Validation `@ArrayMaxSize(100)` sur le batch.
+  - Enrichissement de l'entité `SyncConflict` : `field_name`, `detected_at`, `resolved_at`, `resolution` (enum `local` | `remote`). `resolved` devient un getter.
+  - Documentation : `sync_conflicts` est un journal d'audit, pas une file de résolution. La résolution se fait côté client (JavaFX).
 - **SSO QR Code Validation** :
   - Correction de l'URI de validation SSO du QR Code pour utiliser `/auth/sso/qr/validate` au lieu de `/auth/sso/validate`.
 - **`RateLimitService`** : ajout de `incrementLoginAttemptByUserId` — verrou par compte (10 tentatives / 15 min) déclenché dans `AuthService.login` après identification de l'utilisateur, indépendamment du rate limit IP du `RateLimitGuard`.

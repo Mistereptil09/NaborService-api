@@ -13,7 +13,7 @@ import {
   GetSnapshotQueryDto,
   SnapshotResponseDto,
 } from './dto/sync-snapshot.dto';
-import { SyncUpdatesBatchDto } from './dto/sync-push.dto';
+import { SyncUpdatesBatchDto, SyncUpdatesResponseDto } from './dto/sync-push.dto';
 
 import { User } from '../users/entities/user.entity';
 import { Incident } from '../incidents/entities/incident.entity';
@@ -38,6 +38,29 @@ import { UsersInGroup } from '../messaging/entities/users-in-group.entity';
 
 import { Follow } from '../social/entities/follow.entity';
 import { Friendship } from '../social/entities/friendship.entity';
+
+/**
+ * Decodes a cursor value (base64-encoded ISO timestamp) back to a Date.
+ * Returns null if the cursor is invalid or missing.
+ */
+function decodeCursor(cursor?: string): Date | null {
+  if (!cursor) return null;
+  try {
+    const iso = Buffer.from(cursor, 'base64').toString('utf-8');
+    const date = new Date(iso);
+    if (isNaN(date.getTime())) return null;
+    return date;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Encodes a Date as a base64 cursor string.
+ */
+function encodeCursor(date: Date): string {
+  return Buffer.from(date.toISOString()).toString('base64');
+}
 
 @Injectable()
 export class SyncService {
@@ -85,11 +108,14 @@ export class SyncService {
 
   async getSnapshot(dto: GetSnapshotQueryDto): Promise<SnapshotResponseDto> {
     const { since, limit = 500, cursor } = dto;
-    const syncAt = new Date();
+    const cursorDate = decodeCursor(cursor);
+    // When resuming with a cursor, use the cursor timestamp as the effective
+    // "since" to skip entities already returned in previous pages.
+    const effectiveSince = cursorDate ?? since;
     const take = limit;
     let remaining = take;
     const response: SnapshotResponseDto = {
-      sync_at: syncAt,
+      sync_at: new Date(), // placeholder — will be set at the end
       has_more: false,
       incidents: [],
       listing_moderation_actions: [],
@@ -112,13 +138,38 @@ export class SyncService {
       friendships: [],
     };
 
+    /**
+     * Tracks the maximum timestamp seen across all fetched entities.
+     * Used as the cursor value for the next page.
+     */
+    let maxTimestamp: Date | null = null;
+    const trackMaxTimestamp = (entities: any[]) => {
+      for (const entity of entities) {
+        const ts =
+          entity.updatedAt ||
+          entity.createdAt ||
+          entity.registeredAt ||
+          entity.joinedAt ||
+          entity.votedAt ||
+          entity.followedAt ||
+          entity.friendedAt;
+        if (ts && (!maxTimestamp || ts > maxTimestamp)) {
+          maxTimestamp = ts;
+        }
+      }
+    };
+
     const fetchDelta = async (
       repo: Repository<any>,
       relations: string[] = [],
     ) => {
       if (remaining <= 0) return [];
       const qb = repo.createQueryBuilder('entity');
-      if (repo.metadata.findColumnWithPropertyName('deletedAt')) {
+
+      // --- Resolve time columns ---
+      const hasDeletedAt =
+        repo.metadata.findColumnWithPropertyName('deletedAt');
+      if (hasDeletedAt) {
         qb.withDeleted();
       }
 
@@ -139,23 +190,31 @@ export class SyncService {
         timeColumn = 'friendedAt';
       }
 
+      // Build WHERE clause — include soft-deleted rows whose deletedAt > since
+      if (timeColumn && hasDeletedAt) {
+        // Entity has both a time column AND soft-delete support
+        qb.where(`entity.${timeColumn} > :since OR entity.deletedAt > :since`, {
+          since: effectiveSince,
+        });
+      } else if (timeColumn) {
+        // Entity has a time column but no soft-delete
+        qb.where(`entity.${timeColumn} > :since`, { since: effectiveSince });
+      } else if (hasDeletedAt) {
+        // Entity has soft-delete but no conventional time column
+        // (e.g. an entity that only tracks creation via deletedAt)
+        qb.where('entity.deletedAt > :since', { since: effectiveSince });
+      }
+      // If neither a time column nor deletedAt exists, return all rows
+      // (these are typically small static tables refreshed in full).
+
       if (timeColumn) {
-        if (
-          timeColumn === 'updatedAt' &&
-          repo.metadata.findColumnWithPropertyName('deletedAt')
-        ) {
-          qb.where('entity.updatedAt > :since OR entity.deletedAt > :since', {
-            since,
-          });
-        } else {
-          qb.where(`entity.${timeColumn} > :since`, { since });
-        }
         qb.orderBy(`entity.${timeColumn}`, 'ASC');
       }
 
       relations.forEach((rel) => qb.leftJoinAndSelect(`entity.${rel}`, rel));
       qb.take(remaining);
       const results = await qb.getMany();
+      trackMaxTimestamp(results);
       remaining -= results.length;
       return results;
     };
@@ -180,41 +239,77 @@ export class SyncService {
     response.follows = await fetchDelta(this.followRepository);
     response.friendships = await fetchDelta(this.friendshipRepository);
 
+    // Set sync_at at the END so it reflects the actual point-in-time
+    // after all queries complete — prevents missed updates in the next delta.
+    response.sync_at = new Date();
+
     if (remaining === 0) {
       response.has_more = true;
-      response.cursor = Buffer.from(syncAt.toISOString()).toString('base64');
+      // Encode the maximum entity timestamp seen as the cursor for the next page.
+      // Falls back to sync_at if no entities were returned (edge case).
+      response.cursor = encodeCursor(maxTimestamp ?? response.sync_at);
     }
 
     return response;
   }
 
-  async syncUpdates(dto: SyncUpdatesBatchDto): Promise<any> {
+  async syncUpdates(dto: SyncUpdatesBatchDto): Promise<SyncUpdatesResponseDto> {
     const cachedResponse = await this.checkIdempotence(dto.jobId);
     if (cachedResponse) {
       return cachedResponse;
     }
 
-    const conflicts: any[] = [];
-    let updatedCount = 0;
+    const results: SyncUpdatesResponseDto['results'] = [];
+    let appliedCount = 0;
+    let conflictCount = 0;
 
     for (const update of dto.updates) {
       const result = await this.entityPatchHandler.handlePatch(update);
 
       if (result.status === 'conflict') {
+        // Store conflict as audit log only — resolution happens client-side.
+        // The client is expected to keep the entity dirty in SQLite, let the
+        // user resolve locally, then re-push the resolved version.
         const conflictRecord = this.syncConflictRepository.create(
           result.conflict,
         );
         await this.syncConflictRepository.save(conflictRecord);
-        conflicts.push(conflictRecord);
+        conflictCount++;
+
+        results.push({
+          entity_type: update.entity_type,
+          entity_id: update.entity_id,
+          status: 'conflict',
+          conflict: {
+            field_name: result.conflict.fieldName ?? null,
+            client_data: result.conflict.clientData,
+            server_data: result.conflict.serverData,
+          },
+        });
       } else if (result.status === 'success' && result.processed) {
-        updatedCount++;
+        // Applied successfully — client should mark is_dirty=0, synced_at=now()
+        appliedCount++;
+        results.push({
+          entity_type: update.entity_type,
+          entity_id: update.entity_id,
+          status: 'applied',
+        });
+      } else {
+        // Skipped (entity not found, no valid fields, unknown entity type)
+        results.push({
+          entity_type: update.entity_type,
+          entity_id: update.entity_id,
+          status: 'skipped',
+        });
       }
     }
 
-    const finalResponse = {
-      success: true,
-      conflicts,
-      processedCount: updatedCount,
+    const finalResponse: SyncUpdatesResponseDto = {
+      success: conflictCount === 0,
+      has_conflicts: conflictCount > 0,
+      applied_count: appliedCount,
+      conflict_count: conflictCount,
+      results,
     };
     await this.markJobProcessed(dto.jobId, finalResponse);
     return finalResponse;

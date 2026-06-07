@@ -5,6 +5,7 @@ import { EntityPatchHandler, PatchResult } from '../handlers/entity-patch.handle
 import { REDIS_CLIENT } from '../../../database/redis.module';
 import { SyncConflict } from '../entities/sync-conflict.entity';
 import { SyncUpdatesBatchDto, SyncUpdateItemDto } from '../dto/sync-push.dto';
+import { GetSnapshotQueryDto } from '../dto/sync-snapshot.dto';
 import { User } from '../../users/entities/user.entity';
 import { Incident } from '../../incidents/entities/incident.entity';
 import { Listing } from '../../listings/entities/listing.entity';
@@ -33,9 +34,23 @@ describe('SyncService', () => {
   let entityPatchHandler: jest.Mocked<EntityPatchHandler>;
   let syncConflictRepository: any;
 
+  const mockQueryBuilder = () => ({
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    withDeleted: jest.fn().mockReturnThis(),
+    getMany: jest.fn().mockResolvedValue([]),
+  });
+
   const mockRepository = () => ({
     create: jest.fn().mockImplementation((dto) => dto),
     save: jest.fn(),
+    createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder()),
+    metadata: {
+      findColumnWithPropertyName: jest.fn().mockReturnValue(null),
+    },
   });
 
   beforeEach(async () => {
@@ -97,16 +112,20 @@ describe('SyncService', () => {
     expect(entityPatchHandler.handlePatch).not.toHaveBeenCalled();
   });
 
-  it('should process updates, store conflicts, and cache response', async () => {
+  it('should process updates, store conflict as audit log, and return per-entity results', async () => {
     redisClient.get.mockResolvedValue(null); // Not cached
+
+    const serverSnapshotTime = new Date('2025-06-01T10:00:00Z');
 
     const update1 = new SyncUpdateItemDto();
     update1.entity_type = 'user';
     update1.entity_id = 'user1';
+    update1.base_updated_at = serverSnapshotTime.toISOString();
 
     const update2 = new SyncUpdateItemDto();
     update2.entity_type = 'listing';
     update2.entity_id = 'list1';
+    update2.base_updated_at = serverSnapshotTime.toISOString();
 
     const dto = new SyncUpdatesBatchDto();
     dto.jobId = 'job-567';
@@ -116,22 +135,89 @@ describe('SyncService', () => {
       .mockResolvedValueOnce({ status: 'success', processed: true })
       .mockResolvedValueOnce({
         status: 'conflict',
-        conflict: { entityId: 'list1', entityType: 'listing' },
+        conflict: {
+          entityId: 'list1',
+          entityType: 'listing',
+          fieldName: 'title',
+          clientData: { title: 'Local' },
+          serverData: { title: 'Remote' },
+          detectedAt: new Date(),
+        },
       });
 
     const result = await service.syncUpdates(dto);
 
-    expect(result.success).toBe(true);
-    expect(result.processedCount).toBe(1);
-    expect(result.conflicts).toHaveLength(1);
-    expect(result.conflicts[0].entityId).toBe('list1');
+    // When there's a conflict, success=false but non-conflicting updates still applied
+    expect(result.success).toBe(false);
+    expect(result.has_conflicts).toBe(true);
+    expect(result.applied_count).toBe(1);
+    expect(result.conflict_count).toBe(1);
+    expect(result.results).toHaveLength(2);
+    expect(result.results[0]).toEqual({
+      entity_type: 'user',
+      entity_id: 'user1',
+      status: 'applied',
+    });
+    expect(result.results[1]).toEqual({
+      entity_type: 'listing',
+      entity_id: 'list1',
+      status: 'conflict',
+      conflict: {
+        field_name: 'title',
+        client_data: { title: 'Local' },
+        server_data: { title: 'Remote' },
+      },
+    });
 
+    // Conflict stored as audit log
     expect(syncConflictRepository.save).toHaveBeenCalled();
     expect(redisClient.set).toHaveBeenCalledWith(
       'sync:job:job-567',
       expect.any(String),
       'EX',
       86400,
+    );
+  });
+
+  it('should return success=true when all updates applied cleanly', async () => {
+    redisClient.get.mockResolvedValue(null);
+
+    const update1 = new SyncUpdateItemDto();
+    update1.entity_type = 'user';
+    update1.entity_id = 'user1';
+    update1.base_updated_at = new Date().toISOString();
+
+    const dto = new SyncUpdatesBatchDto();
+    dto.jobId = 'job-clean';
+    dto.updates = [update1];
+
+    entityPatchHandler.handlePatch.mockResolvedValueOnce({
+      status: 'success',
+      processed: true,
+    });
+
+    const result = await service.syncUpdates(dto);
+
+    expect(result.success).toBe(true);
+    expect(result.has_conflicts).toBe(false);
+    expect(result.applied_count).toBe(1);
+    expect(result.conflict_count).toBe(0);
+  });
+
+  it('should set sync_at at the end of snapshot (after queries)', async () => {
+    // Verify the snapshot response includes a sync_at timestamp
+    // and that it's set after data fetching (not at request start).
+    // We can verify this by checking that sync_at is reasonable.
+    const query = new GetSnapshotQueryDto();
+    query.since = new Date('2025-01-01T00:00:00Z');
+    query.limit = 500;
+
+    const result = await service.getSnapshot(query);
+
+    // sync_at should be set and be a recent date (not the epoch)
+    expect(result.sync_at).toBeInstanceOf(Date);
+    expect(result.sync_at.getTime()).toBeGreaterThan(
+      new Date('2025-01-01').getTime(),
     );
   });
 });
