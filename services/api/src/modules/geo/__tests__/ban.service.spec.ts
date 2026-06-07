@@ -69,47 +69,47 @@ describe('BanService', () => {
         longitude: 2.35,
         confidence: 0.9,
       });
+    });
 
-      describe('autocomplete', () => {
-        it('should return a list of labelled addresses with coordinates', async () => {
-          const mockResponse = {
-            json: async () => ({
-              type: 'FeatureCollection',
-              features: [
-                {
-                  type: 'Feature',
-                  geometry: { type: 'Point', coordinates: [2.35, 48.85] },
-                  properties: { score: 0.9, label: 'Paris' },
-                },
-                {
-                  type: 'Feature',
-                  geometry: { type: 'Point', coordinates: [2.36, 48.86] },
-                  properties: { score: 0.4 },
-                },
-              ],
-            }),
-          };
+    describe('autocomplete', () => {
+      it('should return a list of labelled addresses with coordinates', async () => {
+        const mockResponse = {
+          json: async () => ({
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [2.35, 48.85] },
+                properties: { score: 0.9, label: 'Paris' },
+              },
+              {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [2.36, 48.86] },
+                properties: { score: 0.4 },
+              },
+            ],
+          }),
+        };
 
-          (httpRetryService.fetchWithRetry as jest.Mock).mockResolvedValue(
-            mockResponse,
-          );
+        (httpRetryService.fetchWithRetry as jest.Mock).mockResolvedValue(
+          mockResponse,
+        );
 
-          const result = await service.autocomplete('Paris', 10);
+        const result = await service.autocomplete('Paris', 10);
 
-          expect(httpRetryService.fetchWithRetry).toHaveBeenCalledWith(
-            'http://ban:7878/search/?q=Paris&limit=10',
-            {},
-            expect.any(Object),
-          );
-          expect(result).toEqual([
-            {
-              label: 'Paris',
-              latitude: 48.85,
-              longitude: 2.35,
-              score: 0.9,
-            },
-          ]);
-        });
+        expect(httpRetryService.fetchWithRetry).toHaveBeenCalledWith(
+          'http://ban:7878/search/?q=Paris&limit=10',
+          {},
+          expect.any(Object),
+        );
+        expect(result).toEqual([
+          {
+            label: 'Paris',
+            latitude: 48.85,
+            longitude: 2.35,
+            score: 0.9,
+          },
+        ]);
       });
     });
 

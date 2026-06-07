@@ -8,7 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, LessThanOrEqual } from 'typeorm';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import Redis from 'ioredis';
-import { Neo4jService } from '../../database/neo4j';
 
 import {
   GetSnapshotQueryDto,
@@ -31,11 +30,19 @@ import { Vote } from '../polls/entities/vote.entity';
 import { SyncConflict } from './entities/sync-conflict.entity';
 import { EntityPatchHandler } from './handlers/entity-patch.handler';
 
+import { ListingCategory } from '../listings/entities/listing-category.entity';
+import { EvenementsCategory } from '../events/entities/evenements-category.entity';
+import { PollOption } from '../polls/entities/poll-option.entity';
+import { EventParticipant } from '../events/entities/event-participant.entity';
+import { UsersInGroup } from '../messaging/entities/users-in-group.entity';
+
+import { Follow } from '../social/entities/follow.entity';
+import { Friendship } from '../social/entities/friendship.entity';
+
 @Injectable()
 export class SyncService {
   constructor(
     @Inject(REDIS_CLIENT) private readonly redisClient: Redis,
-    private readonly neo4jService: Neo4jService,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     @InjectRepository(Incident)
     private readonly incidentRepository: Repository<Incident>,
@@ -59,6 +66,20 @@ export class SyncService {
     @InjectRepository(Vote) private readonly voteRepository: Repository<Vote>,
     @InjectRepository(SyncConflict)
     private readonly syncConflictRepository: Repository<SyncConflict>,
+    @InjectRepository(ListingCategory)
+    private readonly listingCategoryRepository: Repository<ListingCategory>,
+    @InjectRepository(EvenementsCategory)
+    private readonly eventCategoryRepository: Repository<EvenementsCategory>,
+    @InjectRepository(PollOption)
+    private readonly pollOptionRepository: Repository<PollOption>,
+    @InjectRepository(EventParticipant)
+    private readonly eventParticipantRepository: Repository<EventParticipant>,
+    @InjectRepository(UsersInGroup)
+    private readonly usersInGroupRepository: Repository<UsersInGroup>,
+    @InjectRepository(Follow)
+    private readonly followRepository: Repository<Follow>,
+    @InjectRepository(Friendship)
+    private readonly friendshipRepository: Repository<Friendship>,
     private readonly entityPatchHandler: EntityPatchHandler,
   ) {}
 
@@ -76,13 +97,19 @@ export class SyncService {
       listing_reports: [],
       event_reports: [],
       users_raw: [],
-      neighbourhoods: [],
       listings: [],
       events: [],
       chat_groups: [],
       votes: [],
       polls: [],
       listing_transactions: [],
+      listing_categories: [],
+      event_categories: [],
+      poll_options: [],
+      event_participants: [],
+      users_in_group: [],
+      follows: [],
+      friendships: [],
     };
 
     const fetchDelta = async (
@@ -90,26 +117,43 @@ export class SyncService {
       relations: string[] = [],
     ) => {
       if (remaining <= 0) return [];
-      const qb = repo.createQueryBuilder('entity').withDeleted();
-      if (
-        repo.metadata.findColumnWithPropertyName('updatedAt') &&
-        repo.metadata.findColumnWithPropertyName('deletedAt')
-      ) {
-        qb.where('entity.updatedAt > :since OR entity.deletedAt > :since', {
-          since,
-        });
-      } else if (repo.metadata.findColumnWithPropertyName('updatedAt')) {
-        qb.where('entity.updatedAt > :since', { since });
-      } else if (repo.metadata.findColumnWithPropertyName('createdAt')) {
-        qb.where('entity.createdAt > :since', { since });
+      const qb = repo.createQueryBuilder('entity');
+      if (repo.metadata.findColumnWithPropertyName('deletedAt')) {
+        qb.withDeleted();
       }
+
+      let timeColumn = '';
+      if (repo.metadata.findColumnWithPropertyName('updatedAt')) {
+        timeColumn = 'updatedAt';
+      } else if (repo.metadata.findColumnWithPropertyName('createdAt')) {
+        timeColumn = 'createdAt';
+      } else if (repo.metadata.findColumnWithPropertyName('registeredAt')) {
+        timeColumn = 'registeredAt';
+      } else if (repo.metadata.findColumnWithPropertyName('joinedAt')) {
+        timeColumn = 'joinedAt';
+      } else if (repo.metadata.findColumnWithPropertyName('votedAt')) {
+        timeColumn = 'votedAt';
+      } else if (repo.metadata.findColumnWithPropertyName('followedAt')) {
+        timeColumn = 'followedAt';
+      } else if (repo.metadata.findColumnWithPropertyName('friendedAt')) {
+        timeColumn = 'friendedAt';
+      }
+
+      if (timeColumn) {
+        if (
+          timeColumn === 'updatedAt' &&
+          repo.metadata.findColumnWithPropertyName('deletedAt')
+        ) {
+          qb.where('entity.updatedAt > :since OR entity.deletedAt > :since', {
+            since,
+          });
+        } else {
+          qb.where(`entity.${timeColumn} > :since`, { since });
+        }
+        qb.orderBy(`entity.${timeColumn}`, 'ASC');
+      }
+
       relations.forEach((rel) => qb.leftJoinAndSelect(`entity.${rel}`, rel));
-      qb.orderBy(
-        repo.metadata.findColumnWithPropertyName('updatedAt')
-          ? 'entity.updatedAt'
-          : 'entity.createdAt',
-        'ASC',
-      );
       qb.take(remaining);
       const results = await qb.getMany();
       remaining -= results.length;
@@ -128,35 +172,13 @@ export class SyncService {
     response.votes = await fetchDelta(this.voteRepository);
     response.polls = await fetchDelta(this.pollRepository);
     response.listing_transactions = await fetchDelta(this.ltRepository);
-
-    if (remaining > 0) {
-      const cypher = `
-        MATCH (n:Neighbourhood)
-        WHERE n.updated_at > datetime($since)
-        RETURN n
-        ORDER BY n.updated_at ASC
-        LIMIT $limit
-      `;
-      const result = await this.neo4jService.run(cypher, {
-        since: since.toISOString(),
-        limit: remaining,
-      });
-      const neo4jNodes = result.records.map((r) => {
-        const props = r.get('n').properties;
-        return {
-          pg_id: props.pg_id,
-          name: props.name,
-          city: props.city,
-          zip_code: props.zip_code,
-          country: props.country,
-          area_m2: props.area_m2?.toNumber?.() || props.area_m2,
-          created_at: props.created_at?.toString?.(),
-          updated_at: props.updated_at?.toString?.(),
-        };
-      });
-      response.neighbourhoods = neo4jNodes;
-      remaining -= neo4jNodes.length;
-    }
+    response.listing_categories = await fetchDelta(this.listingCategoryRepository);
+    response.event_categories = await fetchDelta(this.eventCategoryRepository);
+    response.poll_options = await fetchDelta(this.pollOptionRepository);
+    response.event_participants = await fetchDelta(this.eventParticipantRepository);
+    response.users_in_group = await fetchDelta(this.usersInGroupRepository);
+    response.follows = await fetchDelta(this.followRepository);
+    response.friendships = await fetchDelta(this.friendshipRepository);
 
     if (remaining === 0) {
       response.has_more = true;

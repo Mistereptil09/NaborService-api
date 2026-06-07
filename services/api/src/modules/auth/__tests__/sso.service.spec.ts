@@ -82,9 +82,9 @@ describe('SsoService', () => {
       mockRedisClient.incr.mockResolvedValueOnce(1); // rate limit count = 1
       mockRedisClient.smembers.mockResolvedValueOnce([]); // no active sessions
 
-      const qr = await service.generateQr(ip);
+      const result = await service.generateQr(ip);
 
-      expect(qr).toContain('data:image/png;base64,');
+      expect(result.qr).toContain('data:image/png;base64,');
       expect(mockRedisClient.incr).toHaveBeenCalledWith(
         `rate:sso:generate:${ip}`,
       );
@@ -127,9 +127,9 @@ describe('SsoService', () => {
       // first doesn't exist, second does
       mockRedisClient.exists.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
 
-      const qr = await service.generateQr(ip);
+      const result = await service.generateQr(ip);
 
-      expect(qr).toContain('data:image/png;base64,');
+      expect(result.qr).toContain('data:image/png;base64,');
       expect(mockRedisClient.srem).toHaveBeenCalledWith(
         `sso:ip_keys:${ip}`,
         'sso:qr:key1',

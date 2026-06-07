@@ -17,7 +17,7 @@ import { UserBlock } from '../social/entities/user-block.entity';
 import { UpdateProfileDto } from './dto/user-routes.dtos';
 import { TotpService } from '../auth/totp.service';
 import { SessionService } from '../auth/session.service';
-import { VisibilityEnum } from '../../common/enums';
+import { VisibilityEnum, UserRoleEnum } from '../../common/enums';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { authenticator } = require('otplib');
@@ -380,5 +380,117 @@ export class UsersService {
       role: target.role,
       createdAt: target.createdAt,
     };
+  }
+
+  async findAllAdmin(query: {
+    offset: number;
+    limit: number;
+    role?: UserRoleEnum;
+    neighbourhoodId?: string;
+    q?: string;
+  }): Promise<{ users: User[]; total: number }> {
+    const queryBuilder = this.userRepository.createQueryBuilder('user').withDeleted();
+
+    if (query.role) {
+      queryBuilder.andWhere('user.role = :role', { role: query.role });
+    }
+    if (query.neighbourhoodId) {
+      queryBuilder.andWhere('user.neighbourhoodId = :neighbourhoodId', {
+        neighbourhoodId: query.neighbourhoodId,
+      });
+    }
+    if (query.q) {
+      queryBuilder.andWhere(
+        '(user.email ILIKE :search OR user.firstName ILIKE :search OR user.lastName ILIKE :search)',
+        { search: `%${query.q}%` },
+      );
+    }
+
+    const [users, total] = await queryBuilder
+      .orderBy('user.createdAt', 'DESC')
+      .skip(query.offset)
+      .take(query.limit)
+      .getManyAndCount();
+
+    return { users, total };
+  }
+
+  async findOneAdmin(userId: string): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      withDeleted: true,
+    });
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable');
+    }
+    return user;
+  }
+
+  async updateRole(userId: string, role: UserRoleEnum): Promise<User> {
+    const user = await this.findOneAdmin(userId);
+    user.role = role;
+    user.updatedAt = new Date();
+    await this.userRepository.save(user);
+
+    // Sync role to Neo4j
+    await this.neo4jSyncQueue.add('upsert-user', {
+      pgId: user.id,
+      visibility: user.visibility,
+      role: user.role,
+      neighbourhoodId: user.neighbourhoodId,
+    });
+
+    return user;
+  }
+
+  async suspendUser(userId: string): Promise<User> {
+    const user = await this.findOneAdmin(userId);
+    user.isSuspended = true;
+    user.suspendedAt = new Date();
+    user.updatedAt = new Date();
+    await this.userRepository.save(user);
+
+    // Revoke all sessions
+    await this.sessionService.revokeAllUserSessions(userId);
+
+    return user;
+  }
+
+  async restoreUser(userId: string): Promise<User> {
+    const user = await this.findOneAdmin(userId);
+    user.isSuspended = false;
+    user.suspendedAt = null;
+    user.updatedAt = new Date();
+    await this.userRepository.save(user);
+
+    return user;
+  }
+
+  async adminSoftDelete(userId: string): Promise<void> {
+    const user = await this.findOneAdmin(userId);
+    if (user.deletedAt !== null) {
+      throw new ConflictException('Compte déjà supprimé');
+    }
+
+    const now = new Date();
+    user.deletedAt = now;
+    await this.userRepository.save(user);
+
+    // Publish to Neo4j Sync Queue and Anonymise queue
+    await this.neo4jSyncQueue.add('user.soft_delete', {
+      userId,
+      deletedAt: now,
+    });
+    await this.rgpdAnonymiseQueue.add('user.anonymise', { userId });
+
+    // Revoke all sessions
+    await this.sessionService.revokeAllUserSessions(userId);
+  }
+
+  async disableTotp(userId: string): Promise<void> {
+    const user = await this.findOneAdmin(userId);
+    user.totpSecret = null;
+    user.updatedAt = new Date();
+    await this.userRepository.save(user);
   }
 }

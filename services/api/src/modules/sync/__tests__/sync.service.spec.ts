@@ -17,7 +17,15 @@ import { ListingTransaction } from '../../listings/entities/listing-transaction.
 import { ChatGroup } from '../../messaging/entities/chat-group.entity';
 import { Poll } from '../../polls/entities/poll.entity';
 import { Vote } from '../../polls/entities/vote.entity';
-import { Neo4jService } from '../../../database/neo4j';
+
+import { ListingCategory } from '../../listings/entities/listing-category.entity';
+import { EvenementsCategory } from '../../events/entities/evenements-category.entity';
+import { PollOption } from '../../polls/entities/poll-option.entity';
+import { EventParticipant } from '../../events/entities/event-participant.entity';
+import { UsersInGroup } from '../../messaging/entities/users-in-group.entity';
+
+import { Follow } from '../../social/entities/follow.entity';
+import { Friendship } from '../../social/entities/friendship.entity';
 
 describe('SyncService', () => {
   let service: SyncService;
@@ -40,7 +48,6 @@ describe('SyncService', () => {
       providers: [
         SyncService,
         { provide: REDIS_CLIENT, useValue: redisClient },
-        { provide: Neo4jService, useValue: {} },
         {
           provide: EntityPatchHandler,
           useValue: { handlePatch: jest.fn() },
@@ -58,6 +65,13 @@ describe('SyncService', () => {
         { provide: getRepositoryToken(ChatGroup), useFactory: mockRepository },
         { provide: getRepositoryToken(Poll), useFactory: mockRepository },
         { provide: getRepositoryToken(Vote), useFactory: mockRepository },
+        { provide: getRepositoryToken(ListingCategory), useFactory: mockRepository },
+        { provide: getRepositoryToken(EvenementsCategory), useFactory: mockRepository },
+        { provide: getRepositoryToken(PollOption), useFactory: mockRepository },
+        { provide: getRepositoryToken(EventParticipant), useFactory: mockRepository },
+        { provide: getRepositoryToken(UsersInGroup), useFactory: mockRepository },
+        { provide: getRepositoryToken(Follow), useFactory: mockRepository },
+        { provide: getRepositoryToken(Friendship), useFactory: mockRepository },
       ],
     }).compile();
 

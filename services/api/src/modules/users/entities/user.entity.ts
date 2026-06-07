@@ -89,6 +89,12 @@ export class User {
   @Column({ name: 'password_changed_at', type: 'timestamptz', nullable: true })
   passwordChangedAt: Date | null;
 
+  @Column({ name: 'is_suspended', type: 'boolean', default: false })
+  isSuspended: boolean;
+
+  @Column({ name: 'suspended_at', type: 'timestamptz', nullable: true })
+  suspendedAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

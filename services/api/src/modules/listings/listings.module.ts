@@ -35,6 +35,7 @@ import { ContractExpirationWorker } from './workers/contract-expiration.worker';
 
 import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { MediaModule } from '../media/media.module';
     ]),
     AuthModule,
     MediaModule,
+    AdminModule,
   ],
   controllers: [ListingsController],
   providers: [

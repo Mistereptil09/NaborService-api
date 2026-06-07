@@ -22,6 +22,7 @@ import { SyncModule } from './modules/sync/sync.module';
 import { GeoModule } from './modules/geo/geo.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { QueueModule } from './queue/queue.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { QueueModule } from './queue/queue.module';
     MongoSchemasModule,
     SyncModule,
     GeoModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

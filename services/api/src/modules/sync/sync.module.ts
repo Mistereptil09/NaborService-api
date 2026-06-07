@@ -19,6 +19,15 @@ import { Vote } from '../polls/entities/vote.entity';
 import { SyncConflict } from './entities/sync-conflict.entity';
 import { EntityPatchHandler } from './handlers/entity-patch.handler';
 
+import { ListingCategory } from '../listings/entities/listing-category.entity';
+import { EvenementsCategory } from '../events/entities/evenements-category.entity';
+import { PollOption } from '../polls/entities/poll-option.entity';
+import { EventParticipant } from '../events/entities/event-participant.entity';
+import { UsersInGroup } from '../messaging/entities/users-in-group.entity';
+
+import { Follow } from '../social/entities/follow.entity';
+import { Friendship } from '../social/entities/friendship.entity';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -35,6 +44,13 @@ import { EntityPatchHandler } from './handlers/entity-patch.handler';
       Poll,
       Vote,
       SyncConflict,
+      ListingCategory,
+      EvenementsCategory,
+      PollOption,
+      EventParticipant,
+      UsersInGroup,
+      Follow,
+      Friendship,
     ]),
   ],
   controllers: [SyncController],

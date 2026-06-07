@@ -8,6 +8,13 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Unreleased]
 
 ### Fixed
+- **Client de Test d'API (AuthPage.tsx)** :
+  - Prise en charge des tokens de challenge renvoyés en camelCase (`challengeToken`).
+  - Correction de la condition d'activation du bouton de configuration TOTP (vérification de la présence d'un vrai JWT `appState.jwt` plutôt qu'un token de challenge temporaire).
+  - Réinitialisation de l'état local du challenge lors de la génération ou régénération d'un QR code TOTP pour éviter la persistance de jetons expirés.
+- **Tests unitaires et d'intégration** :
+  - Correction d'un describe imbriqué de manière invalide dans `ban.service.spec.ts`.
+  - Adaptation de `sso.service.spec.ts` pour extraire la propriété `qr` de l'objet retourné par `generateQr`.
 - **Injection de dépendances — EventsModule** :
   - Résolution d'une `UnknownDependenciesException` au démarrage causée par `UserBlockRepository` manquant dans `EventsModule`. Ajout de l'entité `UserBlock` aux imports TypeORM du module et injection dans `EventsGateway`.
 - **Migration TOTP vers otplib v13** :
@@ -68,6 +75,12 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   - Création de tests de propriétés `fast-check` robustes dans `api-module-fixes.property.spec.ts` pour valider la robustesse de ces corrections, avec 541 tests passants à 100%.
 
 ### Added
+- **Module d'Administration (AdminModule) & Routes Admin** :
+  - Implémentation d'un module d'administration complet gérant la configuration de la plateforme, les statistiques métier et de conformité RGPD.
+  - `AdminConfigService` & `AdminConfigController` : gestion dynamique des paramètres de commission (`commissionPercent`) et d'expiration des contrats (`contractExpirationHours`) via la table `platform_config`.
+  - `AdminStatsService` & `AdminStatsController` : agrégation d'indicateurs de performance (utilisateurs actifs, croissance, annonces/événements, transactions financières et commissions cumulées).
+  - `AdminRgpdService` & `AdminRgpdController` : supervision des logs d'accès, anonymisation à la demande (`rgpdAnonymiseQueue`) et export de données.
+  - Enregistrement de routes d'administration dans `AdminController` : liste paginée des utilisateurs (`GET /admin/users`), consultation détaillée (`GET /admin/users/:user_id`), mise à jour des rôles synchronisée Neo4j (`PATCH /admin/users/:user_id/role`), suspension de compte avec révocation des sessions (`POST /admin/users/:user_id/suspend`), restauration (`POST /admin/users/:user_id/restore`), suppression logique avec RGPD anonymisation (`DELETE /admin/users/:user_id`), et désactivation TOTP (`DELETE /admin/users/:user_id/totp`).
 - **Module Events — implémentation complète** :
   - `EventsController` : 30+ endpoints REST couvrant CRUD événements, gestion des médias, billetterie, modération, signalements, swipes, liste d'attente, et paiement Stripe.
   - `EventsService` : orchestration principale avec pagination, filtrage géospatial, et synchronisation Neo4j.
@@ -155,6 +168,14 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Fichier `.dockerignore` dans `services/api` pour optimiser le build Docker en ignorant `node_modules` et `dist`.
 
 ### Changed
+- **Gestion des utilisateurs suspendus** :
+  - Interdiction de connexion et invalidation immédiate de jeton JWT pour les comptes suspendus (`isSuspended`) dans `AuthService.login` et `JwtStrategy.validate` (`UnauthorizedException('Compte suspendu')`).
+- **Refonte de la Synchronisation Hors Ligne (SyncService / SyncModule)** :
+  - Remplacement de la récupération Neo4j de `neighbourhoods` dans le snapshot delta par la synchronisation native TypeORM de 7 entités : `listing_categories`, `event_categories`, `poll_options`, `event_participants`, `users_in_group`, `follows`, et `friendships`.
+  - Tri chronologique dynamique adapté aux colonnes temporelles spécifiques (`registeredAt`, `joinedAt`, `votedAt`, `followedAt`, `friendedAt` en plus de `updatedAt` / `createdAt`).
+  - Suppression de la dépendance à `Neo4jService` dans le module de synchronisation.
+- **SSO QR Code Validation** :
+  - Correction de l'URI de validation SSO du QR Code pour utiliser `/auth/sso/qr/validate` au lieu de `/auth/sso/validate`.
 - **`RateLimitService`** : ajout de `incrementLoginAttemptByUserId` — verrou par compte (10 tentatives / 15 min) déclenché dans `AuthService.login` après identification de l'utilisateur, indépendamment du rate limit IP du `RateLimitGuard`.
 - **`AuthController`** : ajout des routes `POST /auth/password/forgot`, `POST /auth/password/reset`, et `GET /auth/sso/qr` ; délégation aux nouveaux `SsoService` et `UserSecurityService`.
 - **`neo4j-sync.worker.ts`** : amélioration de la gestion d'erreurs avec distinction des erreurs transitoires/permanentes et logging structuré via `QueueFailureListener`.

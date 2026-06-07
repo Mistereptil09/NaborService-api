@@ -15,6 +15,7 @@ import { ListingsService } from './listings.service';
 import { ListingTransactionService } from './listing-transaction.service';
 import { ListingsGateway } from './listings.gateway';
 import { ListingStatusEnum, TransactionStatusEnum } from '../../common/enums';
+import { AdminConfigService } from '../admin/admin-config.service';
 
 @Injectable()
 export class ListingStateMachineService {
@@ -37,6 +38,7 @@ export class ListingStateMachineService {
     private readonly contractExpirationQueue: {
       add: (name: string, data: any, options?: any) => Promise<any>;
     },
+    private readonly configService: AdminConfigService,
   ) {}
 
   async expressInterest(
@@ -63,13 +65,26 @@ export class ListingStateMachineService {
       );
     }
 
+    // Fetch config for commission percentage
+    let commissionPercent = 5;
+    try {
+      const config = await this.configService.getConfig();
+      commissionPercent = config.commissionPercent;
+    } catch (e) {
+      // Fallback
+    }
+
+    const commissionCents = Math.round(
+      (listing.priceCents * commissionPercent) / 100,
+    );
+
     // Create transaction
     const transaction = await this.transactionService.create(
       listingId,
       listing.creatorId,
       requesterId,
       listing.priceCents,
-      0, // commission cents can be 0 or calculated
+      commissionCents,
     );
 
     // Update listing status
@@ -142,11 +157,20 @@ export class ListingStateMachineService {
       transactionId: transaction.id,
     });
 
-    // Enqueue delayed expiration job (24h)
+    // Fetch config for contract expiration delay
+    let contractExpirationHours = 24;
+    try {
+      const config = await this.configService.getConfig();
+      contractExpirationHours = config.contractExpirationHours;
+    } catch (e) {
+      // Fallback
+    }
+
+    // Enqueue delayed expiration job (24h default)
     await this.contractExpirationQueue.add(
       'expire-unsigned-contract',
       { transactionId: transaction.id },
-      { delay: 24 * 60 * 60 * 1000 },
+      { delay: contractExpirationHours * 60 * 60 * 1000 },
     );
 
     // Neo4j Sync

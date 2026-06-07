@@ -50,7 +50,7 @@ export class SsoService {
    * The QR encodes a full scan URL so any phone camera can open it directly.
    * The scanUrl is also returned so the desktop client can display a "copy link" fallback.
    */
-  async generateQr(ip: string, baseUrl: string): Promise<GenerateQrResult> {
+  async generateQr(ip: string): Promise<GenerateQrResult> {
     const rateLimitKey = `rate:sso:generate:${ip}`;
     const rateCount = await this.redis.incr(rateLimitKey);
     if (rateCount === 1) {
@@ -97,8 +97,10 @@ export class SsoService {
     await this.redis.sadd(activeKeysSetKey, ssoKey);
     await this.redis.expire(activeKeysSetKey, 130);
 
+    const qrcodeurl = process.env.qrcodeurl ?? process.env.APP_BASE_URL ?? 'http://localhost:3000/v1';
+
     // Encode the full scan URL so any phone camera opens the web client directly
-    const scanUrl = `${baseUrl}/auth/sso/validate?token=${tokenUuid}`;
+    const scanUrl = `${qrcodeurl}/auth/sso/qr/validate?token=${tokenUuid}`;
     const qr = await qrcode.toDataURL(scanUrl);
 
     return { qr, scanUrl };

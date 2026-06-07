@@ -66,9 +66,6 @@ export class SnapshotResponseDto {
   users_raw?: any[];
 
   @ApiPropertyOptional()
-  neighbourhoods?: any[];
-
-  @ApiPropertyOptional()
   listings?: any[];
 
   @ApiPropertyOptional()
@@ -85,4 +82,25 @@ export class SnapshotResponseDto {
 
   @ApiPropertyOptional()
   listing_transactions?: any[];
+
+  @ApiPropertyOptional()
+  listing_categories?: any[];
+
+  @ApiPropertyOptional()
+  event_categories?: any[];
+
+  @ApiPropertyOptional()
+  poll_options?: any[];
+
+  @ApiPropertyOptional()
+  event_participants?: any[];
+
+  @ApiPropertyOptional()
+  users_in_group?: any[];
+
+  @ApiPropertyOptional()
+  follows?: any[];
+
+  @ApiPropertyOptional()
+  friendships?: any[];
 }

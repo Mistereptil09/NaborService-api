@@ -34,6 +34,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Compte supprimé');
     }
 
+    if (user.isSuspended) {
+      throw new UnauthorizedException('Compte suspendu');
+    }
+
     if (user.passwordChangedAt) {
       const iatDate = new Date(payload.iat * 1000);
       // If password was changed after token issuance, invalidate the token.

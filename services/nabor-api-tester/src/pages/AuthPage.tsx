@@ -114,7 +114,7 @@ export function AuthPage() {
     }
 
     const nextChallenge = (data.challenge ?? null) as LoginChallenge
-    const nextChallengeToken = data.challenge_token ?? ''
+    const nextChallengeToken = data.challenge_token ?? data.challengeToken ?? ''
     const nextTotpUri = data.otpauthUrl ?? data.otpauth_url ?? data.uri ?? ''
 
     if (nextChallenge === 'totp_setup_required') {
@@ -142,6 +142,14 @@ export function AuthPage() {
   // ─── TOTP Setup ───────────────────────────────────────────────────────────
 
   async function handleTotpSetup() {
+    // FIX #1: Clear stale challenge/challengeToken before calling the endpoint.
+    // Without this, if the user previously received a totp_setup_required challenge
+    // from login and then clicks "Regenerate QR", the old challenge state persists.
+    // handleTotpConfirm would then route to /auth/totp/confirm-setup with an expired
+    // challenge_token instead of using the JWT-based /auth/totp/confirm.
+    setChallenge(null)
+    setChallengeToken('')
+
     setSetupLoading(true)
     const res = await api.post('/auth/totp/setup', {})
     setSetupLoading(false)
@@ -308,7 +316,12 @@ export function AuthPage() {
           <button
             className="btn btn-primary"
             onClick={handleTotpSetup}
-            disabled={setupLoading || (!appState.jwt && !challengeToken)}
+            // FIX #2 & #3: only enable when a real JWT exists.
+            // The old condition (!appState.jwt && !challengeToken) allowed this button
+            // when only a challenge_token was present, but POST /auth/totp/setup is
+            // protected by @UseGuards(JwtAuthGuard) and requires a real Bearer JWT.
+            // A challenge_token is not a JWT and will always get a 401.
+            disabled={setupLoading || !appState.jwt}
           >
             {setupLoading ? <Spinner /> : <ShieldIcon />}
             {totpUri ? 'Regenerate QR' : 'Setup TOTP'}

@@ -129,6 +129,10 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants invalides');
     }
 
+    if (user.isSuspended) {
+      throw new UnauthorizedException('Compte suspendu');
+    }
+
     // Branching login flow depending on whether TOTP is enabled
     if (user.totpSecret) {
       // Check if user is blocked due to excessive TOTP failures

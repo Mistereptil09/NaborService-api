@@ -484,8 +484,7 @@ export class AuthController {
   @ApiBadRequestResponse({ description: 'Trop de requêtes' })
   async generateSsoQr(@Req() req: Express.Request) {
     const ip = req.ip || this.getIpAddress(req);
-    const baseUrl = process.env.APP_BASE_URL ?? 'http://localhost:3000/v1';
-    const { qr, scanUrl } = await this.ssoService.generateQr(ip, baseUrl);
+    const { qr, scanUrl } = await this.ssoService.generateQr(ip);
     return { qr_code: qr, scan_url: scanUrl };
   }
 
