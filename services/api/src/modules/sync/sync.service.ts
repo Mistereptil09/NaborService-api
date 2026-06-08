@@ -174,9 +174,12 @@ export class SyncService {
       }
 
       let timeColumn = '';
-      if (repo.metadata.findColumnWithPropertyName('updatedAt')) {
+      const hasUpdatedAt = repo.metadata.findColumnWithPropertyName('updatedAt');
+      const hasCreatedAt = repo.metadata.findColumnWithPropertyName('createdAt');
+
+      if (hasUpdatedAt) {
         timeColumn = 'updatedAt';
-      } else if (repo.metadata.findColumnWithPropertyName('createdAt')) {
+      } else if (hasCreatedAt) {
         timeColumn = 'createdAt';
       } else if (repo.metadata.findColumnWithPropertyName('registeredAt')) {
         timeColumn = 'registeredAt';
@@ -190,18 +193,21 @@ export class SyncService {
         timeColumn = 'friendedAt';
       }
 
-      // Build WHERE clause — include soft-deleted rows whose deletedAt > since
+      // Build WHERE clause
+      // When updatedAt is the primary time column, also OR with createdAt
+      // because newly created entities have updatedAt = NULL (not @UpdateDateColumn).
+      const orCreatedAt = timeColumn === 'updatedAt' && hasCreatedAt;
+      const timeCondition = orCreatedAt
+        ? `(entity.${timeColumn} > :since OR entity.createdAt > :since)`
+        : `entity.${timeColumn} > :since`;
+
       if (timeColumn && hasDeletedAt) {
-        // Entity has both a time column AND soft-delete support
-        qb.where(`entity.${timeColumn} > :since OR entity.deletedAt > :since`, {
+        qb.where(`${timeCondition} OR entity.deletedAt > :since`, {
           since: effectiveSince,
         });
       } else if (timeColumn) {
-        // Entity has a time column but no soft-delete
-        qb.where(`entity.${timeColumn} > :since`, { since: effectiveSince });
+        qb.where(timeCondition, { since: effectiveSince });
       } else if (hasDeletedAt) {
-        // Entity has soft-delete but no conventional time column
-        // (e.g. an entity that only tracks creation via deletedAt)
         qb.where('entity.deletedAt > :since', { since: effectiveSince });
       }
       // If neither a time column nor deletedAt exists, return all rows
@@ -219,25 +225,59 @@ export class SyncService {
       return results;
     };
 
-    response.incidents = await fetchDelta(this.incidentRepository);
-    response.listing_moderation_actions = await fetchDelta(this.lmaRepository);
-    response.event_moderation_actions = await fetchDelta(this.emaRepository);
-    response.listing_reports = await fetchDelta(this.lReportRepository);
-    response.event_reports = await fetchDelta(this.eReportRepository);
-    response.users_raw = await fetchDelta(this.userRepository);
-    response.listings = await fetchDelta(this.listingRepository);
-    response.events = await fetchDelta(this.eventRepository);
-    response.chat_groups = await fetchDelta(this.chatGroupRepository);
-    response.votes = await fetchDelta(this.voteRepository);
-    response.polls = await fetchDelta(this.pollRepository);
-    response.listing_transactions = await fetchDelta(this.ltRepository);
-    response.listing_categories = await fetchDelta(this.listingCategoryRepository);
-    response.event_categories = await fetchDelta(this.eventCategoryRepository);
-    response.poll_options = await fetchDelta(this.pollOptionRepository);
-    response.event_participants = await fetchDelta(this.eventParticipantRepository);
-    response.users_in_group = await fetchDelta(this.usersInGroupRepository);
-    response.follows = await fetchDelta(this.followRepository);
-    response.friendships = await fetchDelta(this.friendshipRepository);
+    // Sensitive fields stripped from snapshot reads (never sent to client)
+    const SENSITIVE_FIELDS: Record<string, string[]> = {
+      users_raw: [
+        'passwordHash',
+        'totpSecret',
+        'stripeAccountId',
+        'passwordChangedAt',
+        'lastLoginAt',
+        'isSuspended',
+        'suspendedAt',
+      ],
+      listing_transactions: [
+        'stripeSessionId',
+        'stripePaymentIntent',
+        'paymentFailedReason',
+      ],
+      event_participants: [
+        'stripeSessionId',
+        'stripePaymentIntent',
+        'refundStripeId',
+      ],
+    };
+
+    // Helper: strip undefined relations, sensitive fields, and convert to plain POJOs
+    const clean = (arr: any[], key?: string) => {
+      const stripped = SENSITIVE_FIELDS[key ?? ''] ?? [];
+      return JSON.parse(
+        JSON.stringify(arr, (k, v) => {
+          if (stripped.includes(k)) return undefined;
+          return v;
+        }),
+      );
+    };
+
+    response.incidents = clean(await fetchDelta(this.incidentRepository));
+    response.listing_moderation_actions = clean(await fetchDelta(this.lmaRepository));
+    response.event_moderation_actions = clean(await fetchDelta(this.emaRepository));
+    response.listing_reports = clean(await fetchDelta(this.lReportRepository));
+    response.event_reports = clean(await fetchDelta(this.eReportRepository));
+    response.users_raw = clean(await fetchDelta(this.userRepository), 'users_raw');
+    response.listings = clean(await fetchDelta(this.listingRepository));
+    response.events = clean(await fetchDelta(this.eventRepository));
+    response.chat_groups = clean(await fetchDelta(this.chatGroupRepository));
+    response.votes = clean(await fetchDelta(this.voteRepository));
+    response.polls = clean(await fetchDelta(this.pollRepository));
+    response.listing_transactions = clean(await fetchDelta(this.ltRepository), 'listing_transactions');
+    response.listing_categories = clean(await fetchDelta(this.listingCategoryRepository));
+    response.event_categories = clean(await fetchDelta(this.eventCategoryRepository));
+    response.poll_options = clean(await fetchDelta(this.pollOptionRepository));
+    response.event_participants = clean(await fetchDelta(this.eventParticipantRepository), 'event_participants');
+    response.users_in_group = clean(await fetchDelta(this.usersInGroupRepository));
+    response.follows = clean(await fetchDelta(this.followRepository));
+    response.friendships = clean(await fetchDelta(this.friendshipRepository));
 
     // Set sync_at at the END so it reflects the actual point-in-time
     // after all queries complete — prevents missed updates in the next delta.

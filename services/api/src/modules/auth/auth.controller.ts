@@ -239,7 +239,11 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @RateLimit('refresh', 10, 60) // 10 requests per 1 min per user_id
-  @ApiOperation({ summary: 'Renouveler le token access_token' })
+  @ApiOperation({
+    summary: 'Renouveler le token access_token',
+    description:
+      'Envoie le refresh_token via cookie (navigateur) OU header Authorization: Bearer <refresh_token> (client lourd Java). Retourne toujours les deux tokens dans le corps JSON.',
+  })
   @ApiOkResponse({ description: 'Tokens rafraîchis avec succès' })
   @ApiUnauthorizedResponse({
     description: 'Non authentifié, session expirée ou révoquée',
@@ -248,7 +252,15 @@ export class AuthController {
     @Req() req: Express.Request,
     @Res({ passthrough: true }) res: Express.Response,
   ) {
-    const token = req.cookies?.['refresh_token'];
+    // Extract refresh token from cookie (browser) OR Authorization header (Java desktop)
+    let token = req.cookies?.['refresh_token'];
+    const viaHeader = !token;
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader?.startsWith('Bearer ')) {
+        token = authHeader.slice(7);
+      }
+    }
     if (!token) {
       throw new UnauthorizedException('Non authentifié');
     }
@@ -305,16 +317,21 @@ export class AuthController {
     // Update session in PostgreSQL
     await this.sessionService.updateLastUsed(session.id, newHash);
 
-    // Set new cookie
-    res.cookie('refresh_token', newRefreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      path: '/v1/auth/refresh',
-      maxAge: 2592000 * 1000,
-    });
+    // Set cookie for browser-based clients
+    if (!viaHeader) {
+      res.cookie('refresh_token', newRefreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        path: '/v1/auth/refresh',
+        maxAge: 2592000 * 1000,
+      });
+    }
 
-    return { access_token: newAccessToken };
+    return {
+      access_token: newAccessToken,
+      refresh_token: newRefreshToken,
+    };
   }
 
   @Post('logout')
