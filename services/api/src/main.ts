@@ -7,16 +7,20 @@ import { RedisIoAdapter } from './queue/adapters/redis-io.adapter';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {});
 
-  const configService = app.get(ConfigService)
+  const httpServer = app.getHttpServer();
+  httpServer.keepAliveTimeout = 130 * 1000; // 130 s (QR TTL = 120 s + margin)
+  httpServer.headersTimeout = 131 * 1000; // slightly above keepAliveTimeout
+
+  const configService = app.get(ConfigService);
 
   app.enableCors({
     origin: configService.get<string>('CORS_ORIGIN') ?? 'http://localhost:5173',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
-  })
+  });
 
   app.setGlobalPrefix('v1');
   app.useGlobalPipes(

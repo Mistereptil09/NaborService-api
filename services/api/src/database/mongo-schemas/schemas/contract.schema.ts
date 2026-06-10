@@ -6,6 +6,9 @@ export type ContractDocument = HydratedDocument<Contract>;
 @Schema({ _id: false, timestamps: false })
 export class Pdf {
   @Prop({ required: true })
+  gridfs_file_id: string;
+
+  @Prop({ required: true })
   mimetype: string;
 
   @Prop({ required: true })

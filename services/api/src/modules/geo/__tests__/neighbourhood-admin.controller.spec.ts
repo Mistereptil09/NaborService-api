@@ -16,7 +16,9 @@ describe('NeighbourhoodAdminController', () => {
           provide: Neo4jGeoService,
           useValue: {
             createNeighbourhood: jest.fn(),
-            updateNeighbourhoodPolygon: jest.fn(),
+            updateNeighbourhood: jest.fn(),
+            deleteNeighbourhood: jest.fn(),
+            checkOverlap: jest.fn(),
           },
         },
         {
@@ -34,48 +36,77 @@ describe('NeighbourhoodAdminController', () => {
     neo4jGeoService = module.get<Neo4jGeoService>(Neo4jGeoService);
   });
 
-  it('should call createNeighbourhood', async () => {
-    const polygon = { type: 'Polygon', coordinates: [] } as any;
-    const metadata = {
+  it('should call createNeighbourhood with CDC-conformant DTO', async () => {
+    const dto = {
       pg_id: 'nb1',
       name: 'Test',
       city: 'Paris',
       zip_code: '75001',
       country: 'FR',
+      geometry: { type: 'Polygon', coordinates: [] } as any,
     };
 
     (neo4jGeoService.createNeighbourhood as jest.Mock).mockResolvedValue({
       id: 'nb1',
     });
 
-    const result = await controller.createNeighbourhood({ polygon, metadata });
+    const result = await controller.createNeighbourhood(dto);
     expect(result).toEqual({ id: 'nb1' });
     expect(neo4jGeoService.createNeighbourhood).toHaveBeenCalledWith(
-      polygon,
-      metadata,
+      dto.geometry,
+      {
+        pg_id: 'nb1',
+        name: 'Test',
+        city: 'Paris',
+        zip_code: '75001',
+        country: 'FR',
+      },
     );
   });
 
-  it('should call updateNeighbourhoodPolygon', async () => {
-    const polygon = { type: 'Polygon', coordinates: [] } as any;
+  it('should call updateNeighbourhood', async () => {
+    const dto = {
+      name: 'Updated Name',
+      city: 'Lyon',
+    };
 
-    (neo4jGeoService.updateNeighbourhoodPolygon as jest.Mock).mockResolvedValue(
-      { id: 'nb1' },
-    );
-
-    const result = await controller.updateNeighbourhoodPolygon('nb1', {
-      polygon,
+    (neo4jGeoService.updateNeighbourhood as jest.Mock).mockResolvedValue({
+      pg_id: 'nb1',
+      centroid: { latitude: 0, longitude: 0 },
+      area_m2: 1000,
+      adjacent_pg_ids: [],
     });
-    expect(result).toEqual({ id: 'nb1' });
-    expect(neo4jGeoService.updateNeighbourhoodPolygon).toHaveBeenCalledWith(
+
+    const result = await controller.updateNeighbourhood('nb1', dto);
+    expect(result.pg_id).toEqual('nb1');
+    expect(neo4jGeoService.updateNeighbourhood).toHaveBeenCalledWith(
       'nb1',
-      polygon,
+      dto,
     );
   });
 
-  it('should throw BadRequest if data is missing on create', async () => {
-    await expect(controller.createNeighbourhood({} as any)).rejects.toThrow(
-      BadRequestException,
+  it('should call deleteNeighbourhood', async () => {
+    (neo4jGeoService.deleteNeighbourhood as jest.Mock).mockResolvedValue(
+      undefined,
     );
+
+    const result = await controller.deleteNeighbourhood('nb1');
+    expect(result).toEqual({ success: true });
+    expect(neo4jGeoService.deleteNeighbourhood).toHaveBeenCalledWith('nb1');
+  });
+
+  it('should call overlapCheck', async () => {
+    const dto = {
+      geometry: { type: 'Polygon', coordinates: [] } as any,
+    };
+
+    (neo4jGeoService.checkOverlap as jest.Mock).mockResolvedValue({
+      overlapping: ['nb2'],
+      adjacent: ['nb3'],
+    });
+
+    const result = await controller.overlapCheck(dto);
+    expect(result).toEqual({ overlapping: ['nb2'], adjacent: ['nb3'] });
+    expect(neo4jGeoService.checkOverlap).toHaveBeenCalledWith(dto.geometry);
   });
 });

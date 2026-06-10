@@ -7,10 +7,12 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryColumn,
 } from 'typeorm';
 import { PollTypeEnum } from '../../../common/enums';
 import { User } from '../../users/entities/user.entity';
+import { PollOption } from './poll-option.entity';
 
 @Entity('polls')
 @Check('chk_poll_dates', '"ends_at" IS NULL OR "ends_at" > "starts_at"')
@@ -77,4 +79,7 @@ export class Poll {
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'closed_by' })
   closedByUser: User | null;
+
+  @OneToMany(() => PollOption, (opt) => opt.poll)
+  options: PollOption[];
 }

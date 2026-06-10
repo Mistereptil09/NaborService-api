@@ -23,6 +23,8 @@ import { GeoModule } from './modules/geo/geo.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { QueueModule } from './queue/queue.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { HealthModule } from './modules/health/health.module';
+import { I18nModule } from './modules/i18n/i18n.module';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { AdminModule } from './modules/admin/admin.module';
     SyncModule,
     GeoModule,
     AdminModule,
+    HealthModule,
+    I18nModule,
   ],
   controllers: [AppController],
   providers: [AppService],

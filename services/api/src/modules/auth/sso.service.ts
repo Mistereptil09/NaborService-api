@@ -3,6 +3,7 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -34,6 +35,8 @@ interface GenerateQrResult {
 
 @Injectable()
 export class SsoService {
+  private readonly logger = new Logger(SsoService.name);
+
   constructor(
     @Inject(REDIS_CLIENT)
     private readonly redis: Redis,
@@ -51,59 +54,76 @@ export class SsoService {
    * The scanUrl is also returned so the desktop client can display a "copy link" fallback.
    */
   async generateQr(ip: string): Promise<GenerateQrResult> {
-    const rateLimitKey = `rate:sso:generate:${ip}`;
-    const rateCount = await this.redis.incr(rateLimitKey);
-    if (rateCount === 1) {
-      await this.redis.expire(rateLimitKey, 60);
-    }
-    if (rateCount > 5) {
-      throw new HttpException(
-        'Too many SSO requests from this IP',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
-    const activeKeysSetKey = `sso:ip_keys:${ip}`;
-    const activeKeys = await this.redis.smembers(activeKeysSetKey);
-    let validCount = 0;
-    for (const key of activeKeys) {
-      const exists = await this.redis.exists(key);
-      if (exists) {
-        validCount++;
-      } else {
-        await this.redis.srem(activeKeysSetKey, key);
+    try {
+      const rateLimitKey = `rate:sso:generate:${ip}`;
+      const rateCount = await this.redis.incr(rateLimitKey);
+      if (rateCount === 1) {
+        await this.redis.expire(rateLimitKey, 60);
       }
-    }
+      if (rateCount > 5) {
+        throw new HttpException(
+          'Too many SSO requests from this IP',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
 
-    if (validCount >= 3) {
+      const activeKeysSetKey = `sso:ip_keys:${ip}`;
+      const activeKeys = await this.redis.smembers(activeKeysSetKey);
+      let validCount = 0;
+      for (const key of activeKeys) {
+        const exists = await this.redis.exists(key);
+        if (exists) {
+          validCount++;
+        } else {
+          await this.redis.srem(activeKeysSetKey, key);
+        }
+      }
+
+      if (validCount >= 3) {
+        throw new HttpException(
+          'Too many active SSO sessions for this IP',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+
+      const tokenUuid = crypto.randomUUID();
+      const ssoKey = `sso:qr:${tokenUuid}`;
+
+      const payload: SsoSessionPayload = {
+        status: 'pending',
+        user_id: null,
+        ip_address: ip,
+        created_at: new Date().toISOString(),
+      };
+
+      await this.redis.set(ssoKey, JSON.stringify(payload), 'EX', 120);
+
+      await this.redis.sadd(activeKeysSetKey, ssoKey);
+      await this.redis.expire(activeKeysSetKey, 130);
+
+      const qrcodeurl =
+        process.env.qrcodeurl ??
+        process.env.APP_BASE_URL ??
+        'http://localhost:3000/v1';
+
+      // Encode the full scan URL so any phone camera opens the web client directly
+      const scanUrl = `${qrcodeurl}/auth/sso/qr/validate?token=${tokenUuid}`;
+      const qr = await qrcode.toDataURL(scanUrl);
+
+      return { qr, scanUrl };
+    } catch (error: any) {
+      // Re-throw NestJS HttpExceptions so they reach the client as proper
+      // structured errors (429, 409, etc.). Wrap unexpected Redis/network
+      // failures as 503 so the Java client can retry gracefully.
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(`SSO QR generation failed: ${error.message}`);
       throw new HttpException(
-        'Too many active SSO sessions for this IP',
-        HttpStatus.TOO_MANY_REQUESTS,
+        'SSO service temporarily unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
-
-    const tokenUuid = crypto.randomUUID();
-    const ssoKey = `sso:qr:${tokenUuid}`;
-
-    const payload: SsoSessionPayload = {
-      status: 'pending',
-      user_id: null,
-      ip_address: ip,
-      created_at: new Date().toISOString(),
-    };
-
-    await this.redis.set(ssoKey, JSON.stringify(payload), 'EX', 120);
-
-    await this.redis.sadd(activeKeysSetKey, ssoKey);
-    await this.redis.expire(activeKeysSetKey, 130);
-
-    const qrcodeurl = process.env.qrcodeurl ?? process.env.APP_BASE_URL ?? 'http://localhost:3000/v1';
-
-    // Encode the full scan URL so any phone camera opens the web client directly
-    const scanUrl = `${qrcodeurl}/auth/sso/qr/validate?token=${tokenUuid}`;
-    const qr = await qrcode.toDataURL(scanUrl);
-
-    return { qr, scanUrl };
   }
 
 
@@ -173,6 +193,11 @@ export class SsoService {
   /**
    * Checks the status of an SSO session. Used by the Java Desktop client.
    * Tokens are consumed on first retrieval (one-time claim).
+   *
+   * This endpoint is polled every 2 seconds by the Java client during the
+   * QR display phase. It MUST always return a valid JSON response and MUST
+   * NEVER throw, otherwise the Java HttpClient connection pool gets corrupted
+   * and the desktop client enters a network-error flood loop.
    */
   async checkStatus(tokenUuid: string): Promise<{
     status: string;
@@ -180,22 +205,36 @@ export class SsoService {
     refresh_token?: string;
   }> {
     const ssoKey = `sso:qr:${tokenUuid}`;
-    const data = await this.redis.get(ssoKey);
 
-    if (!data) {
-      return { status: 'expired' };
+    try {
+      const data = await this.redis.get(ssoKey);
+
+      if (!data) {
+        return { status: 'expired' };
+      }
+
+      const payload = JSON.parse(data) as SsoSessionPayload;
+      if (payload.status === 'validated') {
+        // One-time claim: consume tokens so they can't be replayed
+        await this.redis.del(ssoKey).catch(() => {
+          // Best-effort deletion — key may already be expired
+        });
+        return {
+          status: 'validated',
+          access_token: payload.access_token,
+          refresh_token: payload.refresh_token,
+        };
+      }
+
+      return { status: 'pending' };
+    } catch (error: any) {
+      // Redis or parsing failure — degrade gracefully.
+      // The Java client will continue polling; a transient Redis blip
+      // should not break the SSO flow.
+      this.logger.error(
+        `SSO status check failed for token ${tokenUuid}: ${error.message}`,
+      );
+      return { status: 'pending' };
     }
-
-    const payload = JSON.parse(data) as SsoSessionPayload;
-    if (payload.status === 'validated') {
-      await this.redis.del(ssoKey);
-      return {
-        status: 'validated',
-        access_token: payload.access_token,
-        refresh_token: payload.refresh_token,
-      };
-    }
-
-    return { status: 'pending' };
   }
 }

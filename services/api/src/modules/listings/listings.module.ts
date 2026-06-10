@@ -18,6 +18,10 @@ import {
   Contract,
   ContractSchema,
 } from '../../database/mongo-schemas/schemas/contract.schema';
+import {
+  MediaFile,
+  MediaFileSchema,
+} from '../media/schemas/media-file.schema';
 
 import { ListingsService } from './listings.service';
 import { ListingContentService } from './listing-content.service';
@@ -52,6 +56,7 @@ import { AdminModule } from '../admin/admin.module';
     MongooseModule.forFeature([
       { name: ListingDocument.name, schema: ListingDocumentSchema },
       { name: Contract.name, schema: ContractSchema },
+      { name: MediaFile.name, schema: MediaFileSchema },
     ]),
     AuthModule,
     MediaModule,

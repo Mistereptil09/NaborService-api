@@ -15,6 +15,8 @@ import { User } from '../../users/entities/user.entity';
 
 @Entity('incidents')
 @Index('idx_incidents_feed', ['neighbourhoodId', 'status'])
+@Index('idx_incidents_severity', ['severity'])
+@Index('idx_incidents_assigned', ['assignedTo'])
 export class Incident {
   @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   id: string;
