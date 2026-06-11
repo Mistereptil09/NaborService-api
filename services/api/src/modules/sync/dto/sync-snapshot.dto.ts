@@ -3,14 +3,16 @@ import { Transform } from 'class-transformer';
 import { IsDate, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class GetSnapshotQueryDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     description:
-      'Timestamp ISO de la dernière synchronisation (moins 30 secondes pour overlap)',
+      'Timestamp ISO de la dernière synchronisation (moins 30 secondes pour overlap). ' +
+      'Requis au premier appel (sans curseur). Ignoré si `cursor` est fourni.',
     example: '2023-10-01T12:00:00Z',
   })
+  @IsOptional()
   @IsDate()
-  @Transform(({ value }) => new Date(value))
-  since: Date;
+  @Transform(({ value }) => value ? new Date(value) : undefined)
+  since?: Date;
 
   @ApiPropertyOptional({
     description: "Nombre maximal d'entités à retourner",
@@ -26,7 +28,11 @@ export class GetSnapshotQueryDto {
 
   @ApiPropertyOptional({
     description:
-      'Curseur pour la pagination (si has_more = true dans la page précédente)',
+      'Curseur composite pour la pagination. Format : base64(ISO_TIMESTAMP + "|" + entityType + "|" + entityId). ' +
+      'Le curseur encode la position exacte (timestamp, type d\'entité, ID) de la dernière entité incluse dans la page précédente. ' +
+      'Le serveur utilise un WHERE composite — (timeCol = cursorDate AND id > cursorId) OR (timeCol > cursorDate) — ' +
+      'pour le type d\'entité du curseur, évitant toute perte de données même lorsque plusieurs entités partagent le même timestamp.',
+    example: 'MjAyNi0wNi0wOVQxNTozMDowMC4wMDBafGluY2lkZW50fDAxOTU3Y2E2LWUyOWItN2Q0MS1hNzE2LTQ0NjY1NTQ0MDAwMA==',
   })
   @IsOptional()
   @IsString()
@@ -42,10 +48,14 @@ export class SnapshotResponseDto {
   @ApiProperty({ description: "Indique s'il reste des entités à synchroniser" })
   has_more: boolean;
 
-  @ApiPropertyOptional({
-    description: 'Curseur pour récupérer la page suivante',
+  @ApiProperty({
+    description:
+      'Curseur composite encodant la position de la dernière entité incluse dans cette page ' +
+      '(ou sync_at si le delta est vide). Toujours présent — le client le stocke comme point ' +
+      'de reprise inconditionnel, sans avoir à brancher sur has_more.',
+    example: 'MjAyNi0wNi0wOVQxNTozMDowMC4wMDBafGluY2lkZW50fDAxOTU3Y2E2LWUyOWItN2Q0MS1hNzE2LTQ0NjY1NTQ0MDAwMA==',
   })
-  cursor?: string;
+  cursor: string;
 
   @ApiPropertyOptional()
   incidents?: any[];
@@ -103,4 +113,10 @@ export class SnapshotResponseDto {
 
   @ApiPropertyOptional()
   friendships?: any[];
+
+  @ApiPropertyOptional({
+    description: 'Map of neighbourhood pg_id → name for UX display on Java client',
+    example: { 'nb-downtown': 'Downtown Paris', 'nb-marais': 'Marais District' },
+  })
+  neighbourhoods?: Record<string, string>;
 }

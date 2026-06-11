@@ -21,6 +21,15 @@ export const postgresConfig: TypeOrmModuleAsyncOptions = {
       database,
       autoLoadEntities: true,
       synchronize: config.get<string>('NODE_ENV') !== 'production',
+      // TypeORM-level pool: max concurrent connections across all queries.
+      // Default is 10 — increase to avoid connection reuse under load.
+      poolSize: 20,
+      extra: {
+        // pg Pool options passed through to the underlying driver.
+        // idleTimeoutMillis cleans up stale connections after 30s idle.
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000,
+      },
     };
   },
   dataSourceFactory: async (options) => {

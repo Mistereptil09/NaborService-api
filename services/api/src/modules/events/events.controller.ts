@@ -43,12 +43,12 @@ import {
   ListEventsDto,
   CreateEventDto,
   UpdateEventDto,
-  UpdateContentDto,
+  EventUpdateContentDto,
   CancelDto,
   ReportDto,
   ModerateDto,
   ScanTicketDto,
-  SwipeDto,
+  EventSwipeDto,
 } from './dto/event-routes.dtos';
 import { UserRoleEnum } from '../../common/enums';
 
@@ -165,7 +165,7 @@ export class EventsController {
   @ApiOperation({ summary: "Modifier le contenu enrichi HTML d'un évènement" })
   async updateContent(
     @Param('event_id') id: string,
-    @Body() dto: UpdateContentDto,
+    @Body() dto: EventUpdateContentDto,
     @Req() req: any,
   ) {
     return this.contentService.updateContent(req.user.id, id, dto);
@@ -288,7 +288,7 @@ export class EventsController {
   @ApiOperation({ summary: 'Liker ou disliker un évènement' })
   async swipeEvent(
     @Param('event_id') id: string,
-    @Body() dto: SwipeDto,
+    @Body() dto: EventSwipeDto,
     @Req() req: any,
   ) {
     await this.eventsService.swipe(req.user.id, id, dto.direction);

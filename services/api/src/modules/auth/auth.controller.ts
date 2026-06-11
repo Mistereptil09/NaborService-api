@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   NotFoundException,
   Param,
   Post,
@@ -49,6 +50,8 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 @Controller('auth')
 @UseGuards(RateLimitGuard)
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly tokenService: TokenService,
@@ -269,6 +272,13 @@ export class AuthController {
     const payload = await this.tokenService.lookupRefreshInRedis(hash);
     const session = await this.sessionService.findByTokenHash(hash);
 
+    const tokenPreview = token.slice(0, 8) + '...' + token.slice(-4);
+    this.logger.debug(
+      `[refresh] source=${viaHeader ? 'header' : 'cookie'} ` +
+      `token=${tokenPreview} sessionId=${session?.id ?? 'none'} ` +
+      `userId=${payload?.user_id ?? session?.userId ?? 'unknown'}`,
+    );
+
     // Fallback validation against DB if Redis miss
     if (!payload && session) {
       if (
@@ -327,6 +337,13 @@ export class AuthController {
         maxAge: 2592000 * 1000,
       });
     }
+
+    this.logger.debug(
+      `[refresh] issued userId=${user.id} sessionId=${session.id} ` +
+      `access=${newAccessToken.slice(0, 12)}... ` +
+      `refresh=${newRefreshToken.slice(0, 8)}... ` +
+      `via=${viaHeader ? 'header' : 'cookie'} expires=${expiresAt.toISOString()}`,
+    );
 
     return {
       access_token: newAccessToken,

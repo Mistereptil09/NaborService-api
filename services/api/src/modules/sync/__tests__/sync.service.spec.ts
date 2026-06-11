@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { SyncService } from '../sync.service';
 import { EntityPatchHandler, PatchResult } from '../handlers/entity-patch.handler';
 import { REDIS_CLIENT } from '../../../database/redis.module';
+import { Neo4jService } from '../../../database/neo4j/neo4j.service';
 import { SyncConflict } from '../entities/sync-conflict.entity';
 import { SyncUpdatesBatchDto, SyncUpdateItemDto } from '../dto/sync-push.dto';
 import { GetSnapshotQueryDto } from '../dto/sync-snapshot.dto';
@@ -63,6 +64,10 @@ describe('SyncService', () => {
       providers: [
         SyncService,
         { provide: REDIS_CLIENT, useValue: redisClient },
+        {
+          provide: Neo4jService,
+          useValue: { run: jest.fn().mockResolvedValue({ records: [] }) },
+        },
         {
           provide: EntityPatchHandler,
           useValue: { handlePatch: jest.fn() },

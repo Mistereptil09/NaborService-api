@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Neo4jModule } from '../../database/neo4j/neo4j.module';
 
 import { SyncController } from './sync.controller';
 import { SyncService } from './sync.service';
@@ -30,6 +31,7 @@ import { Friendship } from '../social/entities/friendship.entity';
 
 @Module({
   imports: [
+    Neo4jModule,
     TypeOrmModule.forFeature([
       User,
       Incident,

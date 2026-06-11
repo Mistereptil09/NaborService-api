@@ -245,7 +245,7 @@ class LocationDto {
   geocode?: string;
 }
 
-export class UpdateContentDto {
+export class EventUpdateContentDto {
   @ApiPropertyOptional({
     description: 'Rich HTML content of the event',
     example: '<p>Details here...</p>',
@@ -268,7 +268,7 @@ export class UpdateContentDto {
   location?: LocationDto;
 }
 
-export class SwipeDto {
+export class EventSwipeDto {
   @ApiProperty({ description: 'Swipe direction', example: 'like' })
   @IsIn(['like', 'dislike'])
   direction: string;

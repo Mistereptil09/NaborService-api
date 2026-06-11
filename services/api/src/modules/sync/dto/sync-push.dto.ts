@@ -22,16 +22,32 @@ export class SyncUpdateItemDto {
   @IsString()
   entity_id: string;
 
-  @ApiProperty()
-  @IsObject()
-  changes: Record<string, any>;
+  @ApiPropertyOptional({
+    enum: ['create', 'update', 'delete'],
+    default: 'update',
+    description:
+      'Action à exécuter. `create` et `delete` sont uniquement supportés ' +
+      'pour `entity_type: "incident"`. Défaut `update` (rétrocompatible).',
+  })
+  @IsOptional()
+  @IsIn(['create', 'update', 'delete'])
+  action?: 'create' | 'update' | 'delete' = 'update';
 
   @ApiProperty({
     description:
-      "The entity's `updated_at` value from the last server snapshot — NOT the client's local clock. Used for conflict detection: if server.updated_at > base_updated_at, the entity was modified on the server since the client last synced.",
+      'Champs modifiés (update) ou données de la nouvelle entité (create). Ignoré pour delete.',
   })
+  @IsObject()
+  changes: Record<string, any>;
+
+  @ApiPropertyOptional({
+    description:
+      "L'`updated_at` de l'entité tel que reçu dans le dernier snapshot serveur. " +
+      'Obligatoire pour update/delete (détection de conflit). Inutile pour create.',
+  })
+  @IsOptional()
   @IsDateString()
-  base_updated_at: string;
+  base_updated_at?: string;
 }
 
 export class SyncUpdatesBatchDto {
@@ -58,6 +74,22 @@ export class SyncUpdateResultDto {
 
   @ApiProperty({ enum: ['applied', 'conflict', 'skipped'] })
   status: 'applied' | 'conflict' | 'skipped';
+
+  @ApiPropertyOptional({
+    description:
+      'ID serveur assigné lors d\'une création. Le client doit remplacer ' +
+      'son UUID temporaire par cet ID dans sa base SQLite locale.',
+  })
+  @IsOptional()
+  @IsString()
+  server_entity_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'Raison du skip (champ requis manquant, action non supportée, etc.)',
+  })
+  @IsOptional()
+  @IsString()
+  reason?: string;
 
   @ApiPropertyOptional({ description: 'Conflict details (only when status = conflict)' })
   @IsOptional()

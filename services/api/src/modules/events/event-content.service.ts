@@ -12,7 +12,7 @@ import {
   EventDocumentDocument,
 } from '../../database/mongo-schemas/schemas/event-document.schema';
 import { Evenement } from './entities/evenement.entity';
-import { UpdateContentDto } from './dto/event-routes.dtos';
+import { EventUpdateContentDto } from './dto/event-routes.dtos';
 
 @Injectable()
 export class EventContentService {
@@ -68,7 +68,7 @@ export class EventContentService {
     };
   }
 
-  async updateContent(userId: string, eventId: string, dto: UpdateContentDto) {
+  async updateContent(userId: string, eventId: string, dto: EventUpdateContentDto) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) {
       throw new NotFoundException('Event not found');
