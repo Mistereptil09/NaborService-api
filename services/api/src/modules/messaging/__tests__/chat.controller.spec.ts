@@ -1,0 +1,177 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { ChatController } from '../chat.controller';
+import { ChatService } from '../chat.service';
+import { ChatMessageService } from '../chat-message.service';
+
+describe('ChatController', () => {
+  let controller: ChatController;
+  let chatService: any;
+  let chatMessageService: any;
+
+  const mockUser = { user: { sub: 'u1', role: 'resident', locale: 'fr', iat: 1, exp: 9999999999 } };
+
+  beforeEach(async () => {
+    chatService = {
+      getUserGroups: jest.fn().mockResolvedValue([]),
+      createGroup: jest.fn().mockResolvedValue({ id: 'g1', name: 'Test' }),
+      getGroupDetail: jest.fn().mockResolvedValue({ id: 'g1', name: 'Test' }),
+      updateGroup: jest.fn().mockResolvedValue({ id: 'g1', name: 'Updated' }),
+      softDeleteGroup: jest.fn().mockResolvedValue({ id: 'g1', deletedAt: new Date() }),
+      getMembers: jest.fn().mockResolvedValue([]),
+      addMember: jest.fn().mockResolvedValue({ userId: 'u2', groupId: 'g1' }),
+      removeMember: jest.fn().mockResolvedValue({ userId: 'u2', leftAt: new Date() }),
+      changeRole: jest.fn().mockResolvedValue({ userId: 'u2', roleInGroup: 'admin' }),
+      mute: jest.fn().mockResolvedValue({ muted_until: new Date() }),
+      unmute: jest.fn().mockResolvedValue({ muted: false }),
+    };
+
+    chatMessageService = {
+      getMessages: jest.fn().mockResolvedValue({ messages: [], has_more: false }),
+      sendMessage: jest.fn().mockResolvedValue({ id: 'msg1', content: 'Hello' }),
+      getMessage: jest.fn().mockResolvedValue({ id: 'msg1', content: 'Hello' }),
+      editMessage: jest.fn().mockResolvedValue({ id: 'msg1', content: 'Edited' }),
+      softDeleteMessage: jest.fn().mockResolvedValue({ deleted: true }),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [ChatController],
+      providers: [
+        { provide: ChatService, useValue: chatService },
+        { provide: ChatMessageService, useValue: chatMessageService },
+      ],
+    }).compile();
+
+    controller = module.get(ChatController);
+  });
+
+  it('should be defined', () => expect(controller).toBeDefined());
+
+  // ── Groups ──────────────────────────────────────────────
+
+  describe('GET /chat/groups', () => {
+    it('should return user groups', async () => {
+      chatService.getUserGroups.mockResolvedValue([{ id: 'g1', name: 'Group A' }]);
+      const result = await controller.getGroups(mockUser as any);
+      expect(result).toHaveLength(1);
+      expect(chatService.getUserGroups).toHaveBeenCalledWith('u1');
+    });
+  });
+
+  describe('POST /chat/groups', () => {
+    it('should create a group', async () => {
+      const result = await controller.createGroup(mockUser as any, { name: 'New' });
+      expect(result.name).toBe('Test');
+      expect(chatService.createGroup).toHaveBeenCalledWith('u1', { name: 'New' });
+    });
+  });
+
+  describe('GET /chat/groups/:id', () => {
+    it('should return group detail', async () => {
+      const result = await controller.getGroup('g1');
+      expect(result.name).toBe('Test');
+    });
+  });
+
+  describe('PATCH /chat/groups/:id', () => {
+    it('should update group', async () => {
+      const result = await controller.updateGroup('g1', mockUser as any, { name: 'Updated' });
+      expect(result.name).toBe('Updated');
+    });
+  });
+
+  describe('DELETE /chat/groups/:id', () => {
+    it('should soft-delete group', async () => {
+      const result = await controller.deleteGroup('g1', mockUser as any);
+      expect(result.deletedAt).toBeDefined();
+    });
+  });
+
+  // ── Members ─────────────────────────────────────────────
+
+  describe('GET /chat/groups/:id/members', () => {
+    it('should list members', async () => {
+      await controller.getMembers('g1');
+      expect(chatService.getMembers).toHaveBeenCalledWith('g1');
+    });
+  });
+
+  describe('POST /chat/groups/:id/members', () => {
+    it('should add a member', async () => {
+      await controller.addMember('g1', mockUser as any, { user_id: 'u2' });
+      expect(chatService.addMember).toHaveBeenCalledWith('g1', 'u2', 'u1');
+    });
+  });
+
+  describe('DELETE /chat/groups/:id/members/:uid', () => {
+    it('should remove a member', async () => {
+      await controller.removeMember('g1', 'u2', mockUser as any);
+      expect(chatService.removeMember).toHaveBeenCalledWith('g1', 'u2', 'u1');
+    });
+  });
+
+  describe('PATCH /chat/groups/:id/members/:uid', () => {
+    it('should change role', async () => {
+      await controller.changeRole('g1', 'u2', mockUser as any, { role: 'admin' as any });
+      expect(chatService.changeRole).toHaveBeenCalledWith('g1', 'u2', 'admin', 'u1');
+    });
+  });
+
+  // ── Mute ────────────────────────────────────────────────
+
+  describe('POST /chat/groups/:id/mute', () => {
+    it('should mute', async () => {
+      await controller.mute('g1', mockUser as any, { duration_minutes: 60 });
+      expect(chatService.mute).toHaveBeenCalledWith('g1', 'u1', 60);
+    });
+  });
+
+  describe('DELETE /chat/groups/:id/mute', () => {
+    it('should unmute', async () => {
+      await controller.unmute('g1', mockUser as any);
+      expect(chatService.unmute).toHaveBeenCalledWith('g1', 'u1');
+    });
+  });
+
+  // ── Messages ────────────────────────────────────────────
+
+  describe('GET /chat/groups/:id/messages', () => {
+    it('should return paginated messages', async () => {
+      await controller.getMessages('g1', mockUser as any);
+      expect(chatMessageService.getMessages).toHaveBeenCalledWith('g1', 'u1', undefined, 50);
+    });
+
+    it('should pass cursor and limit', async () => {
+      await controller.getMessages('g1', mockUser as any, 'cursor123', '25' as any);
+      // limit comes from query string → passed as-is (not parsed to number)
+      expect(chatMessageService.getMessages).toHaveBeenCalledWith('g1', 'u1', 'cursor123', '25');
+    });
+  });
+
+  describe('POST /chat/groups/:id/messages', () => {
+    it('should send a message', async () => {
+      await controller.sendMessage('g1', mockUser as any, { content: 'Hi', type: 'text' });
+      expect(chatMessageService.sendMessage).toHaveBeenCalledWith('g1', 'u1', { content: 'Hi', type: 'text' });
+    });
+  });
+
+  describe('GET /chat/messages/:id', () => {
+    it('should return single message', async () => {
+      await controller.getMessage('msg1', mockUser as any);
+      expect(chatMessageService.getMessage).toHaveBeenCalledWith('msg1', 'u1');
+    });
+  });
+
+  describe('PATCH /chat/messages/:id', () => {
+    it('should edit message', async () => {
+      await controller.editMessage('msg1', mockUser as any, { new_content: 'Edit' });
+      expect(chatMessageService.editMessage).toHaveBeenCalledWith('msg1', 'u1', 'Edit');
+    });
+  });
+
+  describe('DELETE /chat/messages/:id', () => {
+    it('should delete message', async () => {
+      await controller.deleteMessage('msg1', mockUser as any);
+      expect(chatMessageService.softDeleteMessage).toHaveBeenCalledWith('msg1', 'u1');
+    });
+  });
+});
