@@ -25,6 +25,7 @@ import { QueueModule } from './queue/queue.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
 import { I18nModule } from './modules/i18n/i18n.module';
+import { UpdatesModule } from './modules/updates/updates.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { I18nModule } from './modules/i18n/i18n.module';
     AdminModule,
     HealthModule,
     I18nModule,
+    UpdatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
