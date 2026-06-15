@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { MongoHealthService } from './database/mongo-health.service';
 import { postgresConfig } from './database/postgres.config';
 import { mongoConfig } from './database/mongo.config';
 import { Neo4jModule } from './database/neo4j';
@@ -32,7 +33,7 @@ import { UpdatesModule } from './modules/updates/updates.module';
     QueueModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: process.env.NODE_ENV === 'test' ? '.e2e.env' : '.env',
+      envFilePath: '../../.env',
     }),
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync(postgresConfig),
@@ -57,6 +58,6 @@ import { UpdatesModule } from './modules/updates/updates.module';
     UpdatesModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, MongoHealthService],
 })
 export class AppModule {}

@@ -82,6 +82,8 @@ services:
   ban:
     image: etalab/addok
     container_name: nabor_ban
+    ports:
+      - "7878:7878"
     environment:
       - ADDOK_CONFIG_MODULE=/etc/addok/addok.conf
     volumes:
@@ -107,6 +109,7 @@ services:
       REDIS_HOST: redis
       NEO4J_URI: bolt://neo4j:7687
       DSL_SERVICE_URL: http://dsl-service:8000
+      BAN_API_URL: http://ban:7878/search/
     ports:
       - "3000:3000"
     depends_on:

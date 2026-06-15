@@ -8,7 +8,6 @@ dist/
 .env
 .env.local
 .env.*.local
-.e2e.env
 
 # Logs
 *.log
