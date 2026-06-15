@@ -32,6 +32,7 @@ import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
 
 import { MessagingModule } from '../messaging/messaging.module';
+import { GeoModule } from '../geo/geo.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { MessagingModule } from '../messaging/messaging.module';
     AuthModule,
     MediaModule,
     MessagingModule,
+    GeoModule,
   ],
   controllers: [UsersController, AdminController],
   providers: [

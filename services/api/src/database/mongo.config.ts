@@ -1,7 +1,10 @@
+import { Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModuleAsyncOptions } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
-import { requireEnv, connectWithRetry } from './database.utils';
+import { requireEnv } from './database.utils';
+
+const logger = new Logger('MongoDB');
 
 export const mongoConfig: MongooseModuleAsyncOptions = {
   imports: [ConfigModule],
@@ -23,12 +26,24 @@ export const mongoConfig: MongooseModuleAsyncOptions = {
 
     const uri = `mongodb://${username}:${password}@${host}:${port}/${database}?authSource=admin`;
 
-    // Verify connectivity using our shared retry wrapper
-    await connectWithRetry('MongoDB', async () => {
+    // Verify connectivity at boot — but don't crash if unavailable.
+    // Mongoose handles auto-reconnect internally.
+    try {
       const conn = await mongoose.createConnection(uri).asPromise();
       await conn.close();
-    });
+      logger.log('Connected successfully.');
+    } catch (err) {
+      logger.warn(
+        `MongoDB unavailable at startup: ${(err as Error).message}. ` +
+        'Server will start without it — features requiring MongoDB (media, chat, contracts) will be unavailable until it recovers.',
+      );
+    }
 
-    return { uri };
+    return {
+      uri,
+      // Let Mongoose handle reconnection with its built-in retry
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
+    };
   },
 };

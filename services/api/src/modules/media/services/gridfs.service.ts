@@ -2,19 +2,57 @@ import {
   Injectable,
   NotFoundException,
   InternalServerErrorException,
+  ServiceUnavailableException,
+  Logger,
+  Optional,
 } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection, Types, mongo } from 'mongoose';
 import { Readable } from 'stream';
+import { MongoHealthService } from '../../../database/mongo-health.service';
 
 @Injectable()
 export class GridFSService {
-  private bucket: mongo.GridFSBucket;
+  private readonly logger = new Logger(GridFSService.name);
+  private bucket: mongo.GridFSBucket | null = null;
 
-  constructor(@InjectConnection() private readonly connection: Connection) {
-    this.bucket = new mongo.GridFSBucket(this.connection.db!, {
-      bucketName: 'fs',
-    });
+  constructor(
+    @InjectConnection() private readonly connection: Connection,
+    @Optional() private readonly healthService?: MongoHealthService,
+  ) {
+    if (this.isConnected()) {
+      this.initBucket();
+    }
+  }
+
+  private isConnected(): boolean {
+    return this.connection.readyState === 1 && !!this.connection.db;
+  }
+
+  private initBucket(): void {
+    if (!this.bucket && this.connection.db) {
+      this.bucket = new mongo.GridFSBucket(this.connection.db, {
+        bucketName: 'fs',
+      });
+    }
+  }
+
+  /** Throws 503 if MongoDB is unavailable, so callers get a clean HTTP error. */
+  private ensureAvailable(): void {
+    if (this.healthService && !this.healthService.isHealthy()) {
+      throw new ServiceUnavailableException(
+        'MongoDB est temporairement indisponible. Veuillez réessayer.',
+      );
+    }
+    if (!this.isConnected()) {
+      // Try lazy init on reconnect
+      this.initBucket();
+      if (!this.bucket) {
+        throw new ServiceUnavailableException(
+          'MongoDB est temporairement indisponible. Veuillez réessayer.',
+        );
+      }
+    }
   }
 
   /**
@@ -26,8 +64,9 @@ export class GridFSService {
     filename: string,
     contentType: string,
   ): Promise<Types.ObjectId> {
+    this.ensureAvailable();
     return new Promise((resolve, reject) => {
-      const uploadStream = this.bucket.openUploadStream(filename, {
+      const uploadStream = this.bucket!.openUploadStream(filename, {
         metadata: { contentType },
       });
 
@@ -64,10 +103,11 @@ export class GridFSService {
     filename: string;
     length: number;
   }> {
+    this.ensureAvailable();
     const fileInfo = await this.getFileInfo(fileId);
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
-      const downloadStream = this.bucket.openDownloadStream(fileId);
+      const downloadStream = this.bucket!.openDownloadStream(fileId);
 
       downloadStream
         .on('data', (chunk) => {
@@ -100,7 +140,7 @@ export class GridFSService {
     options?: { start?: number; end?: number },
   ): mongo.GridFSBucketReadStream {
     try {
-      return this.bucket.openDownloadStream(fileId, options);
+      return this.bucket!.openDownloadStream(fileId, options);
     } catch (error) {
       throw new NotFoundException(
         `File with ID ${fileId} not found in GridFS: ${(error as Error).message}`,
@@ -117,7 +157,8 @@ export class GridFSService {
     filename: string;
     uploadDate: Date;
   }> {
-    const files = await this.bucket.find({ _id: fileId }).toArray();
+    this.ensureAvailable();
+    const files = await this.bucket!.find({ _id: fileId }).toArray();
     if (!files || files.length === 0) {
       throw new NotFoundException(`File with ID ${fileId} not found in GridFS`);
     }
@@ -134,8 +175,9 @@ export class GridFSService {
    * Delete a file and all its chunks from GridFS.
    */
   async delete(fileId: Types.ObjectId): Promise<void> {
+    this.ensureAvailable();
     try {
-      await this.bucket.delete(fileId);
+      await this.bucket!.delete(fileId);
     } catch (error) {
       throw new InternalServerErrorException(
         `Failed to delete GridFS file: ${(error as Error).message}`,

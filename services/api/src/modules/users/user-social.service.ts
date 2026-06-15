@@ -4,7 +4,9 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, In } from 'typeorm';
@@ -17,9 +19,12 @@ import { PaginationDto } from './dto/user-routes.dtos';
 import { ChatGroup } from '../messaging/entities/chat-group.entity';
 import { UsersInGroup } from '../messaging/entities/users-in-group.entity';
 import { ChatGroupTypeEnum, GroupRoleEnum } from '../../common/enums';
+import { Neo4jHealthService } from '../geo/neo4j-health.service';
 
 @Injectable()
 export class UserSocialService {
+  private readonly logger = new Logger(UserSocialService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -39,7 +44,23 @@ export class UserSocialService {
     private readonly neo4jSyncQueue: {
       add: (name: string, data: any) => Promise<any>;
     },
+    @Optional()
+    private readonly healthService?: Neo4jHealthService,
   ) {}
+
+  /**
+   * Enqueues a Neo4j sync job only if the circuit breaker allows it.
+   * When Neo4j is down, skips the job — reconciliation will catch up.
+   */
+  private async enqueueSync(name: string, data: any): Promise<void> {
+    if (this.healthService && !this.healthService.isHealthy()) {
+      this.logger.warn(
+        `Neo4j down — skipping ${name} sync job (reconciliation will catch up)`,
+      );
+      return;
+    }
+    await this.neo4jSyncQueue.add(name, data);
+  }
 
   async getBlockedUserIds(userId: string): Promise<string[]> {
     const blocks = await this.blockRepository.find({
@@ -82,7 +103,7 @@ export class UserSocialService {
     await this.followRepository.save(follow);
 
     // Publish to Neo4j Sync Queue
-    await this.neo4jSyncQueue.add('user.follows.create', {
+    await this.enqueueSync('user.follows.create', {
       followerId,
       followedId,
     });
@@ -130,7 +151,7 @@ export class UserSocialService {
         await this.friendshipRepository.save(existingFriendship);
       }
 
-      await this.neo4jSyncQueue.add('user.friends_with.create', {
+      await this.enqueueSync('user.friends_with.create', {
         userId1: u1,
         userId2: u2,
       });
@@ -146,7 +167,7 @@ export class UserSocialService {
     }
 
     await this.followRepository.delete({ followerId, followedId });
-    await this.neo4jSyncQueue.add('user.follows.delete', {
+    await this.enqueueSync('user.follows.delete', {
       followerId,
       followedId,
     });
@@ -162,7 +183,7 @@ export class UserSocialService {
     if (friendship) {
       friendship.unfriendedAt = new Date();
       await this.friendshipRepository.save(friendship);
-      await this.neo4jSyncQueue.add('user.friends_with.delete', {
+      await this.enqueueSync('user.friends_with.delete', {
         userId1: u1,
         userId2: u2,
       });
@@ -312,7 +333,7 @@ export class UserSocialService {
 
     const block = this.blockRepository.create({ blockerId, blockedId });
     await this.blockRepository.save(block);
-    await this.neo4jSyncQueue.add('user.blocks.create', {
+    await this.enqueueSync('user.blocks.create', {
       blockerId,
       blockedId,
     });
@@ -326,11 +347,11 @@ export class UserSocialService {
       followerId: blockedId,
       followedId: blockerId,
     });
-    await this.neo4jSyncQueue.add('user.follows.delete', {
+    await this.enqueueSync('user.follows.delete', {
       followerId: blockerId,
       followedId: blockedId,
     });
-    await this.neo4jSyncQueue.add('user.follows.delete', {
+    await this.enqueueSync('user.follows.delete', {
       followerId: blockedId,
       followedId: blockerId,
     });
@@ -346,7 +367,7 @@ export class UserSocialService {
     if (friendship) {
       friendship.unfriendedAt = new Date();
       await this.friendshipRepository.save(friendship);
-      await this.neo4jSyncQueue.add('user.friends_with.delete', {
+      await this.enqueueSync('user.friends_with.delete', {
         userId1: u1,
         userId2: u2,
       });
@@ -362,7 +383,7 @@ export class UserSocialService {
     }
 
     await this.blockRepository.delete({ blockerId, blockedId });
-    await this.neo4jSyncQueue.add('user.blocks.delete', {
+    await this.enqueueSync('user.blocks.delete', {
       blockerId,
       blockedId,
     });

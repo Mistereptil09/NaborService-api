@@ -12,9 +12,11 @@ import { CryptoRotationWorker } from './workers/crypto-rotation.worker';
 import { EventsModule } from '../modules/events/events.module';
 import { UsersModule } from '../modules/users/users.module';
 import { MongoSchemasModule } from '../database/mongo-schemas/mongo-schemas.module';
+import { GeoModule } from '../modules/geo/geo.module';
 import { QueueHealthService } from './queue-health.service';
 import { QueueHealthController } from './queue-health.controller';
 import { QueueFailureListener } from './listeners/queue-failure.listener';
+import { Neo4jRecoveryService } from './neo4j-recovery.service';
 import { redisRetryStrategy } from './utils/redis-retry';
 
 const queues = [
@@ -37,6 +39,7 @@ const queues = [
     EventsModule,
     UsersModule,
     MongoSchemasModule,
+    GeoModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -52,7 +55,7 @@ const queues = [
     BullModule.registerQueue(
       {
         name: 'neo4j-sync',
-        defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } },
+        defaultJobOptions: { attempts: 10, backoff: { type: 'custom' } },
       },
       {
         name: 'email',
@@ -107,6 +110,7 @@ const queues = [
     CryptoRotationWorker,
     QueueHealthService,
     QueueFailureListener,
+    Neo4jRecoveryService,
   ],
   exports: [BullModule],
 })

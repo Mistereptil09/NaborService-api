@@ -4,9 +4,11 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
   InternalServerErrorException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
@@ -18,12 +20,15 @@ import { UpdateProfileDto } from './dto/user-routes.dtos';
 import { TotpService } from '../auth/totp.service';
 import { SessionService } from '../auth/session.service';
 import { VisibilityEnum, UserRoleEnum } from '../../common/enums';
+import { Neo4jHealthService } from '../geo/neo4j-health.service';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { authenticator } = require('otplib');
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -41,7 +46,19 @@ export class UsersService {
     private readonly rgpdAnonymiseQueue: {
       add: (name: string, data: any) => Promise<any>;
     },
+    @Optional()
+    private readonly healthService?: Neo4jHealthService,
   ) {}
+
+  private async enqueueSync(name: string, data: any): Promise<void> {
+    if (this.healthService && !this.healthService.isHealthy()) {
+      this.logger.warn(
+        `Neo4j down — skipping ${name} sync job (reconciliation will catch up)`,
+      );
+      return;
+    }
+    await this.neo4jSyncQueue.add(name, data);
+  }
 
   async findById(id: string): Promise<User> {
     const user = await this.userRepository.findOne({
@@ -147,7 +164,7 @@ export class UsersService {
       await this.userRepository.update(userId, updatePayload);
 
       if (neighbourhoodChanged) {
-        await this.neo4jSyncQueue.add('user.lives_in.update', {
+        await this.enqueueSync('user.lives_in.update', {
           userId,
           neighbourhoodId: dto.neighbourhoodId,
         });
@@ -167,7 +184,7 @@ export class UsersService {
     await this.userRepository.save(user);
 
     // Publish to Neo4j Sync Queue and Anonymise queue
-    await this.neo4jSyncQueue.add('user.soft_delete', {
+    await this.enqueueSync('user.soft_delete', {
       userId,
       deletedAt: now,
     });
@@ -433,7 +450,7 @@ export class UsersService {
     await this.userRepository.save(user);
 
     // Sync role to Neo4j
-    await this.neo4jSyncQueue.add('upsert-user', {
+    await this.enqueueSync('upsert-user', {
       pgId: user.id,
       visibility: user.visibility,
       role: user.role,
@@ -477,7 +494,7 @@ export class UsersService {
     await this.userRepository.save(user);
 
     // Publish to Neo4j Sync Queue and Anonymise queue
-    await this.neo4jSyncQueue.add('user.soft_delete', {
+    await this.enqueueSync('user.soft_delete', {
       userId,
       deletedAt: now,
     });

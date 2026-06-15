@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -6,9 +6,21 @@ import { Neo4jService } from '../../database/neo4j/neo4j.service';
 import { User } from '../users/entities/user.entity';
 import { Listing } from '../listings/entities/listing.entity';
 import { Evenement } from '../events/entities/evenement.entity';
+import { Follow } from '../social/entities/follow.entity';
+import { Friendship } from '../social/entities/friendship.entity';
+import { UserBlock } from '../social/entities/user-block.entity';
 
+/**
+ * Keeps Neo4j in sync with PostgreSQL.
+ *
+ * Two tracks:
+ * 1. Startup — full scan of everything (catches any drift from server downtime)
+ * 2. Hourly  — 1.5h window for neighbourhoods + targeted social graph diff
+ *
+ * All operations are idempotent (MERGE for creates, DELETE no-ops for missing).
+ */
 @Injectable()
-export class GeoReconciliationService {
+export class GeoReconciliationService implements OnApplicationBootstrap {
   private readonly logger = new Logger(GeoReconciliationService.name);
 
   constructor(
@@ -17,54 +29,103 @@ export class GeoReconciliationService {
     private readonly listingRepository: Repository<Listing>,
     @InjectRepository(Evenement)
     private readonly eventRepository: Repository<Evenement>,
+    @InjectRepository(Follow)
+    private readonly followRepository: Repository<Follow>,
+    @InjectRepository(Friendship)
+    private readonly friendshipRepository: Repository<Friendship>,
+    @InjectRepository(UserBlock)
+    private readonly userBlockRepository: Repository<UserBlock>,
     private readonly neo4jService: Neo4jService,
   ) {}
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { timeZone: 'Europe/Paris' })
-  async handleDailyReconciliation() {
-    this.logger.log('Starting daily Geo-Reconciliation sync...');
+  // ── Startup: full scan to catch anything missed during downtime ──
+
+  onApplicationBootstrap() {
+    // Delay so Neo4j has time to connect after boot
+    setTimeout(() => this.runFullStartupScan(), 10_000);
+  }
+
+  private async runFullStartupScan() {
+    this.logger.log('Running startup full reconciliation...');
     try {
-      await this.reconcileRecentEntities(24);
-      this.logger.log('Geo-Reconciliation sync completed successfully.');
+      await this.reconcileRecentEntities(Number.MAX_SAFE_INTEGER);
+      await this.reconcileFollows(null);
+      await this.reconcileBlocks(null);
+      await this.reconcileFriendships(null);
+      this.logger.log('Startup reconciliation complete.');
     } catch (error) {
-      this.logger.error(
-        `Geo-Reconciliation sync failed: ${error.message}`,
-        error.stack,
-      );
+      const msg = (error as Error).message;
+      // Neo4j not available — expected in dev/test without Neo4j stack
+      if (
+        msg.includes('Driver not Connected') ||
+        msg.includes('Unable to acquire connection')
+      ) {
+        this.logger.warn(`Startup reconciliation skipped (Neo4j unavailable)`);
+      } else {
+        this.logger.error(`Startup reconciliation failed: ${msg}`);
+      }
     }
   }
 
-  async reconcileRecentEntities(hours: number = 24): Promise<void> {
-    const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+  // ── Hourly cron: 1.5h window to catch recent drift ──────────────
 
-    // 1. Fetch recent entities from PostgreSQL
+  @Cron(CronExpression.EVERY_HOUR)
+  async handleHourlyReconciliation() {
+    this.logger.log('Starting hourly reconciliation...');
+    try {
+      // 1.5h window is enough to cover a missed cron run + buffer
+      await this.reconcileRecentEntities(1.5);
+      await this.reconcileSocialGraph(1.5);
+      this.logger.log('Hourly reconciliation complete.');
+    } catch (error) {
+      const msg = (error as Error).message;
+      if (
+        msg.includes('Driver not Connected') ||
+        msg.includes('Unable to acquire connection')
+      ) {
+        this.logger.warn(`Hourly reconciliation skipped (Neo4j unavailable)`);
+      } else {
+        this.logger.error(`Hourly reconciliation failed: ${msg}`);
+      }
+    }
+  }
+
+  // ── Neighbourhood assignment ────────────────────────────────────
+
+  async reconcileRecentEntities(hours: number): Promise<void> {
+    const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+
     const [users, listings, events] = await Promise.all([
-      this.userRepository
-        .createQueryBuilder('u')
-        .select(['u.id', 'u.neighbourhoodId'])
-        .where('u.updatedAt >= :cutoffDate OR u.createdAt >= :cutoffDate', {
-          cutoffDate,
-        })
-        .getMany(),
-      this.listingRepository
-        .createQueryBuilder('l')
-        .select(['l.id', 'l.neighbourhoodId'])
-        .where('l.updatedAt >= :cutoffDate OR l.createdAt >= :cutoffDate', {
-          cutoffDate,
-        })
-        .getMany(),
-      this.eventRepository
-        .createQueryBuilder('e')
-        .select(['e.id', 'e.neighbourhoodId'])
-        .where('e.updatedAt >= :cutoffDate OR e.createdAt >= :cutoffDate', {
-          cutoffDate,
-        })
-        .getMany(),
+      hours >= Number.MAX_SAFE_INTEGER / 2
+        ? this.userRepository.find({ select: ['id', 'neighbourhoodId'] })
+        : this.userRepository
+            .createQueryBuilder('u')
+            .select(['u.id', 'u.neighbourhoodId'])
+            .where('u.updatedAt >= :cutoff OR u.createdAt >= :cutoff', {
+              cutoff,
+            })
+            .getMany(),
+      hours >= Number.MAX_SAFE_INTEGER / 2
+        ? this.listingRepository.find({ select: ['id', 'neighbourhoodId'] })
+        : this.listingRepository
+            .createQueryBuilder('l')
+            .select(['l.id', 'l.neighbourhoodId'])
+            .where('l.updatedAt >= :cutoff OR l.createdAt >= :cutoff', {
+              cutoff,
+            })
+            .getMany(),
+      hours >= Number.MAX_SAFE_INTEGER / 2
+        ? this.eventRepository.find({ select: ['id', 'neighbourhoodId'] })
+        : this.eventRepository
+            .createQueryBuilder('e')
+            .select(['e.id', 'e.neighbourhoodId'])
+            .where('e.updatedAt >= :cutoff OR e.createdAt >= :cutoff', {
+              cutoff,
+            })
+            .getMany(),
     ]);
 
-    let totalFixed = 0;
-
-    // 2. Reconcile Users
+    let fixed = 0;
     for (const user of users) {
       if (
         await this.reconcileEntity(
@@ -73,12 +134,9 @@ export class GeoReconciliationService {
           user.neighbourhoodId,
           'LIVES_IN',
         )
-      ) {
-        totalFixed++;
-      }
+      )
+        fixed++;
     }
-
-    // 3. Reconcile Listings
     for (const listing of listings) {
       if (
         await this.reconcileEntity(
@@ -87,12 +145,9 @@ export class GeoReconciliationService {
           listing.neighbourhoodId,
           'POSTED_IN',
         )
-      ) {
-        totalFixed++;
-      }
+      )
+        fixed++;
     }
-
-    // 4. Reconcile Events
     for (const event of events) {
       if (
         await this.reconcileEntity(
@@ -101,15 +156,244 @@ export class GeoReconciliationService {
           event.neighbourhoodId,
           'HOSTED_IN',
         )
-      ) {
-        totalFixed++;
-      }
+      )
+        fixed++;
     }
 
     this.logger.log(
-      `Reconciled ${users.length + listings.length + events.length} recent entities. Fixed ${totalFixed} discrepancies.`,
+      `Geo: checked ${users.length + listings.length + events.length} entities, fixed ${fixed}.`,
     );
   }
+
+  // ── Social graph ────────────────────────────────────────────────
+
+  /**
+   * @param hours  PG time-filter in hours, or null for full scan
+   */
+  async reconcileSocialGraph(hours: number | null = 1.5): Promise<void> {
+    let fixed = 0;
+    fixed += await this.reconcileFollows(hours);
+    fixed += await this.reconcileBlocks(hours);
+    fixed += await this.reconcileFriendships(hours);
+    if (fixed > 0) {
+      this.logger.log(`Social graph: fixed ${fixed} discrepancies.`);
+    }
+  }
+
+  // ── Follows ─────────────────────────────────────────────────────
+
+  private async reconcileFollows(hours: number | null): Promise<number> {
+    let fixed = 0;
+
+    // PG side: time-filtered for creates, full scan for startup
+    const follows =
+      hours != null
+        ? await this.followRepository
+            .createQueryBuilder('f')
+            .select(['f.followerId', 'f.followedId'])
+            .where('f.followedAt >= :cutoff', {
+              cutoff: new Date(Date.now() - hours * 60 * 60 * 1000),
+            })
+            .getMany()
+        : await this.followRepository.find({
+            select: ['followerId', 'followedId'],
+          });
+
+    // Neo4j side: always full scan — cheap Cypher, needed to detect deletes
+    // (unfollow removes the PG row, so a time filter can never find it)
+    const neoResult = await this.neo4jService.run(
+      `MATCH (u1:User)-[r:FOLLOWS]->(u2:User)
+       RETURN u1.pg_id AS followerId, u2.pg_id AS followedId`,
+    );
+
+    const pgSet = new Set(
+      follows.map((f) => `${f.followerId}->${f.followedId}`),
+    );
+    const neoSet = new Set(
+      neoResult.records.map(
+        (r) => `${r.get('followerId')}->${r.get('followedId')}`,
+      ),
+    );
+
+    // Missing in Neo4j → create
+    for (const f of follows) {
+      const key = `${f.followerId}->${f.followedId}`;
+      if (!neoSet.has(key)) {
+        try {
+          await this.neo4jService.run(
+            `MATCH (u1:User {pg_id: $followerId})
+             MATCH (u2:User {pg_id: $followedId})
+             MERGE (u1)-[r:FOLLOWS]->(u2)
+             ON CREATE SET r.since = datetime()`,
+            { followerId: f.followerId, followedId: f.followedId },
+          );
+          fixed++;
+        } catch {
+          /* node not in Neo4j yet */
+        }
+      }
+    }
+
+    // Stale in Neo4j → delete
+    for (const key of neoSet) {
+      if (!pgSet.has(key)) {
+        const [followerId, followedId] = key.split('->');
+        try {
+          await this.neo4jService.run(
+            `MATCH (u1:User {pg_id: $followerId})-[r:FOLLOWS]->(u2:User {pg_id: $followedId})
+             DELETE r`,
+            { followerId, followedId },
+          );
+          fixed++;
+        } catch {
+          /* already gone */
+        }
+      }
+    }
+
+    return fixed;
+  }
+
+  // ── Blocks ──────────────────────────────────────────────────────
+
+  private async reconcileBlocks(hours: number | null): Promise<number> {
+    let fixed = 0;
+
+    const blocks =
+      hours != null
+        ? await this.userBlockRepository
+            .createQueryBuilder('b')
+            .select(['b.blockerId', 'b.blockedId'])
+            .where('b.blockedAt >= :cutoff', {
+              cutoff: new Date(Date.now() - hours * 60 * 60 * 1000),
+            })
+            .getMany()
+        : await this.userBlockRepository.find({
+            select: ['blockerId', 'blockedId'],
+          });
+
+    const neoResult = await this.neo4jService.run(
+      `MATCH (u1:User)-[r:BLOCKS]->(u2:User)
+       RETURN u1.pg_id AS blockerId, u2.pg_id AS blockedId`,
+    );
+
+    const pgSet = new Set(blocks.map((b) => `${b.blockerId}->${b.blockedId}`));
+    const neoSet = new Set(
+      neoResult.records.map(
+        (r) => `${r.get('blockerId')}->${r.get('blockedId')}`,
+      ),
+    );
+
+    for (const b of blocks) {
+      const key = `${b.blockerId}->${b.blockedId}`;
+      if (!neoSet.has(key)) {
+        try {
+          await this.neo4jService.run(
+            `MATCH (u1:User {pg_id: $blockerId})
+             MATCH (u2:User {pg_id: $blockedId})
+             MERGE (u1)-[:BLOCKS]->(u2)`,
+            { blockerId: b.blockerId, blockedId: b.blockedId },
+          );
+          fixed++;
+        } catch {
+          /* */
+        }
+      }
+    }
+
+    for (const key of neoSet) {
+      if (!pgSet.has(key)) {
+        const [blockerId, blockedId] = key.split('->');
+        try {
+          await this.neo4jService.run(
+            `MATCH (u1:User {pg_id: $blockerId})-[r:BLOCKS]->(u2:User {pg_id: $blockedId})
+             DELETE r`,
+            { blockerId, blockedId },
+          );
+          fixed++;
+        } catch {
+          /* */
+        }
+      }
+    }
+
+    return fixed;
+  }
+
+  // ── Friendships ─────────────────────────────────────────────────
+
+  private async reconcileFriendships(hours: number | null): Promise<number> {
+    let fixed = 0;
+
+    const friendships =
+      hours != null
+        ? await this.friendshipRepository
+            .createQueryBuilder('f')
+            .select(['f.user1Id', 'f.user2Id'])
+            .where('f.unfriendedAt IS NULL')
+            .andWhere('f.friendedAt >= :cutoff', {
+              cutoff: new Date(Date.now() - hours * 60 * 60 * 1000),
+            })
+            .getMany()
+        : await this.friendshipRepository.find({
+            select: ['user1Id', 'user2Id'],
+            where: { unfriendedAt: undefined },
+          });
+
+    const neoResult = await this.neo4jService.run(
+      `MATCH (u1:User)-[r:FRIENDS_WITH]-(u2:User)
+       RETURN u1.pg_id AS user1Id, u2.pg_id AS user2Id`,
+    );
+
+    // FRIENDS_WITH is undirected — normalize ID order for comparison
+    const normKey = (a: string, b: string) =>
+      a < b ? `${a}<->${b}` : `${b}<->${a}`;
+
+    const pgSet = new Set(
+      friendships.map((f) => normKey(f.user1Id, f.user2Id)),
+    );
+    const neoSet = new Set(
+      neoResult.records.map((r) => normKey(r.get('user1Id'), r.get('user2Id'))),
+    );
+
+    for (const f of friendships) {
+      const key = normKey(f.user1Id, f.user2Id);
+      if (!neoSet.has(key)) {
+        try {
+          await this.neo4jService.run(
+            `MATCH (u1:User {pg_id: $user1Id})
+             MATCH (u2:User {pg_id: $user2Id})
+             MERGE (u1)-[r:FRIENDS_WITH]-(u2)
+             ON CREATE SET r.since = datetime()`,
+            { user1Id: f.user1Id, user2Id: f.user2Id },
+          );
+          fixed++;
+        } catch {
+          /* */
+        }
+      }
+    }
+
+    for (const key of neoSet) {
+      if (!pgSet.has(key)) {
+        const [user1Id, user2Id] = key.split('<->');
+        try {
+          await this.neo4jService.run(
+            `MATCH (u1:User {pg_id: $user1Id})-[r:FRIENDS_WITH]-(u2:User {pg_id: $user2Id})
+             DELETE r`,
+            { user1Id, user2Id },
+          );
+          fixed++;
+        } catch {
+          /* */
+        }
+      }
+    }
+
+    return fixed;
+  }
+
+  // ── Private helpers ─────────────────────────────────────────────
 
   private async reconcileEntity(
     nodeLabel: string,
@@ -117,76 +401,58 @@ export class GeoReconciliationService {
     pgNeighbourhoodId: string | null,
     relationshipType: string,
   ): Promise<boolean> {
-    // Check Neo4j current state
-    const query = `
-      MATCH (e:${nodeLabel} {pg_id: $entityPgId})
-      OPTIONAL MATCH (e)-[r:${relationshipType}]->(n:Neighbourhood)
-      RETURN n.pg_id AS neo4jNbId
-    `;
-    const result = await this.neo4jService.run(query, { entityPgId });
+    const result = await this.neo4jService.run(
+      `MATCH (e:${nodeLabel} {pg_id: $entityPgId})
+       OPTIONAL MATCH (e)-[r:${relationshipType}]->(n:Neighbourhood)
+       RETURN n.pg_id AS neo4jNbId`,
+      { entityPgId },
+    );
 
-    // If the entity node itself doesn't exist in Neo4j, we can't reconcile the link.
-    // SyncModule will handle node creation.
     if (result.records.length === 0) return false;
 
     const neo4jNbId = result.records[0].get('neo4jNbId');
 
-    // Mismatch 1: Postgres has a neighbourhood, Neo4j doesn't (or has a different one)
     if (pgNeighbourhoodId && neo4jNbId !== pgNeighbourhoodId) {
       this.logger.warn(
-        `Mismatch detected for ${nodeLabel} ${entityPgId}: PG=${pgNeighbourhoodId}, Neo4j=${neo4jNbId}. Reconciling...`,
+        `Mismatch: ${nodeLabel} ${entityPgId}: PG=${pgNeighbourhoodId}, Neo4j=${neo4jNbId}`,
       );
 
-      // Verify the neighbourhood actually exists in Neo4j to prevent orphan assignment
-      const checkNbQuery = `MATCH (n:Neighbourhood {pg_id: $pgNeighbourhoodId}) RETURN n`;
-      const nbResult = await this.neo4jService.run(checkNbQuery, {
-        pgNeighbourhoodId,
-      });
+      const nbResult = await this.neo4jService.run(
+        `MATCH (n:Neighbourhood {pg_id: $pgNeighbourhoodId}) RETURN n`,
+        { pgNeighbourhoodId },
+      );
 
       if (nbResult.records.length > 0) {
-        // Neighbourhood exists: Update Neo4j to match Postgres
-        const fixQuery = `
-          MATCH (e:${nodeLabel} {pg_id: $entityPgId})
-          MATCH (n:Neighbourhood {pg_id: $pgNeighbourhoodId})
-          OPTIONAL MATCH (e)-[oldR:${relationshipType}]->(oldN:Neighbourhood)
-          DELETE oldR
-          MERGE (e)-[newR:${relationshipType}]->(n)
-          SET newR.updated_at = datetime()
-        `;
-        await this.neo4jService.run(fixQuery, {
-          entityPgId,
-          pgNeighbourhoodId,
-        });
-        this.logger.log(
-          `Fixed: Created missing relationship to ${pgNeighbourhoodId} in Neo4j for ${nodeLabel} ${entityPgId}.`,
+        await this.neo4jService.run(
+          `MATCH (e:${nodeLabel} {pg_id: $entityPgId})
+           MATCH (n:Neighbourhood {pg_id: $pgNeighbourhoodId})
+           OPTIONAL MATCH (e)-[oldR:${relationshipType}]->(oldN:Neighbourhood)
+           DELETE oldR
+           MERGE (e)-[newR:${relationshipType}]->(n)
+           SET newR.updated_at = datetime()`,
+          { entityPgId, pgNeighbourhoodId },
         );
       } else {
-        // Neighbourhood missing in Neo4j: Update Postgres to null (orphan cleanup)
         this.logger.warn(
-          `Orphan assignment: Neighbourhood ${pgNeighbourhoodId} missing in Neo4j. Clearing PG for ${nodeLabel} ${entityPgId}.`,
+          `Orphan: Neighbourhood ${pgNeighbourhoodId} missing in Neo4j. Clearing PG.`,
         );
         await this.updatePostgresNeighbourhood(nodeLabel, entityPgId, null);
       }
       return true;
     }
 
-    // Mismatch 2: Postgres has no neighbourhood, but Neo4j has one
     if (!pgNeighbourhoodId && neo4jNbId) {
       this.logger.warn(
-        `Mismatch detected for ${nodeLabel} ${entityPgId}: PG=null, Neo4j=${neo4jNbId}. Reconciling...`,
+        `Stale: ${nodeLabel} ${entityPgId}: PG=null, Neo4j=${neo4jNbId}`,
       );
-      const fixQuery = `
-        MATCH (e:${nodeLabel} {pg_id: $entityPgId})-[r:${relationshipType}]->(n:Neighbourhood)
-        DELETE r
-      `;
-      await this.neo4jService.run(fixQuery, { entityPgId });
-      this.logger.log(
-        `Fixed: Deleted stale relationship to ${neo4jNbId} in Neo4j for ${nodeLabel} ${entityPgId}.`,
+      await this.neo4jService.run(
+        `MATCH (e:${nodeLabel} {pg_id: $entityPgId})-[r:${relationshipType}]->(n:Neighbourhood)
+         DELETE r`,
+        { entityPgId },
       );
       return true;
     }
 
-    // Match: No discrepancy
     return false;
   }
 
