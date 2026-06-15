@@ -29,9 +29,11 @@ export class NoResultsError extends Error {}
 @Injectable()
 export class BanService {
   private readonly logger = new Logger(BanService.name);
-  private readonly baseUrl = 'http://ban:7878/search/';
+  private readonly baseUrl: string;
 
-  constructor(private readonly httpRetryService: HttpRetryService) {}
+  constructor(private readonly httpRetryService: HttpRetryService) {
+    this.baseUrl = process.env.BAN_API_URL || 'http://ban:7878/search/';
+  }
 
   async geocode(address: string, limit?: number): Promise<GeocodingResult> {
     this.validateAddress(address);

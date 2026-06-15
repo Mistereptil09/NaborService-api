@@ -307,3 +307,21 @@ export class PaginationDto {
   @Min(1)
   limit: number = 20;
 }
+
+export class SearchUsersQueryDto extends PaginationDto {
+  @ApiProperty({
+    description: 'Terme de recherche (nom ou prénom)',
+    example: 'john',
+  })
+  @IsString()
+  @IsNotEmpty()
+  q!: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrer par quartier (ID)',
+    example: 'uuid-quartier',
+  })
+  @IsOptional()
+  @IsString()
+  neighbourhood?: string;
+}

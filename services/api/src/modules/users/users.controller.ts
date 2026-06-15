@@ -47,6 +47,7 @@ import {
   PasswordResetRequestDto,
   RectifyDataDto,
   ReportUserDto,
+  SearchUsersQueryDto,
   SwipeDto,
   UpdateLocaleDto,
   UpdateNotifPrefsDto,
@@ -427,15 +428,13 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async search(
     @Req() req: { user: JwtPayload },
-    @Query('q') query: string,
-    @Query('neighbourhood') neighbourhood?: string,
-    @Query() pagination?: PaginationDto,
+    @Query() dto: SearchUsersQueryDto,
   ) {
     return this.discoveryService.search(
       req.user.sub,
-      query,
-      neighbourhood,
-      pagination,
+      dto.q,
+      dto.neighbourhood,
+      dto,
     );
   }
 

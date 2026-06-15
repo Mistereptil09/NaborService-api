@@ -84,9 +84,11 @@ export class UserDiscoveryService {
       qb.andWhere('user.neighbourhood_id = :neighbourhood', { neighbourhood });
     }
 
+    // similarity() needs text, not unknown — use a sanitized literal to avoid type casting issues with TypeORM parameters
+    const sanitized = query.replace(/'/g, "''");
     qb.andWhere(
-      '(user.first_name ILIKE :query OR user.last_name ILIKE :query OR similarity(user.first_name, :rawQuery) > 0.3 OR similarity(user.last_name, :rawQuery) > 0.3)',
-      { query: `%${query}%`, rawQuery: query },
+      `(user.first_name ILIKE :query OR user.last_name ILIKE :query OR similarity(user.first_name, '${sanitized}') > 0.3 OR similarity(user.last_name, '${sanitized}') > 0.3)`,
+      { query: `%${query}%` },
     );
 
     const total = await qb.getCount();
