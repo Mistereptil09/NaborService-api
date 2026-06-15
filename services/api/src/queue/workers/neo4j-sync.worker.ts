@@ -1,10 +1,11 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { Logger } from '@nestjs/common';
+import { Logger, Optional } from '@nestjs/common';
 import { Neo4jSyncJobPayload } from '../interfaces/job-payloads';
 import { classifyAndThrow } from '../utils/error-classifier';
 import { getBackoffDelay } from '../utils/backoff-strategy';
 import { Neo4jSyncService } from '../../database/neo4j/neo4j-sync.service';
+import { Neo4jHealthService } from '../../modules/geo/neo4j-health.service';
 
 @Processor('neo4j-sync', {
   concurrency: 1,
@@ -19,7 +20,10 @@ import { Neo4jSyncService } from '../../database/neo4j/neo4j-sync.service';
 export class Neo4jSyncWorker extends WorkerHost {
   private readonly logger = new Logger(Neo4jSyncWorker.name);
 
-  constructor(private readonly neo4jSyncService: Neo4jSyncService) {
+  constructor(
+    private readonly neo4jSyncService: Neo4jSyncService,
+    @Optional() private readonly healthService?: Neo4jHealthService,
+  ) {
     super();
   }
 
@@ -52,6 +56,7 @@ export class Neo4jSyncWorker extends WorkerHost {
             costCents:
               data.cost_cents !== undefined ? data.cost_cents : data.costCents,
           });
+          break;
         case 'update-relationship':
           if (data.type === 'FOLLOWS') {
             await this.neo4jSyncService.createFollows(
@@ -108,6 +113,7 @@ export class Neo4jSyncWorker extends WorkerHost {
             data.swipedId,
             data.direction,
           );
+          break;
         case 'user.blocks.create':
           await this.neo4jSyncService.createBlocks(
             data.blockerId,
@@ -144,16 +150,25 @@ export class Neo4jSyncWorker extends WorkerHost {
             data.neighbourhoodId,
           );
           break;
+        case 'update-posted-in':
+          await this.neo4jSyncService.createPostedIn(
+            data.listingId,
+            data.neighbourhoodId,
+          );
+          break;
         default:
           throw new Error(`Unknown operation: ${operation}`);
       }
+      this.healthService?.recordSuccess();
     } catch (error: any) {
+      this.healthService?.recordFailure();
       classifyAndThrow(error);
     }
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job<Neo4jSyncJobPayload>, error: Error) {
+    this.healthService?.recordFailure();
     if (job && job.attemptsMade >= (job.opts.attempts || 3)) {
       this.logger.error({
         queue: 'neo4j-sync',
