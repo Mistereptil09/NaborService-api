@@ -9,12 +9,15 @@ import { REDIS_CLIENT } from '../../database/redis.module';
 
 export interface ServiceStatus {
   status: 'up' | 'down';
+  dependency: 'hard' | 'soft';
   latency_ms?: number;
   error?: string;
 }
 
+export type ReadinessStatus = 'ok' | 'degraded' | 'critical';
+
 export interface ReadinessResponse {
-  status: 'ok' | 'degraded';
+  status: ReadinessStatus;
   timestamp: string;
   uptime: number;
   services: {
@@ -24,6 +27,9 @@ export interface ReadinessResponse {
     redis: ServiceStatus;
   };
 }
+
+/** Services required for the server to function. Down = critical. */
+const SOFT_DEPS = new Set(['mongodb', 'neo4j']);
 
 @Injectable()
 export class HealthService {
@@ -44,20 +50,25 @@ export class HealthService {
       this.checkRedis(),
     ]);
 
-    const allUp = [postgresql, mongodb, neo4jStatus, redis].every(
-      (s) => s.status === 'up',
+    const services = { postgresql, mongodb, neo4j: neo4jStatus, redis };
+    const downServices = Object.entries(services).filter(
+      ([, s]) => s.status === 'down',
     );
 
+    let status: ReadinessStatus;
+    if (downServices.length === 0) {
+      status = 'ok';
+    } else if (downServices.every(([name]) => SOFT_DEPS.has(name))) {
+      status = 'degraded';
+    } else {
+      status = 'critical';
+    }
+
     return {
-      status: allUp ? 'ok' : 'degraded',
+      status,
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      services: {
-        postgresql,
-        mongodb,
-        neo4j: neo4jStatus,
-        redis,
-      },
+      services,
     };
   }
 
@@ -65,33 +76,32 @@ export class HealthService {
     const start = Date.now();
     try {
       await this.dataSource.query('SELECT 1');
-      return { status: 'up', latency_ms: Date.now() - start };
+      return { status: 'up', dependency: 'hard', latency_ms: Date.now() - start };
     } catch (error: any) {
       this.logger.error(`PostgreSQL health check failed: ${error.message}`);
-      return { status: 'down', error: error.message };
+      return { status: 'down', dependency: 'hard', error: error.message };
     }
   }
 
   private async checkMongo(): Promise<ServiceStatus> {
     const start = Date.now();
     try {
-      // mongoose Connection.db can be undefined if not fully connected
       if (!this.mongoConnection || this.mongoConnection.readyState !== 1) {
         const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
         const stateName = this.mongoConnection
           ? states[this.mongoConnection.readyState] ?? 'unknown'
           : 'no connection';
-        return { status: 'down', error: `MongoDB not connected (state: ${stateName})` };
+        return { status: 'down', dependency: 'soft', error: `MongoDB not connected (state: ${stateName})` };
       }
       const db = this.mongoConnection.db;
       if (!db) {
-        return { status: 'down', error: 'MongoDB connection established but db handle is undefined' };
+        return { status: 'down', dependency: 'soft', error: 'MongoDB connection established but db handle is undefined' };
       }
       await db.admin().ping();
-      return { status: 'up', latency_ms: Date.now() - start };
+      return { status: 'up', dependency: 'soft', latency_ms: Date.now() - start };
     } catch (error: any) {
       this.logger.error(`MongoDB health check failed: ${error.message}`);
-      return { status: 'down', error: error.message };
+      return { status: 'down', dependency: 'soft', error: error.message };
     }
   }
 
@@ -99,10 +109,10 @@ export class HealthService {
     const start = Date.now();
     try {
       await this.neo4jDriver.verifyConnectivity();
-      return { status: 'up', latency_ms: Date.now() - start };
+      return { status: 'up', dependency: 'soft', latency_ms: Date.now() - start };
     } catch (error: any) {
       this.logger.error(`Neo4j health check failed: ${error.message}`);
-      return { status: 'down', error: error.message };
+      return { status: 'down', dependency: 'soft', error: error.message };
     }
   }
 
@@ -110,13 +120,13 @@ export class HealthService {
     const start = Date.now();
     try {
       if (this.redisClient.status !== 'ready') {
-        return { status: 'down', error: `Redis not ready (status: ${this.redisClient.status})` };
+        return { status: 'down', dependency: 'hard', error: `Redis not ready (status: ${this.redisClient.status})` };
       }
       await this.redisClient.ping();
-      return { status: 'up', latency_ms: Date.now() - start };
+      return { status: 'up', dependency: 'hard', latency_ms: Date.now() - start };
     } catch (error: any) {
       this.logger.error(`Redis health check failed: ${error.message}`);
-      return { status: 'down', error: error.message };
+      return { status: 'down', dependency: 'hard', error: error.message };
     }
   }
 }
