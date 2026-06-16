@@ -158,7 +158,7 @@ describe('Chat Module (e2e)', () => {
         .send({ name: 'Add Member Test' })
         .expect(201);
 
-      await request(app.getHttpServer())
+      const res = await request(app.getHttpServer())
         .post(`/v1/chat/groups/${group.body.id}/members`)
         .set('Authorization', `Bearer ${token1}`)
         .send({ user_id: user2.user.id })

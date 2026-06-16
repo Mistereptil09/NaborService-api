@@ -4,6 +4,7 @@ import {
   createTestingApp,
   clearDatabase,
   clearRedis,
+  clearQueueJobs,
 } from './utils/e2e-setup';
 import {
   createTestUser,
@@ -27,6 +28,10 @@ describe('Listings Module (e2e)', () => {
   beforeEach(async () => {
     await clearDatabase(app);
     await clearRedis(app);
+  });
+
+  afterEach(async () => {
+    await clearQueueJobs(app);
   });
 
   // ── CRUD ─────────────────────────────────────────────────────
@@ -177,7 +182,7 @@ describe('Listings Module (e2e)', () => {
       const interestRes = await request(app.getHttpServer())
         .post(`/v1/listings/${listing.id}/interest`)
         .set('Authorization', `Bearer ${requesterToken}`)
-        .expect(200);
+        .expect(201);
 
       expect(interestRes.body.listing).toHaveProperty('status', 'pending');
       const transactionId = interestRes.body.transaction.id;
@@ -186,7 +191,7 @@ describe('Listings Module (e2e)', () => {
       const acceptRes = await request(app.getHttpServer())
         .post(`/v1/listings/${listing.id}/accept`)
         .set('Authorization', `Bearer ${creatorToken}`)
-        .expect(200);
+        .expect(201);
 
       expect(acceptRes.body).toHaveProperty('status', 'in_progress');
 
@@ -194,12 +199,12 @@ describe('Listings Module (e2e)', () => {
       await request(app.getHttpServer())
         .post(`/v1/listings/${listing.id}/confirm`)
         .set('Authorization', `Bearer ${creatorToken}`)
-        .expect(200);
+        .expect(201);
 
       const confirmRes = await request(app.getHttpServer())
         .post(`/v1/listings/${listing.id}/confirm`)
         .set('Authorization', `Bearer ${requesterToken}`)
-        .expect(200);
+        .expect(201);
 
       expect(confirmRes.body).toHaveProperty('status', 'completed');
     });
@@ -226,7 +231,7 @@ describe('Listings Module (e2e)', () => {
         .post(`/v1/listings/${listing.id}/cancel`)
         .set('Authorization', `Bearer ${token}`)
         .send({ reason: 'No longer needed' })
-        .expect(200);
+        .expect(201);
 
       expect(res.body).toHaveProperty('status', 'cancelled');
     });
@@ -255,7 +260,7 @@ describe('Listings Module (e2e)', () => {
       await request(app.getHttpServer())
         .post(`/v1/listings/${listing.id}/interest`)
         .set('Authorization', `Bearer ${otherToken}`)
-        .expect(200);
+        .expect(201);
 
       // Other tries to accept (should fail — only creator can accept)
       await request(app.getHttpServer())
@@ -280,7 +285,7 @@ describe('Listings Module (e2e)', () => {
         .post(`/v1/listings/${listing.id}/report`)
         .set('Authorization', `Bearer ${reporterToken}`)
         .send({ reason: 'Inappropriate content' })
-        .expect(200);
+        .expect(201);
 
       expect(res.body).toHaveProperty('success', true);
     });

@@ -52,7 +52,6 @@ describe('Incidents Module (e2e)', () => {
         .send({
           title: 'Street light broken',
           description: 'The light on Main St has been out for 3 days',
-          category: 'infrastructure',
           severity: 'medium',
         })
         .expect(201);
@@ -80,7 +79,7 @@ describe('Incidents Module (e2e)', () => {
       await request(app.getHttpServer())
         .post('/v1/incidents')
         .set('Authorization', `Bearer ${token}`)
-        .send({ title: 'Test', category: 'other', severity: 'low' })
+        .send({ title: 'Test', severity: 'low' })
         .expect(201);
 
       const res = await request(app.getHttpServer())
@@ -89,7 +88,7 @@ describe('Incidents Module (e2e)', () => {
         .expect(200);
 
       expect(res.body).toHaveProperty('data');
-      expect(res.body).toHaveProperty('meta');
+      expect(res.body).toHaveProperty('total');
       expect(Array.isArray(res.body.data)).toBe(true);
     });
 
@@ -100,7 +99,7 @@ describe('Incidents Module (e2e)', () => {
       const created = await request(app.getHttpServer())
         .post('/v1/incidents')
         .set('Authorization', `Bearer ${token}`)
-        .send({ title: 'My Incident', category: 'other', severity: 'low' })
+        .send({ title: 'My Incident', severity: 'low' })
         .expect(201);
 
       const res = await request(app.getHttpServer())
@@ -128,7 +127,7 @@ describe('Incidents Module (e2e)', () => {
       const created = await request(app.getHttpServer())
         .post('/v1/incidents')
         .set('Authorization', `Bearer ${token}`)
-        .send({ title: 'Original', category: 'other', severity: 'low' })
+        .send({ title: 'Original', severity: 'low' })
         .expect(201);
 
       const res = await request(app.getHttpServer())
@@ -147,7 +146,7 @@ describe('Incidents Module (e2e)', () => {
       const created = await request(app.getHttpServer())
         .post('/v1/incidents')
         .set('Authorization', `Bearer ${token}`)
-        .send({ title: 'To Delete', category: 'other', severity: 'low' })
+        .send({ title: 'To Delete', severity: 'low' })
         .expect(201);
 
       const res = await request(app.getHttpServer())
@@ -169,7 +168,7 @@ describe('Incidents Module (e2e)', () => {
       const created = await request(app.getHttpServer())
         .post('/v1/incidents')
         .set('Authorization', `Bearer ${token}`)
-        .send({ title: 'Issue', category: 'other', severity: 'low' })
+        .send({ title: 'Issue', severity: 'low' })
         .expect(201);
 
       await request(app.getHttpServer())
@@ -187,13 +186,13 @@ describe('Incidents Module (e2e)', () => {
       const created = await request(app.getHttpServer())
         .post('/v1/incidents')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ title: 'Resolvable', category: 'other', severity: 'low' })
+        .send({ title: 'Resolvable', severity: 'low' })
         .expect(201);
 
       await request(app.getHttpServer())
         .post(`/v1/incidents/${created.body.id}/resolve`)
         .set('Authorization', `Bearer ${adminToken}`)
-        .expect(200);
+        .expect(201);
     });
   });
 });
