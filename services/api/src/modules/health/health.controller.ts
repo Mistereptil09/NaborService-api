@@ -36,7 +36,8 @@ export class HealthController {
   async ready(@Res() res: Response): Promise<void> {
     const result = await this.healthService.checkReadiness();
 
-    const httpStatus = result.status === 'ok' ? 200 : 503;
+    const httpStatus =
+      result.status === 'ok' || result.status === 'degraded' ? 200 : 503;
     res.status(httpStatus).json(result);
   }
 }
