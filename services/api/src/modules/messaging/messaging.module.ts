@@ -14,6 +14,7 @@ import { ChatService } from './chat.service';
 import { ChatMessageService } from './chat-message.service';
 import { ChatGateway } from './chat.gateway';
 import { ChatController } from './chat.controller';
+import { ChatAdminController } from './chat-admin.controller';
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { ChatController } from './chat.controller';
     MongooseModule.forFeature([{ name: Message.name, schema: MessageSchema }]),
     AuthModule,
   ],
-  controllers: [ChatController],
+  controllers: [ChatController, ChatAdminController],
   providers: [ChatService, ChatMessageService, ChatGateway],
   exports: [TypeOrmModule, ChatService, ChatMessageService, ChatGateway],
 })

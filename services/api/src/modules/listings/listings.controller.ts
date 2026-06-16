@@ -125,7 +125,7 @@ export class ListingsController {
     @Body() dto: ModerateListingDto,
     @Req() req: any,
   ) {
-    await this.moderationService.moderate(req.user.id, id, dto);
+    await this.moderationService.moderate(req.user.sub, id, dto);
     return { success: true };
   }
 
@@ -162,7 +162,7 @@ export class ListingsController {
   })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async listListings(@Query() query: ListListingsDto, @Req() req: any) {
-    return this.listingsService.list(req.user.id, query);
+    return this.listingsService.list(req.user.sub, query);
   }
 
   @Post()
@@ -173,7 +173,7 @@ export class ListingsController {
   })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async createListing(@Body() dto: CreateListingDto, @Req() req: any) {
-    return this.listingsService.create(req.user.id, dto);
+    return this.listingsService.create(req.user.sub, dto);
   }
 
   @Get(':listing_id')
@@ -200,7 +200,7 @@ export class ListingsController {
     @Body() dto: UpdateListingDto,
     @Req() req: any,
   ) {
-    return this.listingsService.update(req.user.id, id, dto);
+    return this.listingsService.update(req.user.sub, id, dto);
   }
 
   @Delete(':listing_id')
@@ -215,7 +215,7 @@ export class ListingsController {
     const isModerator =
       req.user.role === UserRoleEnum.MODERATOR ||
       req.user.role === UserRoleEnum.ADMIN;
-    await this.listingsService.softDelete(req.user.id, id, isModerator);
+    await this.listingsService.softDelete(req.user.sub, id, isModerator);
     return { success: true };
   }
 
@@ -248,7 +248,7 @@ export class ListingsController {
     @Body() dto: UpdateContentDto,
     @Req() req: any,
   ) {
-    return this.contentService.updateContent(req.user.id, id, dto);
+    return this.contentService.updateContent(req.user.sub, id, dto);
   }
 
   // --- Listing Media (Multipart Upload) ---
@@ -271,7 +271,7 @@ export class ListingsController {
     @UploadedFile() file: Express.Multer.File,
     @Req() req: any,
   ) {
-    return this.mediaService.uploadMedia(req.user.id, id, file);
+    return this.mediaService.uploadMedia(req.user.sub, id, file);
   }
 
   @Delete(':listing_id/media/:media_id')
@@ -285,7 +285,7 @@ export class ListingsController {
     @Param('media_id') mediaId: string,
     @Req() req: any,
   ) {
-    await this.mediaService.deleteMedia(req.user.id, id, mediaId);
+    await this.mediaService.deleteMedia(req.user.sub, id, mediaId);
     return { success: true };
   }
 
@@ -304,7 +304,7 @@ export class ListingsController {
   @ApiNotFoundResponse({ description: 'Annonce introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async expressInterest(@Param('listing_id') id: string, @Req() req: any) {
-    return this.stateMachineService.expressInterest(id, req.user.id);
+    return this.stateMachineService.expressInterest(id, req.user.sub);
   }
 
   @Post(':listing_id/accept')
@@ -325,7 +325,7 @@ export class ListingsController {
   @ApiNotFoundResponse({ description: 'Annonce introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async acceptInterest(@Param('listing_id') id: string, @Req() req: any) {
-    return this.stateMachineService.acceptInterest(id, req.user.id);
+    return this.stateMachineService.acceptInterest(id, req.user.sub);
   }
 
   @Post(':listing_id/confirm')
@@ -345,7 +345,7 @@ export class ListingsController {
   @ApiNotFoundResponse({ description: 'Annonce introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async confirmExecution(@Param('listing_id') id: string, @Req() req: any) {
-    return this.stateMachineService.confirmExecution(id, req.user.id);
+    return this.stateMachineService.confirmExecution(id, req.user.sub);
   }
 
   @Post(':listing_id/cancel')
@@ -368,7 +368,7 @@ export class ListingsController {
     @Body() dto: CancelListingDto,
     @Req() req: any,
   ) {
-    return this.stateMachineService.cancel(id, req.user.id, dto.reason);
+    return this.stateMachineService.cancel(id, req.user.sub, dto.reason);
   }
 
   // --- Listing Chat Group ---
@@ -385,7 +385,7 @@ export class ListingsController {
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async getChat(@Param('listing_id') id: string, @Req() req: any) {
     const transaction = await this.transactionService.findByListingId(id);
-    await this.transactionService.verifyPartyAccess(req.user.id, transaction);
+    await this.transactionService.verifyPartyAccess(req.user.sub, transaction);
 
     const chatGroup = await this.chatGroupRepository.findOne({
       where: { listingId: id, deletedAt: IsNull() },
@@ -419,7 +419,7 @@ export class ListingsController {
     @Res() res: any,
   ) {
     const doc = await this.signatureService.getContractStream(
-      req.user.id,
+      req.user.sub,
       id,
       'contract',
     );
@@ -448,7 +448,7 @@ export class ListingsController {
     @Res() res: any,
   ) {
     const doc = await this.signatureService.getContractStream(
-      req.user.id,
+      req.user.sub,
       id,
       'receipt',
     );
@@ -484,7 +484,7 @@ export class ListingsController {
     const ip = req.ip || req.connection.remoteAddress || null;
     const userAgent = req.headers['user-agent'] || null;
     return this.signatureService.signDocument(
-      req.user.id,
+      req.user.sub,
       id,
       dto,
       ip,
@@ -512,7 +512,7 @@ export class ListingsController {
     @Body() dto: ReportListingDto,
     @Req() req: any,
   ) {
-    await this.reportService.createReport(req.user.id, id, dto.reason);
+    await this.reportService.createReport(req.user.sub, id, dto.reason);
     return { success: true };
   }
 }

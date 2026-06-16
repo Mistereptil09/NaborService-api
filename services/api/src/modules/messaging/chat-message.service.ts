@@ -11,8 +11,10 @@ import { Model } from 'mongoose';
 import * as crypto from 'crypto';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import Redis from 'ioredis';
+import { ConfigService } from '@nestjs/config';
 import { MessageMetadata } from './entities/message-metadata.entity';
 import { MessageReadReceipt } from './entities/message-read-receipt.entity';
+import { ChatGroup } from './entities/chat-group.entity';
 import {
   Message,
   MessageDocument,
@@ -24,6 +26,7 @@ const AES_ALGO = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96 bits
 const AUTH_TAG_LENGTH = 16; // 128 bits
 const MESSAGES_PER_PAGE = 50;
+const GROUP_KEY_CACHE_TTL = 3600; // Redis cache TTL: 1 hour — PG is the source of truth
 
 @Injectable()
 export class ChatMessageService {
@@ -32,10 +35,13 @@ export class ChatMessageService {
     private readonly msgRepo: Repository<MessageMetadata>,
     @InjectRepository(MessageReadReceipt)
     private readonly receiptRepo: Repository<MessageReadReceipt>,
+    @InjectRepository(ChatGroup)
+    private readonly groupRepo: Repository<ChatGroup>,
     @InjectModel(Message.name)
     private readonly messageModel: Model<MessageDocument>,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly chatService: ChatService,
+    private readonly configService: ConfigService,
   ) {}
 
   // ── Send ────────────────────────────────────────────────
@@ -224,6 +230,47 @@ export class ChatMessageService {
     return { deleted: true, message_id: messageId };
   }
 
+  /**
+   * Admin/moderator soft-delete — bypasses group membership.
+   * Marks the message as deleted and records the moderator who deleted it.
+   */
+  async softDeleteMessageAsModerator(messageId: string, moderatorId: string) {
+    const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
+    if (!metadata) throw new NotFoundException('Message introuvable');
+
+    metadata.isDeleted = true;
+    metadata.deletedAt = new Date();
+    metadata.deletedByModeratorId = moderatorId;
+    await this.msgRepo.save(metadata);
+
+    const mongo = await this.messageModel.findOne({ pg_message_id: messageId });
+    if (mongo) {
+      mongo.deleted_at = new Date();
+      await mongo.save();
+    }
+
+    return { deleted: true, message_id: messageId, by: 'moderator' };
+  }
+
+  /**
+   * Admin/moderator message read — bypasses group membership.
+   * Returns the full decrypted message.
+   */
+  async getMessageAsAdmin(messageId: string) {
+    const metadata = await this.msgRepo.findOne({
+      where: { id: messageId },
+      relations: ['sender'],
+    });
+    if (!metadata) throw new NotFoundException('Message introuvable');
+
+    const mongo = await this.messageModel.findOne({ pg_message_id: messageId });
+
+    const groupKey = await this.getGroupKey(metadata.groupId);
+    if (!groupKey) throw new NotFoundException('Clé de chiffrement introuvable');
+
+    return this.toPlainMessage(mongo, metadata, groupKey, true);
+  }
+
   // ── Read receipts ───────────────────────────────────────
 
   async markRead(messageId: string, userId: string) {
@@ -239,21 +286,93 @@ export class ChatMessageService {
 
   // ── AES Key management ──────────────────────────────────
 
-  private async getOrCreateGroupKey(groupId: string): Promise<Buffer> {
-    const key = `group_key:${groupId}`;
-    let existing = await this.redis.get(key);
-    if (existing) return Buffer.from(existing, 'base64');
+  /** Encrypts a group key for safe storage in PostgreSQL. */
+  private encryptGroupKeyForStorage(rawKey: Buffer): { encrypted: string; iv: string; authTag: string } {
+    const masterKey = Buffer.from(this.configService.get<string>('AES_MASTER_KEY')!, 'hex');
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const cipher = crypto.createCipheriv(AES_ALGO, masterKey, iv);
+    const encrypted = Buffer.concat([cipher.update(rawKey), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    return {
+      encrypted: encrypted.toString('base64'),
+      iv: iv.toString('base64'),
+      authTag: authTag.toString('base64'),
+    };
+  }
 
-    // Generate new 256-bit key
-    const newKey = crypto.randomBytes(32); // 256 bits
-    await this.redis.set(key, newKey.toString('base64'));
+  /** Decrypts a group key retrieved from PostgreSQL. */
+  private decryptStoredGroupKey(encryptedB64: string, ivB64: string, authTagB64: string): Buffer {
+    const masterKey = Buffer.from(this.configService.get<string>('AES_MASTER_KEY')!, 'hex');
+    const decipher = crypto.createDecipheriv(AES_ALGO, masterKey, Buffer.from(ivB64, 'base64'));
+    decipher.setAuthTag(Buffer.from(authTagB64, 'base64'));
+    return Buffer.concat([decipher.update(Buffer.from(encryptedB64, 'base64')), decipher.final()]);
+  }
+
+  /**
+   * Fetches or creates the AES-256 group key.
+   * 1. Try Redis (fast path)
+   * 2. Fall back to PostgreSQL (encrypted copy)
+   * 3. If neither exists, generate new key — store in Redis AND PG
+   */
+  private async getOrCreateGroupKey(groupId: string): Promise<Buffer> {
+    const redisKey = `group_key:${groupId}`;
+
+    // 1. Redis fast path
+    const fromRedis = await this.redis.get(redisKey);
+    if (fromRedis) return Buffer.from(fromRedis, 'base64');
+
+    // 2. Fall back to PostgreSQL
+    const fromDb = await this.getGroupKeyFromDb(groupId);
+    if (fromDb) {
+      // Restore to Redis so next read hits the fast path
+      await this.redis.set(redisKey, fromDb.toString('base64'), 'EX', GROUP_KEY_CACHE_TTL);
+      return fromDb;
+    }
+
+    // 3. Generate new key — store in both places
+    const newKey = crypto.randomBytes(32);
+    const packed = this.encryptGroupKeyForStorage(newKey);
+    await this.groupRepo.update(
+      { id: groupId },
+      { encryptedGroupKey: `${packed.iv}:${packed.authTag}:${packed.encrypted}` },
+    );
+    await this.redis.set(redisKey, newKey.toString('base64'), 'EX', GROUP_KEY_CACHE_TTL);
     return newKey;
   }
 
+  /** Tries to fetch and decrypt the group key from the chat_groups table. */
+  private async getGroupKeyFromDb(groupId: string): Promise<Buffer | null> {
+    try {
+      const group = await this.groupRepo.findOne({
+        where: { id: groupId },
+        select: ['encryptedGroupKey'],
+      });
+      if (!group?.encryptedGroupKey) return null;
+
+      const [iv, authTag, encrypted] = group.encryptedGroupKey.split(':');
+      if (!iv || !authTag || !encrypted) return null;
+
+      return this.decryptStoredGroupKey(encrypted, iv, authTag);
+    } catch {
+      return null;
+    }
+  }
+
   private async getGroupKey(groupId: string): Promise<Buffer | null> {
-    const key = `group_key:${groupId}`;
-    const existing = await this.redis.get(key);
-    return existing ? Buffer.from(existing, 'base64') : null;
+    const redisKey = `group_key:${groupId}`;
+
+    // 1. Redis fast path
+    const fromRedis = await this.redis.get(redisKey);
+    if (fromRedis) return Buffer.from(fromRedis, 'base64');
+
+    // 2. Fall back to PostgreSQL + restore to Redis
+    const fromDb = await this.getGroupKeyFromDb(groupId);
+    if (fromDb) {
+      await this.redis.set(redisKey, fromDb.toString('base64'), 'EX', GROUP_KEY_CACHE_TTL);
+      return fromDb;
+    }
+
+    return null;
   }
 
   private decryptContent(
@@ -283,6 +402,7 @@ export class ChatMessageService {
     mongo: any,
     pg: MessageMetadata,
     key: Buffer | null | undefined,
+    asAdmin = false,
   ) {
     const decrypted =
       key && mongo && mongo.content_encrypted
@@ -303,6 +423,8 @@ export class ChatMessageService {
       sent_at: pg.sentAt,
       edited_at: mongo?.edited_at ?? null,
       is_deleted: pg.isDeleted,
+      deleted_at: pg.deletedAt ?? null,
+      ...(asAdmin && { deleted_by_moderator_id: pg.deletedByModeratorId }),
       reactions: mongo?.reactions ?? [],
       attachments: mongo?.attachments ?? [],
     };

@@ -101,3 +101,73 @@ export async function createAdminUser(
 
   return { email, password, user: { ...user, role: 'admin' }, token, secret };
 }
+
+/**
+ * Creates a listing via POST /v1/listings.
+ * Returns the created listing entity.
+ */
+export async function createListing(
+  app: INestApplication,
+  token: string,
+  overrides?: Partial<{
+    title: string;
+    listing_type: string;
+    description: string;
+    price_cents: number;
+    neighbourhood_id: string;
+    category_id: number;
+  }>,
+) {
+  const dto = {
+    title: overrides?.title ?? 'Test Listing',
+    listing_type: overrides?.listing_type ?? 'offer',
+    description: overrides?.description ?? 'A test listing',
+    price_cents: overrides?.price_cents ?? 1000,
+    neighbourhood_id: overrides?.neighbourhood_id,
+    category_id: overrides?.category_id,
+  };
+
+  const res = await request(app.getHttpServer())
+    .post('/v1/listings')
+    .set('Authorization', `Bearer ${token}`)
+    .send(dto)
+    .expect(201);
+
+  return res.body;
+}
+
+/**
+ * Creates an event via POST /v1/events.
+ * Returns the created Evenement entity (status: 'draft').
+ */
+export async function createEvent(
+  app: INestApplication,
+  token: string,
+  overrides?: Partial<{
+    title: string;
+    description: string;
+    cost_cents: number;
+    max_participants: number;
+    neighbourhood_id: string;
+    category_id: number;
+    starts_at: string;
+  }>,
+) {
+  const dto = {
+    title: overrides?.title ?? 'Test Event',
+    description: overrides?.description ?? 'A test event',
+    cost_cents: overrides?.cost_cents ?? 500,
+    max_participants: overrides?.max_participants ?? 50,
+    neighbourhood_id: overrides?.neighbourhood_id,
+    category_id: overrides?.category_id,
+    starts_at: overrides?.starts_at ?? new Date(Date.now() + 86400000).toISOString(),
+  };
+
+  const res = await request(app.getHttpServer())
+    .post('/v1/events')
+    .set('Authorization', `Bearer ${token}`)
+    .send(dto)
+    .expect(201);
+
+  return res.body;
+}

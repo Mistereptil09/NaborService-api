@@ -100,3 +100,33 @@ export async function clearRedis(app: INestApplication) {
     // Ignore if Redis client not found
   }
 }
+
+/**
+ * Post-test cleanup: removes failed/completed jobs accumulated during the test.
+ * Call in afterEach to suppress noisy worker errors from entities deleted by clearDatabase.
+ */
+export async function clearQueueJobs(app: INestApplication) {
+  const queues = [
+    'neo4j-sync',
+    'email',
+    'pdf-generation',
+    'stripe-webhook',
+    'waitlist-promote',
+    'rgpd-anonymise',
+    'crypto-rotation',
+    'event-register',
+    'contract-expiration',
+  ];
+  for (const queueName of queues) {
+    try {
+      const queue = app.get<Queue>(getQueueToken(queueName), { strict: false });
+      if (queue) {
+        await queue.clean(0, 100, 'failed');
+        await queue.clean(0, 100, 'completed');
+        await queue.drain(true);
+      }
+    } catch {
+      // Ignore
+    }
+  }
+}

@@ -47,6 +47,9 @@ export class MessageMetadata {
   @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date | null;
 
+  @Column({ name: 'deleted_by_moderator_id', type: 'uuid', nullable: true })
+  deletedByModeratorId: string | null;
+
   @Column({ name: 'parent_message_id', type: 'uuid', nullable: true })
   parentMessageId: string | null;
 

@@ -45,6 +45,9 @@ export class ChatGroup {
   @JoinColumn({ name: 'listing_id' })
   listing: any | null;
 
+  @Column({ name: 'encrypted_group_key', type: 'text', nullable: true })
+  encryptedGroupKey: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
