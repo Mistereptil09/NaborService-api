@@ -39,6 +39,7 @@ export class PollsService {
       creatorId,
       neighbourhoodId: dto.neighbourhood_id ?? null,
       pollType: dto.poll_type ?? PollTypeEnum.SINGLE,
+      startsAt: dto.starts_at ? new Date(dto.starts_at) : new Date(),
       endsAt: dto.ends_at ? new Date(dto.ends_at) : null,
       isAnonymous: dto.is_anonymous ?? false,
     });
@@ -132,7 +133,12 @@ export class PollsService {
 
     // Check existing votes — for SINGLE polls, remove prior votes
     if (poll.pollType === PollTypeEnum.SINGLE) {
-      await this.voteRepo.delete({ userId, option: { pollId } });
+      await this.voteRepo
+        .createQueryBuilder()
+        .delete()
+        .where('user_id = :userId', { userId })
+        .andWhere('option_id IN (SELECT o.id FROM poll_options o WHERE o.poll_id = :pollId)', { pollId })
+        .execute();
     }
 
     const existing = await this.voteRepo.findOne({ where: { userId, optionId } });
@@ -160,10 +166,21 @@ export class PollsService {
     return this.voteRepo.save(vote);
   }
 
-  async deleteVote(pollId: string, userId: string) {
+  async deleteVote(pollId: string, userId: string, optionId?: string) {
     const poll = await this.getPoll(pollId);
     if (poll.closedAt) throw new ForbiddenException('Sondage clôturé');
-    await this.voteRepo.delete({ userId, option: { pollId } });
+
+    const qb = this.voteRepo.createQueryBuilder().delete().where('user_id = :userId', { userId });
+
+    if (optionId) {
+      // Remove a specific vote (MULTIPLE/WEIGHTED — keep other votes)
+      qb.andWhere('option_id = :optionId', { optionId });
+    } else {
+      // Remove all votes on this poll (SINGLE — or full reset)
+      qb.andWhere('option_id IN (SELECT o.id FROM poll_options o WHERE o.poll_id = :pollId)', { pollId });
+    }
+
+    await qb.execute();
     return { deleted: true };
   }
 

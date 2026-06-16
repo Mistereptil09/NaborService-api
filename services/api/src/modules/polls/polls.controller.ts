@@ -119,8 +119,12 @@ export class PollsController {
 
   @Delete(':poll_id/vote')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Retirer son vote' })
-  async deleteVote(@Param('poll_id') pollId: string, @Req() req: { user: JwtPayload }) {
-    return this.pollsService.deleteVote(pollId, req.user.sub);
+  @ApiOperation({ summary: 'Retirer son vote (ou un vote spécifique si option_id fourni)' })
+  async deleteVote(
+    @Param('poll_id') pollId: string,
+    @Req() req: { user: JwtPayload },
+    @Body('option_id') optionId?: string,
+  ) {
+    return this.pollsService.deleteVote(pollId, req.user.sub, optionId);
   }
 }

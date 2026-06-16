@@ -26,6 +26,11 @@ export class CreatePollDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
+  starts_at?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
   ends_at?: string;
 
   @ApiPropertyOptional({ default: false })

@@ -98,7 +98,7 @@ export class EventsController {
     @Body() dto: ModerateDto,
     @Req() req: any,
   ) {
-    await this.moderationService.moderate(req.user.id, id, dto);
+    await this.moderationService.moderate(req.user.sub, id, dto);
     return { success: true };
   }
 
@@ -118,13 +118,13 @@ export class EventsController {
   @Get()
   @ApiOperation({ summary: 'Lister les évènements' })
   async listEvents(@Query() query: ListEventsDto, @Req() req: any) {
-    return this.eventsService.findAll(req.user.id, query);
+    return this.eventsService.findAll(req.user.sub, query);
   }
 
   @Post()
   @ApiOperation({ summary: 'Créer un évènement (brouillon)' })
   async createEvent(@Body() dto: CreateEventDto, @Req() req: any) {
-    return this.eventsService.create(req.user.id, dto);
+    return this.eventsService.create(req.user.sub, dto);
   }
 
   @Get(':event_id')
@@ -140,7 +140,7 @@ export class EventsController {
     @Body() dto: UpdateEventDto,
     @Req() req: any,
   ) {
-    return this.eventsService.update(req.user.id, id, dto);
+    return this.eventsService.update(req.user.sub, id, dto);
   }
 
   @Delete(':event_id')
@@ -149,7 +149,7 @@ export class EventsController {
     const isModerator =
       req.user.role === UserRoleEnum.MODERATOR ||
       req.user.role === UserRoleEnum.ADMIN;
-    await this.eventsService.softDelete(req.user.id, id, isModerator);
+    await this.eventsService.softDelete(req.user.sub, id, isModerator);
     return { success: true };
   }
 
@@ -168,7 +168,7 @@ export class EventsController {
     @Body() dto: EventUpdateContentDto,
     @Req() req: any,
   ) {
-    return this.contentService.updateContent(req.user.id, id, dto);
+    return this.contentService.updateContent(req.user.sub, id, dto);
   }
 
   @Post(':event_id/media')
@@ -180,7 +180,7 @@ export class EventsController {
     @UploadedFile() file: Express.Multer.File,
     @Req() req: any,
   ) {
-    return this.mediaService.uploadMedia(req.user.id, id, file);
+    return this.mediaService.uploadMedia(req.user.sub, id, file);
   }
 
   @Delete(':event_id/media/:media_id')
@@ -190,7 +190,7 @@ export class EventsController {
     @Param('media_id') mediaId: string,
     @Req() req: any,
   ) {
-    await this.mediaService.deleteMedia(req.user.id, id, mediaId);
+    await this.mediaService.deleteMedia(req.user.sub, id, mediaId);
     return { success: true };
   }
 
@@ -199,19 +199,19 @@ export class EventsController {
   @Post(':event_id/publish')
   @ApiOperation({ summary: 'Publier un évènement' })
   async publishEvent(@Param('event_id') id: string, @Req() req: any) {
-    return this.stateMachineService.publish(id, req.user.id);
+    return this.stateMachineService.publish(id, req.user.sub);
   }
 
   @Post(':event_id/open')
   @ApiOperation({ summary: 'Ouvrir un évènement aux inscriptions' })
   async openEvent(@Param('event_id') id: string, @Req() req: any) {
-    return this.stateMachineService.open(id, req.user.id);
+    return this.stateMachineService.open(id, req.user.sub);
   }
 
   @Post(':event_id/complete')
   @ApiOperation({ summary: 'Marquer un évènement comme terminé' })
   async completeEvent(@Param('event_id') id: string, @Req() req: any) {
-    return this.stateMachineService.complete(id, req.user.id);
+    return this.stateMachineService.complete(id, req.user.sub);
   }
 
   @Post(':event_id/cancel')
@@ -221,7 +221,7 @@ export class EventsController {
     @Body() dto: CancelDto,
     @Req() req: any,
   ) {
-    return this.stateMachineService.cancel(id, req.user.id, dto.reason);
+    return this.stateMachineService.cancel(id, req.user.sub, dto.reason);
   }
 
   // --- Participants & Waitlist ---
@@ -230,26 +230,26 @@ export class EventsController {
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: "S'inscrire à un évènement (async, 202)" })
   async register(@Param('event_id') id: string, @Req() req: any) {
-    return this.eventsService.register(id, req.user.id);
+    return this.eventsService.register(id, req.user.sub);
   }
 
   @Delete(':event_id/participants/me')
   @ApiOperation({ summary: 'Annuler sa propre inscription à un évènement' })
   async cancelRegistration(@Param('event_id') id: string, @Req() req: any) {
-    await this.eventsService.cancelRegistration(id, req.user.id);
+    await this.eventsService.cancelRegistration(id, req.user.sub);
     return { success: true };
   }
 
   @Get(':event_id/participants')
   @ApiOperation({ summary: 'Lister les participants inscrits' })
   async getParticipants(@Param('event_id') id: string, @Req() req: any) {
-    return this.eventsService.getParticipants(id, req.user.id);
+    return this.eventsService.getParticipants(id, req.user.sub);
   }
 
   @Get(':event_id/waitlist')
   @ApiOperation({ summary: "Lister les participants sur liste d'attente" })
   async getWaitlist(@Param('event_id') id: string, @Req() req: any) {
-    return this.eventsService.getWaitlist(id, req.user.id);
+    return this.eventsService.getWaitlist(id, req.user.sub);
   }
 
   // --- Tickets ---
@@ -261,7 +261,7 @@ export class EventsController {
     @Req() req: any,
     @Res() res: any,
   ) {
-    const doc = await this.ticketService.getTicketStream(id, req.user.id);
+    const doc = await this.ticketService.getTicketStream(id, req.user.sub);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
@@ -279,7 +279,7 @@ export class EventsController {
     @Body() dto: ScanTicketDto,
     @Req() req: any,
   ) {
-    return this.ticketService.scanTicket(id, dto.hmac, req.user.id); // req.user.id pour le scanner (ownership check peut aussi être fait dans le service)
+    return this.ticketService.scanTicket(id, dto.hmac, req.user.sub); // req.user.sub pour le scanner (ownership check peut aussi être fait dans le service)
   }
 
   // --- Interactions ---
@@ -291,7 +291,7 @@ export class EventsController {
     @Body() dto: EventSwipeDto,
     @Req() req: any,
   ) {
-    await this.eventsService.swipe(req.user.id, id, dto.direction);
+    await this.eventsService.swipe(req.user.sub, id, dto.direction);
     return { success: true };
   }
 
@@ -300,7 +300,7 @@ export class EventsController {
     summary: "Obtenir le groupe de discussion lié à l'évènement",
   })
   async getChat(@Param('event_id') id: string, @Req() req: any) {
-    return this.eventsService.getChatGroup(id, req.user.id);
+    return this.eventsService.getChatGroup(id, req.user.sub);
   }
 
   @Post(':event_id/report')
@@ -310,7 +310,7 @@ export class EventsController {
     @Body() dto: ReportDto,
     @Req() req: any,
   ) {
-    await this.reportService.createReport(req.user.id, id, dto.reason);
+    await this.reportService.createReport(req.user.sub, id, dto.reason);
     return { success: true };
   }
 }

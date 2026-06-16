@@ -15,7 +15,7 @@ import { RectifyDataDto } from './dto/user-routes.dtos';
 import { PROCESSING_TYPES, ProcessingType } from './data-processing.constants';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { authenticator } = require('otplib');
+const otp = require('otplib');
 
 @Injectable()
 export class UserRgpdService {
@@ -44,7 +44,7 @@ export class UserRgpdService {
       throw new ForbiddenException('Erreur de déchiffrement du secret');
     }
 
-    const isValid = authenticator.verify({ token: code, secret });
+    const isValid = otp.verifySync({ token: code, secret })?.valid === true;
     if (!isValid) {
       throw new ForbiddenException('TOTP requis ou invalide');
     }
