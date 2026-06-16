@@ -624,4 +624,72 @@ describe('Users & Social Modules (e2e)', () => {
       expect(loggedIn).toBe(true);
     });
   });
+
+  // ── RGPD ────────────────────────────────────────────────────
+
+  describe('Users Controller - RGPD', () => {
+    it('GET /v1/users/me/export should return user data export', async () => {
+      const { email, password } = await createTestUser(app, 'exportme');
+      const { token } = await loginAndGetToken(app, email, password);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/users/me/export')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.body).toHaveProperty('personalData');
+    });
+
+    it('GET /v1/users/me/export/csv should return CSV', async () => {
+      const { email, password } = await createTestUser(app, 'csvme');
+      const { token } = await loginAndGetToken(app, email, password);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/users/me/export/csv')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.headers['content-type']).toContain('csv');
+    });
+
+    it('PATCH /v1/users/me/personal-data should rectify data', async () => {
+      const { email, password } = await createTestUser(app, 'rectify');
+      const { token, secret } = await loginAndGetToken(app, email, password);
+
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const otp = require('otplib');
+      const code = secret ? otp.generateSync({ secret }) : '000000';
+
+      const res = await request(app.getHttpServer())
+        .patch('/v1/users/me/personal-data')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ firstName: 'Corrected', totpCode: code })
+        .expect(200);
+
+      expect(res.body).toHaveProperty('firstName', 'Corrected');
+    });
+
+    it('POST /v1/users/me/data-processing/opt-out should opt out', async () => {
+      const { email, password } = await createTestUser(app, 'optout');
+      const { token } = await loginAndGetToken(app, email, password);
+
+      await request(app.getHttpServer())
+        .post('/v1/users/me/data-processing/opt-out')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ processingType: 'notifications' })
+        .expect(201);
+    });
+
+    it('GET /v1/users/me/data-processing/opt-out should list opt-outs', async () => {
+      const { email, password } = await createTestUser(app, 'listopts');
+      const { token } = await loginAndGetToken(app, email, password);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/users/me/data-processing/opt-out')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+    });
+  });
 });
