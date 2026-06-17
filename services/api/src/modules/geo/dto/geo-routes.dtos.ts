@@ -23,6 +23,26 @@ export class GeoAutocompleteQueryDto {
   limit: number = 5;
 }
 
+export class GeoNearbyQueryDto {
+  @ApiProperty({ description: 'Latitude', example: 48.8566 })
+  @IsNumber()
+  @Transform(({ value }) => parseFloat(value))
+  lat!: number;
+
+  @ApiProperty({ description: 'Longitude', example: 2.3522 })
+  @IsNumber()
+  @Transform(({ value }) => parseFloat(value))
+  lng!: number;
+
+  @ApiPropertyOptional({ description: 'Rayon en mètres', example: 2000 })
+  @IsOptional()
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  @Min(100)
+  @Max(50000)
+  radius?: number;
+}
+
 export class GeoResolveQueryDto {
   @ApiProperty({
     description: 'Texte de recherche BAN (adresse partielle ou complète)',
