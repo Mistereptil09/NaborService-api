@@ -37,7 +37,7 @@ describe('Contract Schema', () => {
       type: 'contract',
       sha256_hash: 'abc123hash',
       pdf: {
-        data: Buffer.from('pdf content'),
+        gridfs_file_id: 'test-gridfs-id',
         mimetype: 'application/pdf',
         size_bytes: 50000,
       },
@@ -94,7 +94,7 @@ describe('Contract Schema', () => {
       type: 'invalid_type', // enum error
       sha256_hash: 'abc123hash',
       pdf: {
-        data: Buffer.from('pdf content'),
+        gridfs_file_id: 'test-gridfs-id',
         mimetype: 'application/pdf',
         size_bytes: 50000,
       },

@@ -38,9 +38,7 @@ jest.mock('sharp', () => {
 
 // Mock otplib
 jest.mock('otplib', () => ({
-  authenticator: {
-    verify: jest.fn().mockReturnValue(true),
-  },
+  verifySync: jest.fn().mockReturnValue({ valid: true }),
 }));
 
 describe('Users Module Services Unit Tests', () => {

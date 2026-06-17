@@ -103,7 +103,7 @@ describe('Property 1: Valid document acceptance', () => {
             type,
             sha256_hash,
             pdf: {
-              data: Buffer.from('pdf'),
+              gridfs_file_id: 'test-gridfs-id',
               mimetype: 'application/pdf',
               size_bytes: 1234,
             },

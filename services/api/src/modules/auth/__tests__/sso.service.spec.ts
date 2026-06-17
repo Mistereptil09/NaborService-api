@@ -28,7 +28,7 @@ describe('SsoService', () => {
   const mockRedisClient = {
     get: jest.fn(),
     set: jest.fn(),
-    del: jest.fn(),
+    del: jest.fn().mockResolvedValue(undefined),
     exists: jest.fn(),
     incr: jest.fn(),
     expire: jest.fn(),

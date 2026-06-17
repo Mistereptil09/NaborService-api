@@ -3,9 +3,11 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { getModelToken } from '@nestjs/mongoose';
 import { ChatMessageService } from '../chat-message.service';
 import { ChatService } from '../chat.service';
+import { ChatGroup } from '../entities/chat-group.entity';
 import { MessageMetadata } from '../entities/message-metadata.entity';
 import { MessageReadReceipt } from '../entities/message-read-receipt.entity';
 import { REDIS_CLIENT } from '../../../database/redis.module';
+import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 describe('ChatMessageService', () => {
@@ -14,7 +16,9 @@ describe('ChatMessageService', () => {
   let redis: any;
   let msgRepo: any;
   let receiptRepo: any;
+  let groupRepo: any;
   let messageModel: any;
+  let configService: any;
 
   const fakeKey = Buffer.alloc(32, 1).toString('base64'); // deterministic 256-bit key
 
@@ -63,14 +67,25 @@ describe('ChatMessageService', () => {
       find: jest.fn(),
     };
 
+    groupRepo = {
+      findOne: jest.fn(),
+      createQueryBuilder: jest.fn(),
+    };
+
+    configService = {
+      get: jest.fn().mockReturnValue('test-secret'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ChatMessageService,
         { provide: getRepositoryToken(MessageMetadata), useValue: msgRepo },
         { provide: getRepositoryToken(MessageReadReceipt), useValue: receiptRepo },
+        { provide: getRepositoryToken(ChatGroup), useValue: groupRepo },
         { provide: getModelToken('Message'), useValue: messageModel },
         { provide: REDIS_CLIENT, useValue: redis },
         { provide: ChatService, useValue: mockChatService },
+        { provide: ConfigService, useValue: configService },
       ],
     }).compile();
 

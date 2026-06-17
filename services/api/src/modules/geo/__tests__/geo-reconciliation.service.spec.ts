@@ -5,6 +5,9 @@ import { Neo4jService } from '../../../database/neo4j/neo4j.service';
 import { User } from '../../users/entities/user.entity';
 import { Listing } from '../../listings/entities/listing.entity';
 import { Evenement } from '../../events/entities/evenement.entity';
+import { Follow } from '../../social/entities/follow.entity';
+import { Friendship } from '../../social/entities/friendship.entity';
+import { UserBlock } from '../../social/entities/user-block.entity';
 
 describe('GeoReconciliationService', () => {
   let service: GeoReconciliationService;
@@ -36,6 +39,18 @@ describe('GeoReconciliationService', () => {
         },
         {
           provide: getRepositoryToken(Evenement),
+          useValue: { ...mockRepo },
+        },
+        {
+          provide: getRepositoryToken(Follow),
+          useValue: { ...mockRepo },
+        },
+        {
+          provide: getRepositoryToken(Friendship),
+          useValue: { ...mockRepo },
+        },
+        {
+          provide: getRepositoryToken(UserBlock),
           useValue: { ...mockRepo },
         },
         {

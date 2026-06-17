@@ -51,6 +51,8 @@ describe('SyncService', () => {
     createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder()),
     metadata: {
       findColumnWithPropertyName: jest.fn().mockReturnValue(null),
+      primaryColumns: [],
+      columns: [],
     },
   });
 

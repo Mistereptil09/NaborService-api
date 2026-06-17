@@ -16,6 +16,14 @@ describe('EntityPatchHandler', () => {
   const mockRepository = () => ({
     findOne: jest.fn(),
     update: jest.fn(),
+    metadata: {
+      findColumnWithPropertyName: jest.fn().mockReturnValue(null),
+      columns: [
+        { propertyName: 'firstName', databaseName: 'first_name' },
+        { propertyName: 'lastName', databaseName: 'last_name' },
+      ],
+      primaryColumns: [{ databaseName: 'id' }],
+    },
   });
 
   beforeEach(async () => {

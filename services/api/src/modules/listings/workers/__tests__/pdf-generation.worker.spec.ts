@@ -6,6 +6,8 @@ import { PdfGenerationWorker } from '../pdf-generation.worker';
 import { ListingTransaction } from '../../entities/listing-transaction.entity';
 import { Listing } from '../../entities/listing.entity';
 import { Contract } from '../../../../database/mongo-schemas/schemas/contract.schema';
+import { MediaFile } from '../../../media/schemas/media-file.schema';
+import { GridFSService } from '../../../media/services/gridfs.service';
 import { UnrecoverableError } from 'bullmq';
 
 describe('PdfGenerationWorker', () => {
@@ -16,6 +18,14 @@ describe('PdfGenerationWorker', () => {
     ...data,
     save: jest.fn().mockResolvedValue({ _id: 'mongo-id-123', ...data }),
   }));
+  const mockMediaFileModel = jest.fn().mockImplementation((data) => ({
+    ...data,
+    save: jest.fn().mockResolvedValue({ _id: 'media-file-id', ...data }),
+  }));
+  const mockGridfsService = {
+    upload: jest.fn().mockResolvedValue('gridfs-id-123'),
+    findById: jest.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -27,6 +37,8 @@ describe('PdfGenerationWorker', () => {
         },
         { provide: getRepositoryToken(Listing), useValue: mockListingRepo },
         { provide: getModelToken(Contract.name), useValue: mockContractModel },
+        { provide: getModelToken(MediaFile.name), useValue: mockMediaFileModel },
+        { provide: GridFSService, useValue: mockGridfsService },
       ],
     }).compile();
 
