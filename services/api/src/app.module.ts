@@ -27,6 +27,9 @@ import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
 import { I18nModule } from './modules/i18n/i18n.module';
 import { UpdatesModule } from './modules/updates/updates.module';
+import { DslModule } from './modules/dsl/dsl.module';
+import { CategoriesModule } from './modules/categories/categories.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 
 @Module({
   imports: [
@@ -56,6 +59,9 @@ import { UpdatesModule } from './modules/updates/updates.module';
     HealthModule,
     I18nModule,
     UpdatesModule,
+    DslModule,
+    CategoriesModule,
+    DocumentsModule,
   ],
   controllers: [AppController],
   providers: [AppService, MongoHealthService],

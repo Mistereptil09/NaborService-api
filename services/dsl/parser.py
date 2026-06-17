@@ -17,11 +17,15 @@ precedence = (
     ('right', 'NOT'),
 )
 
-# ── Grammaire ─────────────────────────────────────────────
+# ── Grammaire BNF (conforme cahier des charges §6.11) ────
 #
 #   query        : FIND IN collection WHERE condition order limit
+#                | FIND IN collection WHERE condition order
 #                | FIND IN collection WHERE condition limit
+#                | FIND IN collection WHERE condition
+#                | FIND IN collection order limit
 #                | FIND IN collection limit
+#                | FIND IN collection
 #
 #   condition    : condition AND condition
 #                | condition OR condition
@@ -37,7 +41,7 @@ precedence = (
 #   op           : EQ | NEQ | LT | GT | LTE | GTE
 #   value        : STRING | NUMBER
 #   order        : ORDER BY IDENTIFIER ASC | DESC
-#   limit        : LIMIT NUMBER | (vide)
+#   limit        : LIMIT NUMBER | (vide → 100)
 # ─────────────────────────────────────────────────────────
 
 # ── Nœuds AST ─────────────────────────────────────────────
@@ -49,15 +53,35 @@ def p_query_full(p):
     p[0] = {'type': 'query', 'collection': p[3],
              'condition': p[5], 'order': p[6], 'limit': p[7]}
 
+def p_query_where_order(p):
+    'query : FIND IN IDENTIFIER WHERE condition order'
+    p[0] = {'type': 'query', 'collection': p[3],
+             'condition': p[5], 'order': p[6], 'limit': 100}
+
 def p_query_no_order(p):
     'query : FIND IN IDENTIFIER WHERE condition limit'
     p[0] = {'type': 'query', 'collection': p[3],
              'condition': p[5], 'order': None, 'limit': p[6]}
 
+def p_query_where_only(p):
+    'query : FIND IN IDENTIFIER WHERE condition'
+    p[0] = {'type': 'query', 'collection': p[3],
+             'condition': p[5], 'order': None, 'limit': 100}
+
+def p_query_order_limit(p):
+    'query : FIND IN IDENTIFIER order limit'
+    p[0] = {'type': 'query', 'collection': p[3],
+             'condition': None, 'order': p[4], 'limit': p[5]}
+
 def p_query_no_where(p):
     'query : FIND IN IDENTIFIER limit'
     p[0] = {'type': 'query', 'collection': p[3],
              'condition': None, 'order': None, 'limit': p[4]}
+
+def p_query_bare(p):
+    'query : FIND IN IDENTIFIER'
+    p[0] = {'type': 'query', 'collection': p[3],
+             'condition': None, 'order': None, 'limit': 100}
 
 # ── Conditions ────────────────────────────────────────────
 

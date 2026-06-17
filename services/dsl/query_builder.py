@@ -51,7 +51,7 @@ _SENSITIVE_PROJECTION = {
     'iv':                0,   # vecteur d'initialisation AES
     'auth_tag':          0,   # tag d'authentification GCM
     'data':              0,   # BinData médias (avatars, photos)
-    'pdf':               0,   # PDFs contractuels bruts
+    'pdf.data':          0,   # PDFs contractuels bruts (binaire)
     'qr_png':            0,   # QR codes binaires
     'signature.canvas_b64': 0,  # signatures manuscrites
     'signature.signed_ip':  0,  # IP de signature
