@@ -19,8 +19,6 @@ import { ChatService } from './chat.service';
 import { ChatMessageService } from './chat-message.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
-import { SendMessageDto } from './dto/send-message.dto';
-import { EditMessageDto } from './dto/edit-message.dto';
 import { AddMemberDto } from './dto/add-member.dto';
 import { ChangeRoleDto } from './dto/change-role.dto';
 import { MuteDto } from './dto/mute.dto';
@@ -151,30 +149,10 @@ export class ChatController {
     );
   }
 
-  @Post('groups/:group_id/messages')
-  @ApiOperation({ summary: 'Envoyer un message (REST fallback)' })
-  async sendMessage(
-    @Param('group_id') groupId: string,
-    @Req() req: { user: JwtPayload },
-    @Body() dto: SendMessageDto,
-  ) {
-    return this.chatMessageService.sendMessage(groupId, req.user.sub, dto);
-  }
-
   @Get('messages/:message_id')
   @ApiOperation({ summary: 'Détail d\'un message' })
   async getMessage(@Param('message_id') messageId: string, @Req() req: any) {
     return this.chatMessageService.getMessage(messageId, req.user.sub);
-  }
-
-  @Patch('messages/:message_id')
-  @ApiOperation({ summary: 'Modifier son message' })
-  async editMessage(
-    @Param('message_id') messageId: string,
-    @Req() req: { user: JwtPayload },
-    @Body() dto: EditMessageDto,
-  ) {
-    return this.chatMessageService.editMessage(messageId, req.user.sub, dto.new_content);
   }
 
   @Delete('messages/:message_id')

@@ -147,24 +147,10 @@ describe('ChatController', () => {
     });
   });
 
-  describe('POST /chat/groups/:id/messages', () => {
-    it('should send a message', async () => {
-      await controller.sendMessage('g1', mockUser as any, { content: 'Hi', type: 'text' });
-      expect(chatMessageService.sendMessage).toHaveBeenCalledWith('g1', 'u1', { content: 'Hi', type: 'text' });
-    });
-  });
-
   describe('GET /chat/messages/:id', () => {
     it('should return single message', async () => {
       await controller.getMessage('msg1', mockUser as any);
       expect(chatMessageService.getMessage).toHaveBeenCalledWith('msg1', 'u1');
-    });
-  });
-
-  describe('PATCH /chat/messages/:id', () => {
-    it('should edit message', async () => {
-      await controller.editMessage('msg1', mockUser as any, { new_content: 'Edit' });
-      expect(chatMessageService.editMessage).toHaveBeenCalledWith('msg1', 'u1', 'Edit');
     });
   });
 
