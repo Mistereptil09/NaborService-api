@@ -131,14 +131,14 @@ export class PollsService {
     const option = await this.optionRepo.findOne({ where: { id: optionId, pollId } });
     if (!option) throw new NotFoundException('Option introuvable');
 
-    // Check existing votes — for SINGLE polls, remove prior votes
+    // For SINGLE polls, remove any prior vote by this user on this poll
     if (poll.pollType === PollTypeEnum.SINGLE) {
-      await this.voteRepo
-        .createQueryBuilder()
-        .delete()
-        .where('user_id = :userId', { userId })
-        .andWhere('option_id IN (SELECT o.id FROM poll_options o WHERE o.poll_id = :pollId)', { pollId })
-        .execute();
+      const priorVotes = await this.voteRepo.find({
+        where: { userId, option: { pollId } },
+      });
+      if (priorVotes.length > 0) {
+        await this.voteRepo.remove(priorVotes);
+      }
     }
 
     const existing = await this.voteRepo.findOne({ where: { userId, optionId } });
@@ -170,17 +170,20 @@ export class PollsService {
     const poll = await this.getPoll(pollId);
     if (poll.closedAt) throw new ForbiddenException('Sondage clôturé');
 
-    const qb = this.voteRepo.createQueryBuilder().delete().where('user_id = :userId', { userId });
-
     if (optionId) {
-      // Remove a specific vote (MULTIPLE/WEIGHTED — keep other votes)
-      qb.andWhere('option_id = :optionId', { optionId });
+      // Remove a specific vote
+      const vote = await this.voteRepo.findOne({ where: { userId, optionId } });
+      if (vote) await this.voteRepo.remove(vote);
     } else {
-      // Remove all votes on this poll (SINGLE — or full reset)
-      qb.andWhere('option_id IN (SELECT o.id FROM poll_options o WHERE o.poll_id = :pollId)', { pollId });
+      // Remove all votes on this poll
+      const votes = await this.voteRepo.find({
+        where: { userId, option: { pollId } },
+      });
+      if (votes.length > 0) {
+        await this.voteRepo.remove(votes);
+      }
     }
 
-    await qb.execute();
     return { deleted: true };
   }
 

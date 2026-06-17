@@ -24,7 +24,7 @@ describe('PollsService', () => {
   beforeEach(async () => {
     pollRepo = { create: jest.fn((d) => d), save: jest.fn((d) => Promise.resolve({ ...d, id: d.id ?? 'p1' })), findOne: jest.fn(), find: jest.fn(), count: jest.fn() };
     optionRepo = { create: jest.fn((d) => d), save: jest.fn((d) => Promise.resolve(d)), findOne: jest.fn(), remove: jest.fn() };
-    voteRepo = { create: jest.fn((d) => d), save: jest.fn((d) => Promise.resolve(d)), findOne: jest.fn(), find: jest.fn(), count: jest.fn(), delete: jest.fn() };
+    voteRepo = { create: jest.fn((d) => d), save: jest.fn((d) => Promise.resolve(d)), findOne: jest.fn(), find: jest.fn().mockResolvedValue([]), count: jest.fn(), delete: jest.fn(), remove: jest.fn().mockResolvedValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -138,8 +138,11 @@ describe('PollsService', () => {
     it('should clear prior votes for SINGLE poll', async () => {
       pollRepo.findOne.mockResolvedValue(makePoll());
       optionRepo.findOne.mockResolvedValue({ id: 'o2', pollId: 'p1' });
+      // Mock existing prior vote
+      voteRepo.find.mockResolvedValue([{ userId: 'u1', optionId: 'o1', option: { pollId: 'p1' } }]);
       await service.vote('p1', 'u1', 'o2');
-      expect(voteRepo.delete).toHaveBeenCalledWith({ userId: 'u1', option: { pollId: 'p1' } });
+      expect(voteRepo.remove).toHaveBeenCalled();
+      expect(voteRepo.save).toHaveBeenCalled(); // new vote saved
     });
   });
 
