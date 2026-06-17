@@ -103,6 +103,24 @@ export async function createAdminUser(
 }
 
 /**
+ * Creates a user with the moderator role.
+ * Uses the UserRepository to directly set the role after registration.
+ */
+export async function createModeratorUser(
+  app: INestApplication,
+  emailPrefix = 'moderator',
+) {
+  const { email, password, user } = await createTestUser(app, emailPrefix);
+
+  const userRepository = app.get('UserRepository');
+  await userRepository.update({ id: user.id }, { role: 'moderator' });
+
+  const { token, secret } = await loginAndGetToken(app, email, password);
+
+  return { email, password, user: { ...user, role: 'moderator' }, token, secret };
+}
+
+/**
  * Creates a listing via POST /v1/listings.
  * Returns the created listing entity.
  */

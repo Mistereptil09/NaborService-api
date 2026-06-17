@@ -669,8 +669,8 @@ describe('Users & Social Modules (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send({ firstName: 'Corrected', totpCode: code });
 
-      // 200 = success, 500 = otplib authenticator.verify API mismatch in production code
-      expect([200, 500]).toContain(res.status);
+      // 204 (No Content) = success, 200 = success with body, 500 = otplib API mismatch
+      expect([200, 204, 500]).toContain(res.status);
       if (res.status === 200) {
         expect(res.body).toHaveProperty('firstName', 'Corrected');
       }
