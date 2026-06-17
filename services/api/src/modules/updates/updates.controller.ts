@@ -1,23 +1,15 @@
-import { Controller, Get, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Res } from '@nestjs/common';
 import {
-  ApiBearerAuth,
-  ApiForbiddenResponse,
-  ApiNotFoundResponse,
-  ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiOkResponse,
+  ApiNotFoundResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { UpdatesService } from './updates.service';
 
 @ApiTags('Updates')
 @Controller('updates')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('moderator', 'admin')
-@ApiBearerAuth()
 export class UpdatesController {
   constructor(private readonly updatesService: UpdatesService) {}
 
@@ -41,7 +33,6 @@ export class UpdatesController {
       },
     },
   })
-  @ApiForbiddenResponse({ description: 'Réservé aux modérateurs et administrateurs' })
   @ApiNotFoundResponse({ description: 'Aucun manifeste trouvé' })
   async getLatest() {
     return this.updatesService.getLatest();
@@ -55,7 +46,6 @@ export class UpdatesController {
       'le hash SHA-256 après téléchargement avant de remplacer son ancien JAR.',
   })
   @ApiOkResponse({ description: 'Fichier JAR' })
-  @ApiForbiddenResponse({ description: 'Réservé aux modérateurs et administrateurs' })
   @ApiNotFoundResponse({ description: 'Fichier JAR introuvable' })
   async download(@Res() res: Response) {
     const { stream, filename, size } = this.updatesService.getDownloadStream();

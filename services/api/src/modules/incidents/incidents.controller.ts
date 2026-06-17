@@ -27,12 +27,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { IncidentsService } from './incidents.service';
-import { IncidentSyncService } from './incident-sync.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { ListIncidentsDto } from './dto/list-incidents.dto';
 import { AssignIncidentDto } from './dto/assign-incident.dto';
-import { SyncUpdatesBatchDto, SyncUpdatesResponseDto } from '../sync/dto/sync-push.dto';
 
 @ApiTags('Incidents')
 @Controller('incidents')
@@ -41,7 +39,6 @@ import { SyncUpdatesBatchDto, SyncUpdatesResponseDto } from '../sync/dto/sync-pu
 export class IncidentsController {
   constructor(
     private readonly incidentsService: IncidentsService,
-    private readonly incidentSyncService: IncidentSyncService,
   ) {}
 
   // ── List ─────────────────────────────────────────────────
@@ -140,21 +137,4 @@ export class IncidentsController {
     return { success: true };
   }
 
-  // ── Sync (incident-scoped batch) ─────────────────────────
-
-  @Post('sync')
-  @Roles('moderator', 'admin')
-  @UseGuards(RolesGuard)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Synchroniser des incidents depuis le client Java Desktop (offline)',
-    description:
-      'Endpoint dédié aux incidents. Valide que toutes les entités sont bien entity_type=incident, ' +
-      'puis délègue au SyncService générique pour la détection de conflits et l\'application des patches.',
-  })
-  @ApiOkResponse({ description: 'Résultat de la synchronisation' })
-  @ApiForbiddenResponse({ description: 'Action réservée aux modérateurs et administrateurs' })
-  async sync(@Body() dto: SyncUpdatesBatchDto): Promise<SyncUpdatesResponseDto> {
-    return this.incidentSyncService.syncBatch(dto);
-  }
 }

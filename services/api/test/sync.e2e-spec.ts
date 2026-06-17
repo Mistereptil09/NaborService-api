@@ -83,27 +83,40 @@ describe('Sync & Updates Modules (e2e)', () => {
   });
 
   // ── Updates ─────────────────────────────────────────────────
+  // Routes are PUBLIC (no auth required — used by Java Desktop auto-update)
 
   describe('Updates', () => {
-    it('GET /v1/updates/latest should return 403 for regular user', async () => {
+    it('GET /v1/updates/latest should be public (no token required)', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/v1/updates/latest');
+
+      // 200 if manifest file exists, 404 if not configured
+      expect([200, 404]).toContain(res.status);
+      if (res.status === 200) {
+        expect(res.body).toHaveProperty('version');
+      }
+    });
+
+    it('GET /v1/updates/latest should work with any auth level', async () => {
       const { email, password } = await createTestUser(app, 'regular');
       const { token } = await loginAndGetToken(app, email, password);
 
-      await request(app.getHttpServer())
-        .get('/v1/updates/latest')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(403);
-    });
-
-    it('GET /v1/updates/latest should return manifest as admin', async () => {
-      const admin = await createAdminUser(app, 'admin3');
-
       const res = await request(app.getHttpServer())
         .get('/v1/updates/latest')
-        .set('Authorization', `Bearer ${admin.token}`)
-        .expect(200);
+        .set('Authorization', `Bearer ${token}`);
 
-      expect(res.body).toHaveProperty('version');
+      expect([200, 404]).toContain(res.status);
+      if (res.status === 200) {
+        expect(res.body).toHaveProperty('version');
+      }
+    });
+
+    it('GET /v1/updates/download should be public', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/v1/updates/download');
+
+      // 200 if JAR file exists, 404 if not configured
+      expect([200, 404]).toContain(res.status);
     });
   });
 });
