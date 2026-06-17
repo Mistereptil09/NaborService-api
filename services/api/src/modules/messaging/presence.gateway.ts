@@ -70,7 +70,7 @@ export class PresenceGateway
     // Check if user has other active connections
     const sockets = await this.server.fetchSockets();
     const hasOtherConnection = sockets.some(
-      (s) => (s as AuthenticatedSocket).userId === client.userId && s.id !== client.id,
+      (s) => (s as unknown as AuthenticatedSocket).userId === client.userId && s.id !== client.id,
     );
 
     if (!hasOtherConnection) {
