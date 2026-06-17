@@ -128,6 +128,52 @@ export class NeighbourhoodService {
   }
 
   /**
+   * List all neighbourhoods (public summary: id, name, city, zip_code)
+   */
+  async findAll(): Promise<
+    {
+      pgId: string;
+      name: string;
+      city: string;
+      zipCode: string;
+      country: string;
+    }[]
+  > {
+    const cypher = `
+      MATCH (n:Neighbourhood)
+      RETURN n.pg_id AS pgId, n.name AS name, n.city AS city, n.zip_code AS zipCode, n.country AS country
+      ORDER BY n.name ASC
+    `;
+    const result = await this.neo4jService.run(cypher);
+    return result.records.map((r) => ({
+      pgId: r.get('pgId') as string,
+      name: r.get('name') as string,
+      city: r.get('city') as string,
+      zipCode: r.get('zipCode') as string,
+      country: r.get('country') as string,
+    }));
+  }
+
+  /**
+   * Find members (residents) of a neighbourhood
+   */
+  async findMembers(pgId: string): Promise<
+    { pgId: string; visibility: string }[]
+  > {
+    const cypher = `
+      MATCH (u:User)-[:LIVES_IN]->(n:Neighbourhood {pg_id: $pgId})
+      WHERE u.deleted_at IS NULL
+      RETURN u.pg_id AS pgId, u.visibility AS visibility
+      ORDER BY u.pg_id ASC
+    `;
+    const result = await this.neo4jService.run(cypher, { pgId });
+    return result.records.map((r) => ({
+      pgId: r.get('pgId') as string,
+      visibility: (r.get('visibility') as string) ?? 'public',
+    }));
+  }
+
+  /**
    * Delete a Neighbourhood node only when safe (no active residents)
    */
   async delete(pgId: string): Promise<void> {

@@ -1,14 +1,27 @@
 services:
   api:
-    build:
-      target: prod
+    image: ghcr.io/stainvy/nabor-api:latest
     environment:
       NODE_ENV: production
     restart: unless-stopped
 
   dsl-service:
-    build:
-      target: prod
+    image: ghcr.io/stainvy/nabor-dsl-service:latest
     environment:
       PYTHONUNBUFFERED: "1"
+    restart: unless-stopped
+
+  postgres:
+    restart: unless-stopped
+
+  mongo:
+    restart: unless-stopped
+
+  neo4j:
+    restart: unless-stopped
+
+  redis:
+    restart: unless-stopped
+
+  ban:
     restart: unless-stopped
