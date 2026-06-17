@@ -8,6 +8,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtPayload } from '../auth/interfaces/auth.interfaces';
 import { PollsService } from './polls.service';
+import { PollsGateway } from './polls.gateway';
 import { CreatePollDto } from './dto/create-poll.dto';
 import { UpdatePollDto } from './dto/update-poll.dto';
 import { AddOptionDto } from './dto/add-option.dto';
@@ -18,7 +19,10 @@ import { VoteDto } from './dto/vote.dto';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class PollsController {
-  constructor(private readonly pollsService: PollsService) {}
+  constructor(
+    private readonly pollsService: PollsService,
+    private readonly pollsGateway: PollsGateway,
+  ) {}
 
   // ── Polls ───────────────────────────────────────────────
 
@@ -63,7 +67,10 @@ export class PollsController {
   @Post(':poll_id/close')
   @ApiOperation({ summary: 'Clôturer manuellement (créateur)' })
   async closePoll(@Param('poll_id') pollId: string, @Req() req: { user: JwtPayload }) {
-    return this.pollsService.closePoll(pollId, req.user.sub);
+    const result = await this.pollsService.closePoll(pollId, req.user.sub);
+    const poll = await this.pollsService.getPoll(pollId);
+    this.pollsGateway.emitPollClosed(pollId, (poll as any).results);
+    return result;
   }
 
   // ── Options ─────────────────────────────────────────────
@@ -75,7 +82,9 @@ export class PollsController {
     @Req() req: { user: JwtPayload },
     @Body() dto: AddOptionDto,
   ) {
-    return this.pollsService.addOption(pollId, req.user.sub, dto.label);
+    const option = await this.pollsService.addOption(pollId, req.user.sub, dto.label);
+    this.pollsGateway.emitOptionAdded(pollId, { id: option.id, label: option.label });
+    return option;
   }
 
   @Delete(':poll_id/options/:option_id')
@@ -104,7 +113,10 @@ export class PollsController {
     @Req() req: { user: JwtPayload },
     @Body() dto: VoteDto,
   ) {
-    return this.pollsService.vote(pollId, req.user.sub, dto.option_id, dto.weight);
+    const result = await this.pollsService.vote(pollId, req.user.sub, dto.option_id, dto.weight);
+    const poll = await this.pollsService.getPoll(pollId);
+    this.pollsGateway.emitPollUpdated(pollId, (poll as any).results);
+    return result;
   }
 
   @Put(':poll_id/vote')
@@ -114,7 +126,10 @@ export class PollsController {
     @Req() req: { user: JwtPayload },
     @Body() dto: VoteDto,
   ) {
-    return this.pollsService.updateVote(pollId, req.user.sub, dto.option_id, dto.weight);
+    const result = await this.pollsService.updateVote(pollId, req.user.sub, dto.option_id, dto.weight);
+    const poll = await this.pollsService.getPoll(pollId);
+    this.pollsGateway.emitPollUpdated(pollId, (poll as any).results);
+    return result;
   }
 
   @Delete(':poll_id/vote')
@@ -125,6 +140,9 @@ export class PollsController {
     @Req() req: { user: JwtPayload },
     @Body('option_id') optionId?: string,
   ) {
-    return this.pollsService.deleteVote(pollId, req.user.sub, optionId);
+    const result = await this.pollsService.deleteVote(pollId, req.user.sub, optionId);
+    const poll = await this.pollsService.getPoll(pollId);
+    this.pollsGateway.emitPollUpdated(pollId, (poll as any).results);
+    return result;
   }
 }

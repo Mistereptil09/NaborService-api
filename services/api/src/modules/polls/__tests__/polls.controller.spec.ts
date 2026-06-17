@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PollsController } from '../polls.controller';
 import { PollsService } from '../polls.service';
+import { PollsGateway } from '../polls.gateway';
 
 describe('PollsController', () => {
   let controller: PollsController;
   let service: any;
+  let gateway: any;
 
   const mockUser = { user: { sub: 'u1', role: 'resident', locale: 'fr', iat: 1, exp: 9999999999 } };
 
@@ -24,9 +26,18 @@ describe('PollsController', () => {
       deleteVote: jest.fn().mockResolvedValue({ deleted: true }),
     };
 
+    gateway = {
+      emitPollUpdated: jest.fn(),
+      emitPollClosed: jest.fn(),
+      emitOptionAdded: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PollsController],
-      providers: [{ provide: PollsService, useValue: service }],
+      providers: [
+        { provide: PollsService, useValue: service },
+        { provide: PollsGateway, useValue: gateway },
+      ],
     }).compile();
 
     controller = module.get(PollsController);
@@ -91,6 +102,6 @@ describe('PollsController', () => {
 
   it('DELETE /polls/:id/vote', async () => {
     await controller.deleteVote('p1', mockUser as any);
-    expect(service.deleteVote).toHaveBeenCalledWith('p1', 'u1');
+    expect(service.deleteVote).toHaveBeenCalledWith('p1', 'u1', undefined);
   });
 });
