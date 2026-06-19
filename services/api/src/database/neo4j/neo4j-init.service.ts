@@ -76,12 +76,15 @@ export class Neo4jInitService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Fail fast if Neo4j is unreachable
+    // Verify connectivity but don't crash if Neo4j is unreachable.
+    // Graph features will be unavailable until Neo4j recovers.
     try {
       await this.driver.verifyConnectivity();
     } catch (err) {
-      this.logger.error('Neo4j connection failed during verification');
-      throw new Error('Neo4j connection failed during initialization');
+      this.logger.warn(
+        'Neo4j is unavailable — skipping index creation. Graph features (feed, discovery, neighbourhoods) disabled until connectivity recovers.',
+      );
+      return;
     }
 
     let created = 0;
@@ -98,10 +101,9 @@ export class Neo4jInitService implements OnModuleInit {
         if (err && err.code === INDEX_EXISTS_CODE) {
           skipped++;
         } else {
-          this.logger.error(
+          this.logger.warn(
             `Failed to create index ${def.name}: ${err.message || err}`,
           );
-          throw err; // throw to fail startup
         }
       }
     }

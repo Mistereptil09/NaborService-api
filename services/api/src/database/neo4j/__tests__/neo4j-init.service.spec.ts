@@ -27,15 +27,14 @@ describe('Neo4jInitService', () => {
     expect(mockNeo4jService.run).toHaveBeenCalledTimes(10); // 10 indexes total
   });
 
-  it('should fail fast on startup if driver connectivity fails', async () => {
+  it('should log warning and skip index creation if driver connectivity fails', async () => {
     mockDriver.verifyConnectivity.mockRejectedValueOnce(
       new Error('Connection failed'),
     );
 
-    await expect(service.onModuleInit()).rejects.toThrow(
-      'Neo4j connection failed during initialization',
-    );
+    await service.onModuleInit();
 
+    // Should NOT throw — returns early with a warning
     expect(mockNeo4jService.run).not.toHaveBeenCalled();
   });
 
@@ -56,12 +55,13 @@ describe('Neo4jInitService', () => {
     expect(mockNeo4jService.run).toHaveBeenCalledTimes(10);
   });
 
-  it('should fail fast if an index creation fails for a non-duplicate reason', async () => {
+  it('should log warning and continue if an index creation fails for a non-duplicate reason', async () => {
     const randomError = new Error('Syntax error or permission denied');
     mockNeo4jService.run.mockRejectedValueOnce(randomError);
 
-    await expect(service.onModuleInit()).rejects.toThrow(randomError);
+    // Should NOT throw — logs warning and continues
+    await service.onModuleInit();
 
-    expect(mockNeo4jService.run).toHaveBeenCalledTimes(1); // terminates immediately on failure
+    expect(mockNeo4jService.run).toHaveBeenCalledTimes(10); // continues through all indexes
   });
 });

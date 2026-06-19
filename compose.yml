@@ -1,20 +1,18 @@
 services:
   postgres:
-    build:
-      context: ./docker/postgres
     image: nabor_postgres:17-uuidv7
     container_name: nabor_postgres
     environment:
-      POSTGRES_USER: nabor
-      POSTGRES_PASSWORD: nabor_secret
-      POSTGRES_DB: nabor_db
+      POSTGRES_USER: ${POSTGRES_USER:-nabor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nabor_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-nabor_db}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init-extensions.sql:/docker-entrypoint-initdb.d/init-extensions.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nabor -d nabor_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nabor} -d ${POSTGRES_DB:-nabor_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,8 +22,8 @@ services:
     image: mongo:7
     container_name: nabor_mongo
     environment:
-      MONGO_INITDB_ROOT_USERNAME: nabor
-      MONGO_INITDB_ROOT_PASSWORD: nabor_secret
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-nabor}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-nabor_secret}
     ports:
       - "27017:27017"
     volumes:
@@ -41,7 +39,7 @@ services:
     image: neo4j:5
     container_name: nabor_neo4j
     environment:
-      NEO4J_AUTH: neo4j/nabor_secret
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-nabor_secret}
     ports:
       - "7474:7474"
       - "7687:7687"
@@ -86,6 +84,7 @@ services:
       - "7878:7878"
     environment:
       - ADDOK_CONFIG_MODULE=/etc/addok/addok.conf
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-nabor_redis_secret}
     volumes:
       - ./docker/addok/addok.conf:/etc/addok/addok.conf
       - ban_data:/data
@@ -115,13 +114,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongo:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
       redis:
-        condition: service_healthy
-      ban:
         condition: service_healthy
 
   dsl-service:

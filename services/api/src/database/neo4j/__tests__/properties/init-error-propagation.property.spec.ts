@@ -4,8 +4,8 @@ import { Neo4jService } from '../../neo4j.service';
 import { Driver } from 'neo4j-driver';
 import { INDEX_EXISTS_CODE } from '../../neo4j.constants';
 
-describe('Feature: neo4j-init-service, Property 4: Non-"already exists" errors propagate', () => {
-  it('should propagate any error that is not the duplicate schema exists code', async () => {
+describe('Feature: neo4j-init-service, Property 4: Non-"already exists" errors are swallowed', () => {
+  it('should log warning and continue for any non-duplicate index error', async () => {
     const mockDriver = {
       verifyConnectivity: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<Driver>;
@@ -31,8 +31,9 @@ describe('Feature: neo4j-init-service, Property 4: Non-"already exists" errors p
 
           const service = new Neo4jInitService(mockDriver, mockNeo4jService);
 
-          // Must fail and propagate the error
-          await expect(service.onModuleInit()).rejects.toEqual(schemaError);
+          // Should NOT throw — logs warning and continues
+          await expect(service.onModuleInit()).resolves.toBeUndefined();
+          expect(mockNeo4jService.run).toHaveBeenCalledTimes(10);
         },
       ),
       { numRuns: 100 },

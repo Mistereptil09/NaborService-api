@@ -1,4 +1,8 @@
 services:
+  postgres:
+    build:
+      context: ./docker/postgres
+
   api:
     build:
       target: dev

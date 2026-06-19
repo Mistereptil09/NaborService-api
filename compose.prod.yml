@@ -1,14 +1,10 @@
 services:
   api:
     image: ghcr.io/stainvy/nabor-api:latest
-    environment:
-      NODE_ENV: production
     restart: unless-stopped
 
   dsl-service:
     image: ghcr.io/stainvy/nabor-dsl-service:latest
-    environment:
-      PYTHONUNBUFFERED: "1"
     restart: unless-stopped
 
   postgres:

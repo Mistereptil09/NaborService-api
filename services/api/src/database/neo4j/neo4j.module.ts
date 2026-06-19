@@ -27,7 +27,16 @@ const logger = new Logger('Neo4j');
           maxTransactionRetryTime: 15000,
         });
 
-        await connectWithRetry('Neo4j', () => driver.verifyConnectivity());
+        try {
+          await connectWithRetry('Neo4j', () => driver.verifyConnectivity(), {
+            maxAttempts: 1,
+            delayMs: 0,
+          });
+        } catch {
+          logger.warn(
+            'Neo4j is unavailable — graph features disabled. The API will operate normally for non-graph endpoints.',
+          );
+        }
 
         return driver;
       },
