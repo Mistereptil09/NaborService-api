@@ -68,6 +68,10 @@ jobs:
             context: ./services/dsl
             dockerfile: ./docker/dsl/Dockerfile
             image-name: nabor-dsl-service
+          - service: postgres
+            context: ./docker/postgres
+            dockerfile: ./docker/postgres/Dockerfile
+            image-name: nabor-postgres
     steps:
       - name: Checkout
         uses: actions/checkout@v4

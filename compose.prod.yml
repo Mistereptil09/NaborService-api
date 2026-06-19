@@ -12,6 +12,7 @@ services:
     restart: unless-stopped
 
   postgres:
+    image: ghcr.io/stainvy/nabor-postgres:latest
     restart: unless-stopped
 
   mongo:
