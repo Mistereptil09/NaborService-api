@@ -10,6 +10,7 @@ import { UserNotificationPreferences } from '../../common/entities/user-notifica
 import { UpdateNotifPrefsDto } from './dto/user-routes.dtos';
 import { DataProcessingService } from './data-processing.service';
 import { ESSENTIAL_EMAILS } from './data-processing.constants';
+import { NotifPreferenceKey } from '../../queue/interfaces/job-payloads';
 
 @Injectable()
 export class UserPreferencesService {
@@ -118,5 +119,32 @@ export class UserPreferencesService {
     if (templateName === 'new_poll' && !prefs.notifNewPoll) return false;
 
     return true;
+  }
+
+  /**
+   * Returns whether a non-essential email gated by `preferenceKey` may be sent
+   * to the user. Honours the global "notifications" opt-out, then the specific
+   * notification flag. Defaults to true when no preferences row exists.
+   */
+  async isPreferenceEnabled(
+    userId: string,
+    preferenceKey: NotifPreferenceKey,
+  ): Promise<boolean> {
+    const isOptedOut = await this.dataProcessingService.isOptedOut(
+      userId,
+      'notifications',
+    );
+    if (isOptedOut) {
+      return false;
+    }
+
+    const prefs = await this.notifPrefsRepository.findOne({
+      where: { userId },
+    });
+    if (!prefs) {
+      return true;
+    }
+
+    return prefs[preferenceKey] !== false;
   }
 }

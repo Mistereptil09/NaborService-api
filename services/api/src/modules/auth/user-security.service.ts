@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
 import { Queue } from 'bullmq';
 import * as crypto from 'crypto';
@@ -27,6 +28,7 @@ export class UserSecurityService {
     private readonly emailQueue: Queue,
     private readonly sessionService: SessionService,
     private readonly tokenService: TokenService,
+    private readonly config: ConfigService,
   ) {}
 
   /**
@@ -51,10 +53,13 @@ export class UserSecurityService {
         900,
       );
 
-      const resetLink = `https://naborservice.com/auth/reset-password?token=${resetToken}`;
+      const frontendUrl = this.config
+        .get<string>('FRONTEND_URL', 'https://naborservice.com')
+        .replace(/\/+$/, '');
+      const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
 
       try {
-        await this.emailQueue.add('send-reset-password', {
+        await this.emailQueue.add('send-email', {
           recipient: user.email,
           subject: 'Réinitialisation de votre mot de passe',
           templateName: 'reset-password',
@@ -62,6 +67,7 @@ export class UserSecurityService {
             resetLink,
             firstName: user.firstName,
           },
+          essential: true,
         });
       } catch (error) {
         // Log the error but don't fail the request to preserve non-enumeration

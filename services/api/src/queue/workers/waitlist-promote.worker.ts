@@ -92,6 +92,7 @@ export class WaitlistPromoteWorker extends WorkerHost {
               eventId: event.id,
               firstName: participant.user.firstName,
             },
+            preferenceKey: 'notifWaitlist',
           };
 
           const jobId = waitlistJobId(eventId, participant.userId);

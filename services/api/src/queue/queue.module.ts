@@ -18,6 +18,7 @@ import { QueueHealthController } from './queue-health.controller';
 import { QueueFailureListener } from './listeners/queue-failure.listener';
 import { Neo4jRecoveryService } from './neo4j-recovery.service';
 import { redisRetryStrategy } from './utils/redis-retry';
+import { MailModule } from '../mail/mail.module';
 
 const queues = [
   'neo4j-sync',
@@ -36,6 +37,7 @@ const queues = [
 @Global()
 @Module({
   imports: [
+    MailModule,
     EventsModule,
     UsersModule,
     MongoSchemasModule,

@@ -1,0 +1,31 @@
+<h1 style="margin:0 0 16px;font-size:20px;color:#14213d;">Votre annonce a &eacute;t&eacute; mod&eacute;r&eacute;e</h1>
+
+<p style="margin:0 0 16px;">Bonjour{{#if firstName}} {{firstName}}{{/if}},</p>
+
+{{#if (eq action 'cancelled')}}
+<p style="margin:0 0 16px;">
+  Votre annonce <strong>{{listingTitle}}</strong> a &eacute;t&eacute; <strong>retir&eacute;e</strong> par notre &eacute;quipe de mod&eacute;ration.
+</p>
+{{else if (eq action 'warned')}}
+<p style="margin:0 0 16px;">
+  Votre annonce <strong>{{listingTitle}}</strong> a fait l'objet d'un <strong>avertissement</strong>. Elle reste visible, mais merci de v&eacute;rifier qu'elle respecte nos r&egrave;gles.
+</p>
+{{else if (eq action 'restored')}}
+<p style="margin:0 0 16px;">
+  Bonne nouvelle&nbsp;: votre annonce <strong>{{listingTitle}}</strong> a &eacute;t&eacute; <strong>r&eacute;tablie</strong> et est de nouveau visible.
+</p>
+{{else}}
+<p style="margin:0 0 16px;">
+  Votre annonce <strong>{{listingTitle}}</strong> a &eacute;t&eacute; mise &agrave; jour par notre &eacute;quipe de mod&eacute;ration.
+</p>
+{{/if}}
+
+{{#if reason}}
+<p style="margin:0 0 16px;padding:12px 16px;background-color:#f4f5f7;border-left:3px solid #ff6b00;color:#444444;">
+  <strong>Motif&nbsp;:</strong> {{reason}}
+</p>
+{{/if}}
+
+<p style="margin:0;color:#666666;font-size:13px;">
+  Pour toute question, vous pouvez contacter notre support depuis l'application.
+</p>

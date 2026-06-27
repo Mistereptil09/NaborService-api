@@ -10,6 +10,7 @@ import { Repository, IsNull } from 'typeorm';
 import { ListingModerationAction } from './entities/listing-moderation-action.entity';
 import { Listing } from './entities/listing.entity';
 import { ListingReport } from './entities/listing-report.entity';
+import { User } from '../users/entities/user.entity';
 import { ListingTransaction } from './entities/listing-transaction.entity';
 import { ModerateListingDto, ListListingsDto } from './dto/listing-routes.dtos';
 import {
@@ -29,6 +30,8 @@ export class ListingModerationService {
     private readonly listingRepository: Repository<Listing>,
     @InjectRepository(ListingReport)
     private readonly reportRepository: Repository<ListingReport>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     @Inject(forwardRef(() => ListingsService))
     private readonly listingsService: ListingsService,
     private readonly transactionService: ListingTransactionService,
@@ -109,13 +112,25 @@ export class ListingModerationService {
       created_at: listing.createdAt,
     });
 
-    // 5. Send notification email to creator
-    await this.emailQueue.add('moderation-notification', {
-      creatorId: listing.creatorId,
-      listingId: listing.id,
-      action: dto.action,
-      reason: dto.reason,
+    // 5. Send notification email to creator (essential — must be informed).
+    const creator = await this.userRepository.findOne({
+      where: { id: listing.creatorId },
+      select: ['id', 'email', 'firstName'],
     });
+    if (creator?.email) {
+      await this.emailQueue.add('send-email', {
+        recipient: creator.email,
+        subject: 'Votre annonce a été modérée',
+        templateName: 'listing-moderated',
+        templateVariables: {
+          firstName: creator.firstName,
+          listingTitle: listing.title,
+          action: dto.action,
+          reason: dto.reason,
+        },
+        essential: true,
+      });
+    }
   }
 
   async getModerationHistory(

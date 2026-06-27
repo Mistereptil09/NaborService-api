@@ -569,6 +569,12 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             update: jest.fn().mockResolvedValue({ affected: 1 }),
           };
 
+          const mockUserRepo: any = {
+            findOne: jest
+              .fn()
+              .mockResolvedValue({ id: 'c1', email: 'c1@example.com', firstName: 'C' }),
+          };
+
           const mockListingsService: any = {
             findOne: jest.fn().mockResolvedValue(listing),
           };
@@ -582,6 +588,7 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             mockModActionRepo,
             mockListingRepo,
             mockReportRepo,
+            mockUserRepo,
             mockListingsService,
             mockTxService,
             mockQueue,
