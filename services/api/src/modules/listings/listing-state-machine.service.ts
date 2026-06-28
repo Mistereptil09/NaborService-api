@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   ConflictException,
@@ -16,9 +17,12 @@ import { ListingTransactionService } from './listing-transaction.service';
 import { ListingsGateway } from './listings.gateway';
 import { ListingStatusEnum, TransactionStatusEnum } from '../../common/enums';
 import { AdminConfigService } from '../admin/admin-config.service';
+import { NotificationsService } from '../messaging/notifications.service';
 
 @Injectable()
 export class ListingStateMachineService {
+  private readonly logger = new Logger(ListingStateMachineService.name);
+
   constructor(
     @InjectRepository(Listing)
     private readonly listingRepository: Repository<Listing>,
@@ -39,6 +43,7 @@ export class ListingStateMachineService {
       add: (name: string, data: any, options?: any) => Promise<any>;
     },
     private readonly configService: AdminConfigService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async expressInterest(
@@ -121,6 +126,23 @@ export class ListingStateMachineService {
       updatedListing.updatedAt || new Date(),
     );
 
+    // Notify the listing creator that someone is interested (transactional).
+    try {
+      await this.notificationsService.create({
+        userId: listing.creatorId,
+        type: 'new_listing_interest',
+        payload: {
+          listingTitle: updatedListing.title,
+          listingId,
+          transactionId: transaction.id,
+        },
+      });
+    } catch (error: any) {
+      this.logger.warn(
+        `new_listing_interest notification failed for ${listing.creatorId}: ${error?.message ?? error}`,
+      );
+    }
+
     return { listing: updatedListing, transaction };
   }
 
@@ -189,6 +211,23 @@ export class ListingStateMachineService {
       ListingStatusEnum.IN_PROGRESS,
       updatedListing.updatedAt || new Date(),
     );
+
+    // Notify the interested party that their request was accepted (transactional).
+    try {
+      await this.notificationsService.create({
+        userId: transaction.requesterId,
+        type: 'listing_accepted',
+        payload: {
+          listingTitle: updatedListing.title,
+          listingId,
+          transactionId: transaction.id,
+        },
+      });
+    } catch (error: any) {
+      this.logger.warn(
+        `listing_accepted notification failed for ${transaction.requesterId}: ${error?.message ?? error}`,
+      );
+    }
 
     return updatedListing;
   }

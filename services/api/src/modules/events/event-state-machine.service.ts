@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   ConflictException,
@@ -17,9 +18,12 @@ import {
   PaymentStatusEnum,
 } from '../../common/enums';
 import { EventsGateway } from './events.gateway';
+import { NotificationsService } from '../messaging/notifications.service';
 
 @Injectable()
 export class EventStateMachineService {
+  private readonly logger = new Logger(EventStateMachineService.name);
+
   constructor(
     @InjectRepository(Evenement)
     private readonly eventRepo: Repository<Evenement>,
@@ -28,6 +32,7 @@ export class EventStateMachineService {
     @InjectRepository(ChatGroup)
     private readonly chatGroupRepo: Repository<ChatGroup>,
     private readonly eventsGateway: EventsGateway,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async publish(eventId: string, organiserId: string) {
@@ -125,6 +130,25 @@ export class EventStateMachineService {
 
     // Emit Socket.io event
     this.eventsGateway.emitEventCancelled(eventId, reason, event.cancelledAt);
+
+    // Notify every registered participant (essential — they must be informed).
+    const registered = await this.participantRepo.find({
+      where: { eventId, status: ParticipantStatusEnum.REGISTERED },
+      select: ['userId'],
+    });
+    for (const participant of registered) {
+      try {
+        await this.notificationsService.create({
+          userId: participant.userId,
+          type: 'event_cancelled',
+          payload: { eventTitle: event.title, eventId, reason },
+        });
+      } catch (error: any) {
+        this.logger.warn(
+          `event_cancelled notification failed for ${participant.userId}: ${error?.message ?? error}`,
+        );
+      }
+    }
 
     return { success: true };
   }

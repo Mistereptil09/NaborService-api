@@ -40,6 +40,7 @@ import { ContractExpirationWorker } from './workers/contract-expiration.worker';
 import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
 import { AdminModule } from '../admin/admin.module';
+import { MessagingModule } from '../messaging/messaging.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { AdminModule } from '../admin/admin.module';
     AuthModule,
     MediaModule,
     AdminModule,
+    MessagingModule,
   ],
   controllers: [ListingsController],
   providers: [

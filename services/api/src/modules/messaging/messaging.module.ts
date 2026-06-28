@@ -17,8 +17,10 @@ import { PresenceGateway } from './presence.gateway';
 import { NotificationsGateway } from './notifications.gateway';
 import { NotificationsService } from './notifications.service';
 import { Notification } from './entities/notification.entity';
+import { User } from '../users/entities/user.entity';
 import { ChatController } from './chat.controller';
 import { ChatAdminController } from './chat-admin.controller';
+import { NotificationsController } from './notifications.controller';
 
 @Module({
   imports: [
@@ -28,11 +30,12 @@ import { ChatAdminController } from './chat-admin.controller';
       MessageMetadata,
       MessageReadReceipt,
       Notification,
+      User,
     ]),
     MongooseModule.forFeature([{ name: Message.name, schema: MessageSchema }]),
     AuthModule,
   ],
-  controllers: [ChatController, ChatAdminController],
+  controllers: [ChatController, ChatAdminController, NotificationsController],
   providers: [
     ChatService,
     ChatMessageService,

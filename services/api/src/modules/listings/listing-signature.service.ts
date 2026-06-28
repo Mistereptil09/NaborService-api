@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   ConflictException,
@@ -20,12 +21,15 @@ import { TotpService } from '../auth/totp.service';
 import { SignDocumentDto } from './dto/listing-routes.dtos';
 import { MediaService } from '../media/services/media.service';
 import { GridFSService } from '../media/services/gridfs.service';
+import { NotificationsService } from '../messaging/notifications.service';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { authenticator } = require('otplib');
 
 @Injectable()
 export class ListingSignatureService {
+  private readonly logger = new Logger(ListingSignatureService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -35,6 +39,7 @@ export class ListingSignatureService {
     private readonly totpService: TotpService,
     private readonly mediaService: MediaService,
     private readonly gridfsService: GridFSService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async signDocument(
@@ -119,6 +124,24 @@ export class ListingSignatureService {
     contract.signed_at = new Date();
 
     const savedContract = await contract.save();
+
+    // Notify the OTHER party that the contract was signed (transactional).
+    const otherPartyId =
+      userId === transaction.providerId
+        ? transaction.requesterId
+        : transaction.providerId;
+    try {
+      await this.notificationsService.create({
+        userId: otherPartyId,
+        type: 'contract_signed',
+        payload: { listingId, transactionId: transaction.id },
+      });
+    } catch (error: any) {
+      this.logger.warn(
+        `contract_signed notification failed for ${otherPartyId}: ${error?.message ?? error}`,
+      );
+    }
+
     return {
       success: true,
       signed_at: savedContract.signed_at,

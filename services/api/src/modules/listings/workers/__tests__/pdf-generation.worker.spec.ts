@@ -8,6 +8,7 @@ import { Listing } from '../../entities/listing.entity';
 import { Contract } from '../../../../database/mongo-schemas/schemas/contract.schema';
 import { MediaFile } from '../../../media/schemas/media-file.schema';
 import { GridFSService } from '../../../media/services/gridfs.service';
+import { NotificationsService } from '../../../messaging/notifications.service';
 import { UnrecoverableError } from 'bullmq';
 
 describe('PdfGenerationWorker', () => {
@@ -39,6 +40,7 @@ describe('PdfGenerationWorker', () => {
         { provide: getModelToken(Contract.name), useValue: mockContractModel },
         { provide: getModelToken(MediaFile.name), useValue: mockMediaFileModel },
         { provide: GridFSService, useValue: mockGridfsService },
+        { provide: NotificationsService, useValue: { create: jest.fn() } },
       ],
     }).compile();
 

@@ -381,6 +381,7 @@ describe('Users Module Services Unit Tests', () => {
         } as any, // chatGroupRepo
         { create: jest.fn(), save: jest.fn() } as any, // usersInGroupRepo
         mockQueue,
+        { create: jest.fn() } as any, // notificationsService
       );
     });
 

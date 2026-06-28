@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { getQueueToken } from '@nestjs/bullmq';
 import { WaitlistPromoteWorker } from '../waitlist-promote.worker';
 import { EventsGateway } from '../../../modules/events/events.gateway';
+import { NotificationsService } from '../../../modules/messaging/notifications.service';
 import { EventStatusEnum, ParticipantStatusEnum } from '../../../common/enums';
 
 describe('WaitlistPromoteWorker', () => {
@@ -19,7 +19,7 @@ describe('WaitlistPromoteWorker', () => {
   const mockEventsGateway = {
     emitParticipantAdded: jest.fn(),
   };
-  const mockEmailQueue = { add: jest.fn() };
+  const mockNotificationsService = { create: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -27,7 +27,10 @@ describe('WaitlistPromoteWorker', () => {
         WaitlistPromoteWorker,
         { provide: DataSource, useValue: mockDataSource },
         { provide: EventsGateway, useValue: mockEventsGateway },
-        { provide: getQueueToken('email'), useValue: mockEmailQueue },
+        {
+          provide: NotificationsService,
+          useValue: mockNotificationsService,
+        },
       ],
     }).compile();
 
@@ -48,7 +51,7 @@ describe('WaitlistPromoteWorker', () => {
     expect(mockManager.find).not.toHaveBeenCalled();
   });
 
-  it('should promote participants and send email', async () => {
+  it('should promote participants and create notifications', async () => {
     mockManager.findOne.mockResolvedValueOnce({
       id: 'evt-1',
       title: 'Test Event',
@@ -72,7 +75,10 @@ describe('WaitlistPromoteWorker', () => {
     await worker.process({ data: { eventId: 'evt-1' } } as any);
 
     expect(mockManager.save).toHaveBeenCalledTimes(2);
-    expect(mockEmailQueue.add).toHaveBeenCalledTimes(2);
+    expect(mockNotificationsService.create).toHaveBeenCalledTimes(2);
+    expect(mockNotificationsService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'waitlist_place' }),
+    );
     expect(mockEventsGateway.emitParticipantAdded).toHaveBeenCalledTimes(2);
   });
 });

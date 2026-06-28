@@ -1,23 +1,15 @@
-import {
-  Processor,
-  WorkerHost,
-  OnWorkerEvent,
-  InjectQueue,
-} from '@nestjs/bullmq';
-import { Job, Queue, UnrecoverableError } from 'bullmq';
+import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
+import { Job, UnrecoverableError } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import {
-  WaitlistPromoteJobPayload,
-  EmailJobPayload,
-} from '../interfaces/job-payloads';
+import { WaitlistPromoteJobPayload } from '../interfaces/job-payloads';
 import { classifyAndThrow } from '../utils/error-classifier';
 import { getBackoffDelay } from '../utils/backoff-strategy';
 import { Evenement } from '../../modules/events/entities/evenement.entity';
 import { EventParticipant } from '../../modules/events/entities/event-participant.entity';
 import { EventsGateway } from '../../modules/events/events.gateway';
 import { EventStatusEnum, ParticipantStatusEnum } from '../../common/enums';
-import { waitlistJobId } from '../utils/job-id';
+import { NotificationsService } from '../../modules/messaging/notifications.service';
 
 @Processor('waitlist-promote', {
   concurrency: 1,
@@ -35,7 +27,7 @@ export class WaitlistPromoteWorker extends WorkerHost {
   constructor(
     private readonly dataSource: DataSource,
     private readonly eventsGateway: EventsGateway,
-    @InjectQueue('email') private readonly emailQueue: Queue,
+    private readonly notificationsService: NotificationsService,
   ) {
     super();
   }
@@ -83,21 +75,24 @@ export class WaitlistPromoteWorker extends WorkerHost {
           participant.promotedAt = new Date();
           await manager.save(participant);
 
-          const emailPayload: EmailJobPayload = {
-            recipient: participant.user.email,
-            subject: 'You have been promoted from the waitlist!',
-            templateName: 'waitlist-promoted',
-            templateVariables: {
-              eventTitle: event.title,
-              eventId: event.id,
-              firstName: participant.user.firstName,
-            },
-            preferenceKey: 'notifWaitlist',
-          };
-
-          const jobId = waitlistJobId(eventId, participant.userId);
-
-          await this.emailQueue.add('send-email', emailPayload, { jobId });
+          // In-app notification + offline email relay are centralised in
+          // NotificationsService.create (waitlist_place → 'waitlist-promoted'
+          // template, gated by notifWaitlist).
+          try {
+            await this.notificationsService.create({
+              userId: participant.userId,
+              type: 'waitlist_place',
+              payload: {
+                eventTitle: event.title,
+                eventId: event.id,
+                firstName: participant.user.firstName,
+              },
+            });
+          } catch (error: any) {
+            this.logger.warn(
+              `waitlist_place notification failed for ${participant.userId}: ${error?.message ?? error}`,
+            );
+          }
 
           this.eventsGateway.emitParticipantAdded(eventId, participant.userId);
         }
