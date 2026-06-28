@@ -11,8 +11,6 @@ reserved = {
     'FIND':     'FIND',
     'GET':      'FIND',
     'SELECT':   'FIND',
-    'IN':       'IN',
-    'FROM':     'IN',
     'WHERE':    'WHERE',
     'AND':      'AND',
     'OR':       'OR',
