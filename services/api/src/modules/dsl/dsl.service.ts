@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import { InjectConnection } from '@nestjs/mongoose';
+import { Connection } from 'mongoose';
 import { Repository } from 'typeorm';
 import { DslQuery } from './dsl-query.entity';
 
@@ -43,6 +45,7 @@ export class DslService {
     @InjectRepository(DslQuery)
     private readonly dslQueryRepository: Repository<DslQuery>,
     private readonly configService: ConfigService,
+    @InjectConnection() private readonly mongoConnection: Connection,
   ) {
     this.dslUrl =
       this.configService.get<string>('DSL_SERVICE_URL') ||
@@ -90,6 +93,41 @@ export class DslService {
         'Service DSL indisponible',
       );
     }
+  }
+
+  async executeQuery(query: string): Promise<{
+    collection: string;
+    filter: Record<string, unknown>;
+    order: Record<string, unknown> | null;
+    limit: number;
+    projection: Record<string, number>;
+    resultCount: number;
+    results: unknown[];
+  }> {
+    const parsed = await this.parseQuery(query);
+
+    const db = this.mongoConnection.db;
+    if (!db) {
+      throw new InternalServerErrorException('MongoDB not connected');
+    }
+
+    const cursor = db
+      .collection(parsed.collection)
+      .find(parsed.filter, { projection: parsed.projection })
+      .limit(parsed.limit);
+
+    if (parsed.order) {
+      cursor.sort(parsed.order);
+    }
+
+    const results = await cursor.toArray();
+    const resultCount = results.length;
+
+    return {
+      ...parsed,
+      resultCount,
+      results,
+    };
   }
 
   async logQuery(params: {

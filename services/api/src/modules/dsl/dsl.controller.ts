@@ -71,7 +71,7 @@ export class DslController {
     const startTime = Date.now();
 
     try {
-      const result = await this.dslService.parseQuery(query);
+      const result = await this.dslService.executeQuery(query);
 
       // Log audit asynchrone (non-bloquant)
       this.dslService.logQuery({
@@ -82,7 +82,7 @@ export class DslController {
         filter: result.filter,
         order: result.order ?? null,
         limit: result.limit,
-        resultCount: null,
+        resultCount: result.resultCount,
         hasError: false,
         errorMessage: null,
         ipAddress: req.ip ?? null,
