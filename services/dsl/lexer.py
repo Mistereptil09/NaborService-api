@@ -9,7 +9,10 @@ import ply.lex as lex
 # ── Mots réservés ─────────────────────────────────────────
 reserved = {
     'FIND':     'FIND',
+    'GET':      'FIND',
+    'SELECT':   'FIND',
     'IN':       'IN',
+    'FROM':     'IN',
     'WHERE':    'WHERE',
     'AND':      'AND',
     'OR':       'OR',
@@ -20,6 +23,7 @@ reserved = {
     'DESC':     'DESC',
     'LIMIT':    'LIMIT',
     'CONTAINS': 'CONTAINS',
+    'LIKE':     'CONTAINS',
     'IS':       'IS',
     'NULL':     'NULL',
 }
