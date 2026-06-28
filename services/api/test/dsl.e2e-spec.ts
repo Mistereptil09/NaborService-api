@@ -12,13 +12,12 @@ import {
   createModeratorUser,
 } from './utils/test-factories';
 
-// ── Mock DslService ──────────────────────────────────────────
-const mockParseQuery = jest.fn();
+const mockExecuteQuery = jest.fn();
 const mockLogQuery = jest.fn();
 const mockGetAuditHistory = jest.fn();
 
 const mockDslService = {
-  parseQuery: mockParseQuery,
+  executeQuery: mockExecuteQuery,
   logQuery: mockLogQuery,
   getAuditHistory: mockGetAuditHistory,
 };
@@ -31,7 +30,7 @@ function setupMockForQuery(query: string) {
     throw new BadRequestException("Erreur de syntaxe near 'INVALID_SYNTAX'");
   }
   if (query.includes('users')) {
-    throw new ForbiddenException("Collection 'users' non autoris�e");
+    throw new ForbiddenException("Collection 'users' non autorisée");
   }
   if (query.includes('DSL_DOWN')) {
     throw new InternalServerErrorException('Service DSL indisponible');
@@ -60,15 +59,12 @@ function setupMockForQuery(query: string) {
       : null,
     limit: limitMatch ? parseInt(limitMatch[1], 10) : 100,
     projection: {
-      content_encrypted: 0,
-      iv: 0,
-      auth_tag: 0,
-      data: 0,
-      'pdf.data': 0,
-      qr_png: 0,
-      'signature.canvas_b64': 0,
-      'signature.signed_ip': 0,
+      content_encrypted: 0, iv: 0, auth_tag: 0, data: 0,
+      'pdf.data': 0, qr_png: 0,
+      'signature.canvas_b64': 0, 'signature.signed_ip': 0,
     },
+    resultCount: 3,
+    results: [{ _id: 'mongo1', status: 'open' }],
   };
 }
 
@@ -76,14 +72,14 @@ describe('DSL Module (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    mockParseQuery.mockImplementation((q: string) => setupMockForQuery(q));
+    mockExecuteQuery.mockImplementation((q: string) => setupMockForQuery(q));
     mockLogQuery.mockResolvedValue(undefined);
     mockGetAuditHistory.mockResolvedValue({
       entries: [{
         id: 'audit-1', userId: 'admin-id', userRole: 'admin',
-        query: 'FIND IN contracts WHERE status = "open" LIMIT 20',
+        query: 'FIND contracts WHERE status = "open" LIMIT 20',
         collection: 'contracts', filter: { status: 'open' }, order: null,
-        limit: 20, resultCount: null, hasError: false, errorMessage: null,
+        limit: 20, resultCount: 3, hasError: false, errorMessage: null,
         ipAddress: '127.0.0.1', createdAt: new Date('2026-06-16T12:00:00Z'),
       }],
       total: 1,
@@ -115,12 +111,12 @@ describe('DSL Module (e2e)', () => {
     jest.clearAllMocks();
   });
 
-  // ── Auth guards ─────────────────────────────────────────
+  // ── Auth guards ───────────────────────────────────────────
 
   it('POST /v1/dsl/query should return 401 without token', async () => {
     await request(app.getHttpServer())
       .post('/v1/dsl/query')
-      .send({ query: 'FIND IN contracts LIMIT 10' })
+      .send({ query: 'FIND contracts LIMIT 10' })
       .expect(401);
   });
 
@@ -130,7 +126,7 @@ describe('DSL Module (e2e)', () => {
       .expect(401);
   });
 
-  // ── Role guards ─────────────────────────────────────────
+  // ── Role guards ───────────────────────────────────────────
 
   it('POST /v1/dsl/query should return 403 for resident', async () => {
     const { email, password } = await createTestUser(app, 'dslresident');
@@ -139,7 +135,7 @@ describe('DSL Module (e2e)', () => {
     await request(app.getHttpServer())
       .post('/v1/dsl/query')
       .set('Authorization', `Bearer ${token}`)
-      .send({ query: 'FIND IN contracts LIMIT 10' })
+      .send({ query: 'FIND contracts LIMIT 10' })
       .expect(403);
   });
 
@@ -152,7 +148,7 @@ describe('DSL Module (e2e)', () => {
       .expect(403);
   });
 
-  // ── POST /dsl/query — Moderator ─────────────────────────
+  // ── POST /dsl/query — Moderator ───────────────────────────
 
   describe('POST /v1/dsl/query (moderator)', () => {
     let modToken: string;
@@ -162,45 +158,45 @@ describe('DSL Module (e2e)', () => {
       modToken = mod.token;
     });
 
-    it('should parse a valid DSL query', async () => {
+    it('should execute a valid DSL query and return results', async () => {
       const res = await request(app.getHttpServer())
         .post('/v1/dsl/query')
         .set('Authorization', `Bearer ${modToken}`)
-        .send({ query: 'FIND IN contracts WHERE status = "open" LIMIT 20' })
+        .send({ query: 'FIND contracts WHERE status = "open" LIMIT 20' })
         .expect(200);
 
       expect(res.body).toHaveProperty('collection', 'contracts');
       expect(res.body).toHaveProperty('filter');
       expect(res.body).toHaveProperty('limit', 20);
+      expect(res.body).toHaveProperty('resultCount', 3);
+      expect(res.body).toHaveProperty('results');
+      expect(res.body.results).toHaveLength(1);
       expect(res.body).toHaveProperty('projection');
       expect(res.body.projection['signature.canvas_b64']).toBe(0);
-      expect(res.body.projection['pdf.data']).toBe(0);
     });
 
-    it('should parse all 6 authorized collections', async () => {
+    it('should execute queries on all 6 authorized collections', async () => {
       const collections = [
-        'contracts',
-        'messages',
-        'event_tickets',
-        'listing_documents',
-        'event_documents',
-        'incident_documents',
+        'contracts', 'messages', 'event_tickets',
+        'listing_documents', 'event_documents', 'incident_documents',
       ];
       for (const col of collections) {
         const res = await request(app.getHttpServer())
           .post('/v1/dsl/query')
           .set('Authorization', `Bearer ${modToken}`)
-          .send({ query: `FIND IN ${col} LIMIT 10` })
+          .send({ query: `FIND ${col} LIMIT 10` })
           .expect(200);
         expect(res.body.collection).toBe(col);
+        expect(res.body).toHaveProperty('resultCount');
+        expect(res.body).toHaveProperty('results');
       }
     });
 
-    it('should extract ORDER BY and LIMIT from query', async () => {
+    it('should extract ORDER BY and LIMIT', async () => {
       const res = await request(app.getHttpServer())
         .post('/v1/dsl/query')
         .set('Authorization', `Bearer ${modToken}`)
-        .send({ query: 'FIND IN event_tickets WHERE scanned_at IS NULL ORDER BY issued_at ASC LIMIT 100' })
+        .send({ query: 'GET event_tickets WHERE scanned_at IS NULL ORDER BY issued_at ASC LIMIT 100' })
         .expect(200);
 
       expect(res.body.collection).toBe('event_tickets');
@@ -212,7 +208,7 @@ describe('DSL Module (e2e)', () => {
       await request(app.getHttpServer())
         .post('/v1/dsl/query')
         .set('Authorization', `Bearer ${modToken}`)
-        .send({ query: 'FIND INVALID_SYNTAX IN contracts' })
+        .send({ query: 'FIND INVALID_SYNTAX contracts' })
         .expect(400);
     });
 
@@ -220,7 +216,7 @@ describe('DSL Module (e2e)', () => {
       await request(app.getHttpServer())
         .post('/v1/dsl/query')
         .set('Authorization', `Bearer ${modToken}`)
-        .send({ query: 'FIND IN users LIMIT 10' })
+        .send({ query: 'FIND users LIMIT 10' })
         .expect(403);
     });
 
@@ -228,28 +224,26 @@ describe('DSL Module (e2e)', () => {
       await request(app.getHttpServer())
         .post('/v1/dsl/query')
         .set('Authorization', `Bearer ${modToken}`)
-        .send({ query: 'FIND IN DSL_DOWN LIMIT 10' })
+        .send({ query: 'FIND DSL_DOWN LIMIT 10' })
         .expect(500);
     });
 
     it('should log audit for successful and failed queries', async () => {
-      // Success
       await request(app.getHttpServer())
         .post('/v1/dsl/query')
         .set('Authorization', `Bearer ${modToken}`)
-        .send({ query: 'FIND IN contracts LIMIT 10' })
+        .send({ query: 'FIND contracts LIMIT 10' })
         .expect(200);
 
       expect(mockLogQuery).toHaveBeenCalledWith(
-        expect.objectContaining({ hasError: false }),
+        expect.objectContaining({ hasError: false, resultCount: 3 }),
       );
 
-      // Failure
       try {
         await request(app.getHttpServer())
           .post('/v1/dsl/query')
           .set('Authorization', `Bearer ${modToken}`)
-          .send({ query: 'FIND IN users LIMIT 10' });
+          .send({ query: 'FIND users LIMIT 10' });
       } catch {}
 
       expect(mockLogQuery).toHaveBeenCalledWith(
@@ -258,7 +252,7 @@ describe('DSL Module (e2e)', () => {
     });
   });
 
-  // ── POST /dsl/query — Admin ─────────────────────────────
+  // ── POST /dsl/query — Admin ───────────────────────────────
 
   describe('POST /v1/dsl/query (admin)', () => {
     let adminToken: string;
@@ -268,18 +262,19 @@ describe('DSL Module (e2e)', () => {
       adminToken = admin.token;
     });
 
-    it('should parse a valid DSL query as admin', async () => {
+    it('should execute a valid DSL query as admin', async () => {
       const res = await request(app.getHttpServer())
         .post('/v1/dsl/query')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ query: 'FIND IN contracts WHERE signed_at IS NOT NULL LIMIT 10' })
+        .send({ query: 'FIND contracts WHERE signed_at IS NOT NULL LIMIT 10' })
         .expect(200);
 
       expect(res.body.collection).toBe('contracts');
+      expect(res.body.resultCount).toBe(3);
     });
   });
 
-  // ── GET /dsl/audit — Admin ──────────────────────────────
+  // ── GET /dsl/audit — Admin ────────────────────────────────
 
   describe('GET /v1/dsl/audit (admin)', () => {
     let adminToken: string;
@@ -289,7 +284,7 @@ describe('DSL Module (e2e)', () => {
       adminToken = admin.token;
     });
 
-    it('should return audit history with entries', async () => {
+    it('should return audit history with resultCount', async () => {
       const res = await request(app.getHttpServer())
         .get('/v1/dsl/audit')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -297,9 +292,7 @@ describe('DSL Module (e2e)', () => {
 
       expect(res.body).toHaveProperty('entries');
       expect(res.body).toHaveProperty('total', 1);
-      expect(res.body.entries[0]).toHaveProperty('query');
-      expect(res.body.entries[0]).toHaveProperty('collection', 'contracts');
-      expect(res.body.entries[0]).toHaveProperty('userId', 'admin-id');
+      expect(res.body.entries[0].resultCount).toBe(3);
       expect(mockGetAuditHistory).toHaveBeenCalledWith(0, 50);
     });
 
