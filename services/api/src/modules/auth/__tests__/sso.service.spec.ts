@@ -77,14 +77,17 @@ describe('SsoService', () => {
   });
 
   describe('generateQr', () => {
+    const deviceName = 'Java Desktop Client';
+
     it('should generate a QR code data URI and store session successfully', async () => {
       const ip = '127.0.0.1';
       mockRedisClient.incr.mockResolvedValueOnce(1); // rate limit count = 1
       mockRedisClient.smembers.mockResolvedValueOnce([]); // no active sessions
 
-      const result = await service.generateQr(ip);
+      const result = await service.generateQr(ip, deviceName);
 
       expect(result.qr).toContain('data:image/png;base64,');
+      expect(result.scanUrl).toContain(`device=${encodeURIComponent(deviceName)}`);
       expect(mockRedisClient.incr).toHaveBeenCalledWith(
         `rate:sso:generate:${ip}`,
       );
@@ -100,7 +103,7 @@ describe('SsoService', () => {
       const ip = '127.0.0.1';
       mockRedisClient.incr.mockResolvedValueOnce(6); // rate limit count > 5
 
-      await expect(service.generateQr(ip)).rejects.toThrow(
+      await expect(service.generateQr(ip, deviceName)).rejects.toThrow(
         new HttpException('Too many SSO requests from this IP', 429),
       );
     });
@@ -114,7 +117,7 @@ describe('SsoService', () => {
       // All 3 exist
       mockRedisClient.exists.mockResolvedValue(1);
 
-      await expect(service.generateQr(ip)).rejects.toThrow(
+      await expect(service.generateQr(ip, deviceName)).rejects.toThrow(
         new HttpException('Too many active SSO sessions for this IP', 429),
       );
     });
@@ -127,7 +130,7 @@ describe('SsoService', () => {
       // first doesn't exist, second does
       mockRedisClient.exists.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
 
-      const result = await service.generateQr(ip);
+      const result = await service.generateQr(ip, deviceName);
 
       expect(result.qr).toContain('data:image/png;base64,');
       expect(mockRedisClient.srem).toHaveBeenCalledWith(
@@ -145,6 +148,7 @@ describe('SsoService', () => {
       const mockPayload = {
         status: 'pending',
         user_id: null,
+        device_name: 'Java Desktop Client',
         ip_address: '127.0.0.1',
         created_at: new Date().toISOString(),
       };
@@ -159,7 +163,7 @@ describe('SsoService', () => {
       expect(mockSessionService.createSession).toHaveBeenCalledWith({
         userId,
         refreshTokenHash: 'mock-refresh-token-hash',
-        deviceName: 'Java Desktop Client (SSO)',
+        deviceName: 'Java Desktop Client',
         ipAddress: '127.0.0.1',
         userAgent: 'TestAgent',
         expiresAt: expect.any(Date),
@@ -190,6 +194,7 @@ describe('SsoService', () => {
       const mockPayload = {
         status: 'validated',
         user_id: 'user',
+        device_name: 'Test Device',
         ip_address: '127.0.0.1',
         created_at: new Date().toISOString(),
       };
@@ -204,6 +209,7 @@ describe('SsoService', () => {
       const mockPayload = {
         status: 'pending',
         user_id: null,
+        device_name: 'Test Device',
         ip_address: '127.0.0.1',
         created_at: new Date().toISOString(),
       };
@@ -227,6 +233,7 @@ describe('SsoService', () => {
       const mockPayload = {
         status: 'validated',
         user_id: 'user',
+        device_name: 'Test',
         ip_address: '127.0.0.1',
         created_at: new Date().toISOString(),
         access_token: 'at',

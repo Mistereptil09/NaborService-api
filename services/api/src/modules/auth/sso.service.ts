@@ -22,6 +22,7 @@ import { SsoGateway } from './sso.gateway';
 interface SsoSessionPayload {
   status: 'pending' | 'validated';
   user_id: string | null;
+  device_name: string;
   ip_address: string;
   created_at: string;
   access_token?: string;
@@ -53,7 +54,7 @@ export class SsoService {
    * The QR encodes a full scan URL so any phone camera can open it directly.
    * The scanUrl is also returned so the desktop client can display a "copy link" fallback.
    */
-  async generateQr(ip: string): Promise<GenerateQrResult> {
+  async generateQr(ip: string, deviceName: string): Promise<GenerateQrResult> {
     try {
       const rateLimitKey = `rate:sso:generate:${ip}`;
       const rateCount = await this.redis.incr(rateLimitKey);
@@ -92,6 +93,7 @@ export class SsoService {
       const payload: SsoSessionPayload = {
         status: 'pending',
         user_id: null,
+        device_name: deviceName,
         ip_address: ip,
         created_at: new Date().toISOString(),
       };
@@ -106,8 +108,10 @@ export class SsoService {
         process.env.APP_BASE_URL ??
         'http://localhost:3000/v1';
 
-      // Encode the full scan URL so any phone camera opens the web client directly
-      const scanUrl = `${qrcodeurl}/auth/sso/qr/validate?token=${tokenUuid}`;
+      // Encode the full scan URL so any phone camera opens the web client directly.
+      // device_name is included for display on the confirmation screen
+      const deviceParam = encodeURIComponent(deviceName);
+      const scanUrl = `${qrcodeurl}/auth/sso/qr/validate?token=${tokenUuid}&device=${deviceParam}`;
       const qr = await qrcode.toDataURL(scanUrl);
 
       return { qr, scanUrl };
@@ -166,7 +170,7 @@ export class SsoService {
     const session = await this.sessionService.createSession({
       userId: user.id,
       refreshTokenHash,
-      deviceName: 'Java Desktop Client (SSO)',
+      deviceName: payload.device_name,
       ipAddress: payload.ip_address,
       userAgent: userAgent,
       expiresAt,

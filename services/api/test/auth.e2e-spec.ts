@@ -42,9 +42,18 @@ describe('Auth Module (e2e)', () => {
     it('should generate a QR code', async () => {
       const genRes = await request(app.getHttpServer())
         .post('/v1/auth/sso/qr/generate')
+        .send({ device_name: 'E2E Test Client' })
         .expect(200);
 
       expect(genRes.body).toHaveProperty('qr_code');
+      expect(genRes.body).toHaveProperty('scan_url');
+    });
+
+    it('should reject generate without device_name', async () => {
+      await request(app.getHttpServer())
+        .post('/v1/auth/sso/qr/generate')
+        .send({})
+        .expect(400);
     });
 
     it('Property: No user_id leaked before validation', () => {

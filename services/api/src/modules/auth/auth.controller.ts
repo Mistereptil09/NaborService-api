@@ -513,12 +513,18 @@ export class AuthController {
 
   @Post('sso/qr/generate')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Générer un QR Code SSO pour Java Desktop' })
+  @ApiOperation({ summary: 'Générer un QR Code SSO (web ou desktop)' })
   @ApiOkResponse({ description: 'QR Code généré avec succès' })
-  @ApiBadRequestResponse({ description: 'Trop de requêtes' })
-  async generateSsoQr(@Req() req: Express.Request) {
+  @ApiBadRequestResponse({ description: 'device_name requis ou trop de requêtes' })
+  async generateSsoQr(
+    @Req() req: Express.Request,
+    @Body('device_name') deviceName: string,
+  ) {
+    if (!deviceName) {
+      throw new HttpException('device_name is required', HttpStatus.BAD_REQUEST);
+    }
     const ip = req.ip || this.getIpAddress(req);
-    const { qr, scanUrl } = await this.ssoService.generateQr(ip);
+    const { qr, scanUrl } = await this.ssoService.generateQr(ip, deviceName);
     return { qr_code: qr, scan_url: scanUrl };
   }
 
