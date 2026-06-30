@@ -20,6 +20,7 @@ import { ChatGroup } from '../messaging/entities/chat-group.entity';
 import { UsersInGroup } from '../messaging/entities/users-in-group.entity';
 import { ChatGroupTypeEnum, GroupRoleEnum } from '../../common/enums';
 import { Neo4jHealthService } from '../geo/neo4j-health.service';
+import { NotificationsService } from '../messaging/notifications.service';
 
 @Injectable()
 export class UserSocialService {
@@ -44,6 +45,7 @@ export class UserSocialService {
     private readonly neo4jSyncQueue: {
       add: (name: string, data: any) => Promise<any>;
     },
+    private readonly notificationsService: NotificationsService,
     @Optional()
     private readonly healthService?: Neo4jHealthService,
   ) {}
@@ -107,6 +109,19 @@ export class UserSocialService {
       followerId,
       followedId,
     });
+
+    // Notify the followed user (in-app + email relay if offline).
+    try {
+      await this.notificationsService.create({
+        userId: followedId,
+        type: 'new_follower',
+        payload: { firstName: followedUser.firstName, followerId },
+      });
+    } catch (error: any) {
+      this.logger.warn(
+        `new_follower notification failed for ${followedId}: ${error?.message ?? error}`,
+      );
+    }
 
     // Check for mutual follow
     const mutualFollow = await this.followRepository.findOne({

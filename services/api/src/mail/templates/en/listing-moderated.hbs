@@ -1,0 +1,31 @@
+<h1 style="margin:0 0 16px;font-size:20px;color:#14213d;">Your listing has been moderated</h1>
+
+<p style="margin:0 0 16px;">Hi{{#if firstName}} {{firstName}}{{/if}},</p>
+
+{{#if (eq action 'cancelled')}}
+<p style="margin:0 0 16px;">
+  Your listing <strong>{{listingTitle}}</strong> has been <strong>removed</strong> by our moderation team.
+</p>
+{{else if (eq action 'warned')}}
+<p style="margin:0 0 16px;">
+  Your listing <strong>{{listingTitle}}</strong> received a <strong>warning</strong>. It is still visible, but please make sure it complies with our guidelines.
+</p>
+{{else if (eq action 'restored')}}
+<p style="margin:0 0 16px;">
+  Good news&nbsp;: your listing <strong>{{listingTitle}}</strong> has been <strong>restored</strong> and is visible again.
+</p>
+{{else}}
+<p style="margin:0 0 16px;">
+  Your listing <strong>{{listingTitle}}</strong> has been updated by our moderation team.
+</p>
+{{/if}}
+
+{{#if reason}}
+<p style="margin:0 0 16px;padding:12px 16px;background-color:#f4f5f7;border-left:3px solid #ff6b00;color:#444444;">
+  <strong>Reason&nbsp;:</strong> {{reason}}
+</p>
+{{/if}}
+
+<p style="margin:0;color:#666666;font-size:13px;">
+  If you have any questions, you can contact our support from the app.
+</p>

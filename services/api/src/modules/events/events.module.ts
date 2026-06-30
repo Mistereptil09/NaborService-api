@@ -33,6 +33,7 @@ import { EventsStripeController } from './events-stripe.controller';
 
 import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
+import { MessagingModule } from '../messaging/messaging.module';
 import { BullModule } from '@nestjs/bullmq';
 
 @Module({
@@ -61,6 +62,7 @@ import { BullModule } from '@nestjs/bullmq';
     ),
     AuthModule,
     MediaModule,
+    MessagingModule,
   ],
   controllers: [EventsController, EventsStripeController],
   providers: [

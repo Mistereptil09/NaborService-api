@@ -1,12 +1,14 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Incident } from './entities/incident.entity';
 import { User } from '../users/entities/user.entity';
+import { NotificationsService } from '../messaging/notifications.service';
 import { IncidentSeverityEnum, IncidentStatusEnum, UserRoleEnum } from '../../common/enums';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
@@ -14,11 +16,14 @@ import { ListIncidentsDto } from './dto/list-incidents.dto';
 
 @Injectable()
 export class IncidentsService {
+  private readonly logger = new Logger(IncidentsService.name);
+
   constructor(
     @InjectRepository(Incident)
     private readonly incidentRepository: Repository<Incident>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // ── List with filters ───────────────────────────────────
@@ -127,7 +132,24 @@ export class IncidentsService {
     incident.status = IncidentStatusEnum.RESOLVED;
     incident.resolvedAt = new Date();
     incident.updatedAt = new Date();
-    return this.incidentRepository.save(incident);
+    const saved = await this.incidentRepository.save(incident);
+
+    // Notify the reporter that their incident was resolved (transactional).
+    if (saved.reporterId) {
+      try {
+        await this.notificationsService.create({
+          userId: saved.reporterId,
+          type: 'incident_resolved',
+          payload: { incidentId: saved.id, title: saved.title },
+        });
+      } catch (error: any) {
+        this.logger.warn(
+          `incident_resolved notification failed for ${saved.reporterId}: ${error?.message ?? error}`,
+        );
+      }
+    }
+
+    return saved;
   }
 
   // ── Delete (hard) ────────────────────────────────────────

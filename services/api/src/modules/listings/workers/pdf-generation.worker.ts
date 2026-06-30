@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
@@ -21,6 +21,7 @@ import {
   generateContractPdf,
   generateReceiptPdf,
 } from '../../../common/pdf-generator';
+import { NotificationsService } from '../../messaging/notifications.service';
 
 @Processor('pdf-generation', {
   concurrency: 1,
@@ -43,9 +44,12 @@ export class PdfGenerationWorker extends WorkerHost {
     @InjectModel(MediaFile.name)
     private readonly mediaFileModel: Model<MediaFileDocument>,
     private readonly gridfsService: GridFSService,
+    private readonly notificationsService: NotificationsService,
   ) {
     super();
   }
+
+  private readonly logger = new Logger(PdfGenerationWorker.name);
 
   async process(job: Job<PdfGenerationJobPayload>): Promise<any> {
     try {
@@ -189,6 +193,29 @@ export class PdfGenerationWorker extends WorkerHost {
     }
 
     await this.transactionRepository.save(transaction);
+
+    // Once the contract is generated, notify both parties that a signature is
+    // pending (transactional — both must sign).
+    if (type === 'contract') {
+      for (const partyId of [transaction.providerId, transaction.requesterId]) {
+        try {
+          await this.notificationsService.create({
+            userId: partyId,
+            type: 'contract_pending',
+            payload: {
+              listingTitle: listing.title,
+              listingId: listing.id,
+              transactionId: transaction.id,
+            },
+          });
+        } catch (error: any) {
+          this.logger.warn(
+            `contract_pending notification failed for ${partyId}: ${error?.message ?? error}`,
+          );
+        }
+      }
+    }
+
     return savedContract;
   }
 }

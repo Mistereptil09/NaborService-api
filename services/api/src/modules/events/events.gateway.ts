@@ -92,11 +92,12 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         .getRepository(User)
         .findOne({ where: { id: userId } });
       if (user && user.email) {
-        await this.emailQueue.add('send_email', {
+        await this.emailQueue.add('send-email', {
           recipient: user.email,
           subject: `Notification: ${eventName}`,
           templateName: eventName,
           templateVariables: payload,
+          preferenceKey: 'notifNewEvent',
         });
       }
     }
