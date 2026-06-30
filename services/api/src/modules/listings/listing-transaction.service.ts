@@ -87,4 +87,32 @@ export class ListingTransactionService {
   async save(transaction: ListingTransaction): Promise<ListingTransaction> {
     return this.transactionRepository.save(transaction);
   }
+
+  async markPaid(
+    transactionId: string,
+    paymentIntentId: string,
+  ): Promise<void> {
+    const transaction = await this.transactionRepository.findOne({
+      where: { id: transactionId },
+    });
+    if (!transaction || transaction.paidAt) return;
+
+    transaction.stripePaymentIntent = paymentIntentId;
+    transaction.paidAt = new Date();
+    await this.transactionRepository.save(transaction);
+  }
+
+  async markPaymentFailed(
+    transactionId: string,
+    reason: string,
+  ): Promise<void> {
+    const transaction = await this.transactionRepository.findOne({
+      where: { id: transactionId },
+    });
+    if (!transaction) return;
+
+    transaction.status = TransactionStatusEnum.PAYMENT_FAILED;
+    transaction.paymentFailedReason = reason;
+    await this.transactionRepository.save(transaction);
+  }
 }

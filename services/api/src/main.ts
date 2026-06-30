@@ -5,9 +5,12 @@ import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { RedisIoAdapter } from './queue/adapters/redis-io.adapter';
 import { ConfigService } from '@nestjs/config';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {});
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
 
   const httpServer = app.getHttpServer();
   httpServer.keepAliveTimeout = 130 * 1000; // 130 s (QR TTL = 120 s + margin)
