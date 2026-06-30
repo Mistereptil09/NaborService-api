@@ -117,7 +117,7 @@ export class DslService {
       .limit(parsed.limit);
 
     if (parsed.order) {
-      cursor.sort(parsed.order);
+      cursor.sort(parsed.order as Record<string, 1 | -1>);
     }
 
     const results = await cursor.toArray();

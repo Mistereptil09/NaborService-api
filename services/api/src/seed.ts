@@ -37,6 +37,7 @@ import {
   PollTypeEnum,
   ChatGroupTypeEnum,
   GroupRoleEnum,
+  SwipeDirectionEnum,
 } from './common/enums';
 
 // Postgres Entities
@@ -210,9 +211,9 @@ async function bootstrap() {
     // Swipes (discovery data)
     const swipeRepo = app.get<Repository<UserSwipe>>(getRepositoryToken(UserSwipe));
     await swipeRepo.save([
-      swipeRepo.create({ swiperId: uAlice.id, swipedId: uFelix.id, direction: 'like' }),
-      swipeRepo.create({ swiperId: uEmma.id, swipedId: uAlice.id, direction: 'like' }),
-      swipeRepo.create({ swiperId: uBob.id, swipedId: uEmma.id, direction: 'like' }),
+      swipeRepo.create({ swiperId: uAlice.id, swipedId: uFelix.id, direction: SwipeDirectionEnum.LIKE }),
+      swipeRepo.create({ swiperId: uEmma.id, swipedId: uAlice.id, direction: SwipeDirectionEnum.LIKE }),
+      swipeRepo.create({ swiperId: uBob.id, swipedId: uEmma.id, direction: SwipeDirectionEnum.LIKE }),
     ]);
 
     console.log('Social graph seeded (follows, blocks, swipes).');
