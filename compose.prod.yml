@@ -1,14 +1,14 @@
 services:
   api:
-    image: ghcr.io/stainvy/nabor-api:latest
+    image: ghcr.io/Mistereptil09/nabor-api:latest
     restart: unless-stopped
 
   dsl-service:
-    image: ghcr.io/stainvy/nabor-dsl-service:latest
+    image: ghcr.io/Mistereptil09/nabor-dsl-service:latest
     restart: unless-stopped
 
   postgres:
-    image: ghcr.io/stainvy/nabor-postgres:latest
+    image: ghcr.io/Mistereptil09/nabor-postgres:latest
     restart: unless-stopped
 
   mongo:
