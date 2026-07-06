@@ -253,6 +253,54 @@ export class ChatMessageService {
   }
 
   /**
+   * Admin/moderator group history — bypasses group membership.
+   * Same cursor-based pagination as getMessages, without the membership check.
+   */
+  async getMessagesAsAdmin(
+    groupId: string,
+    cursor?: string,
+    limit = MESSAGES_PER_PAGE,
+  ) {
+    // Verify group exists
+    const group = await this.groupRepo.findOne({ where: { id: groupId } });
+    if (!group || group.deletedAt) throw new NotFoundException('Groupe introuvable');
+
+    const qb = this.msgRepo
+      .createQueryBuilder('m')
+      .where('m.groupId = :groupId', { groupId })
+      .andWhere('m.isDeleted = false')
+      .orderBy('m.sentAt', 'DESC')
+      .take(limit + 1);
+
+    if (cursor) {
+      const cursorDate = new Date(Buffer.from(cursor, 'base64').toString('utf-8'));
+      qb.andWhere('m.sentAt < :cursor', { cursor: cursorDate });
+    }
+
+    const metadata = await qb.getMany();
+    const hasMore = metadata.length > limit;
+    if (hasMore) metadata.pop();
+
+    const mongoIds = metadata.map((m) => m.mongoMessageId);
+    const mongoDocs = await this.messageModel
+      .find({ pg_message_id: { $in: mongoIds } })
+      .lean();
+
+    const groupKey = await this.getGroupKey(groupId);
+    const messages = metadata.map((pg) => {
+      const mongo = mongoDocs.find((d) => d.pg_message_id === pg.id);
+      return this.toPlainMessage(mongo ?? null, pg, groupKey, true);
+    });
+
+    const nextCursor =
+      hasMore && metadata.length > 0
+        ? Buffer.from(metadata[metadata.length - 1].sentAt.toISOString()).toString('base64')
+        : undefined;
+
+    return { messages, has_more: hasMore, cursor: nextCursor };
+  }
+
+  /**
    * Admin/moderator message read — bypasses group membership.
    * Returns the full decrypted message.
    */

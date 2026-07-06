@@ -16,6 +16,7 @@ import { ListingsService } from './listings.service';
 import { ListingTransactionService } from './listing-transaction.service';
 import { ListingsGateway } from './listings.gateway';
 import { ListingStatusEnum, TransactionStatusEnum } from '../../common/enums';
+import { isModeratorOrAdmin } from '../../common/ownership';
 import { AdminConfigService } from '../admin/admin-config.service';
 import { NotificationsService } from '../messaging/notifications.service';
 
@@ -313,6 +314,7 @@ export class ListingStateMachineService {
     listingId: string,
     userId: string,
     reason: string,
+    userRole?: string,
   ): Promise<Listing> {
     if (!reason || reason.trim() === '') {
       throw new BadRequestException("Le motif d'annulation est obligatoire");
@@ -333,7 +335,7 @@ export class ListingStateMachineService {
 
     // Party guard
     if (listing.status === ListingStatusEnum.OPEN) {
-      if (listing.creatorId !== userId) {
+      if (listing.creatorId !== userId && !isModeratorOrAdmin(userRole)) {
         throw new ForbiddenException('Action non autorisée');
       }
     } else if (transaction) {

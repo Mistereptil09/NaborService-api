@@ -54,20 +54,20 @@ export class PollsController {
     @Req() req: { user: JwtPayload },
     @Body() dto: UpdatePollDto,
   ) {
-    return this.pollsService.updatePoll(pollId, req.user.sub, dto);
+    return this.pollsService.updatePoll(pollId, req.user.sub, dto, req.user.role);
   }
 
   @Delete(':poll_id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Supprimer (créateur)' })
   async deletePoll(@Param('poll_id') pollId: string, @Req() req: { user: JwtPayload }) {
-    return this.pollsService.softDeletePoll(pollId, req.user.sub);
+    return this.pollsService.softDeletePoll(pollId, req.user.sub, req.user.role);
   }
 
   @Post(':poll_id/close')
   @ApiOperation({ summary: 'Clôturer manuellement (créateur)' })
   async closePoll(@Param('poll_id') pollId: string, @Req() req: { user: JwtPayload }) {
-    const result = await this.pollsService.closePoll(pollId, req.user.sub);
+    const result = await this.pollsService.closePoll(pollId, req.user.sub, req.user.role);
     const poll = await this.pollsService.getPoll(pollId);
     this.pollsGateway.emitPollClosed(pollId, (poll as any).results);
     return result;

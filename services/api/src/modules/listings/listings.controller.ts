@@ -200,7 +200,7 @@ export class ListingsController {
     @Body() dto: UpdateListingDto,
     @Req() req: any,
   ) {
-    return this.listingsService.update(req.user.sub, id, dto);
+    return this.listingsService.update(req.user.sub, id, dto, req.user.role);
   }
 
   @Delete(':listing_id')
@@ -212,10 +212,7 @@ export class ListingsController {
   @ApiNotFoundResponse({ description: 'Annonce introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async deleteListing(@Param('listing_id') id: string, @Req() req: any) {
-    const isModerator =
-      req.user.role === UserRoleEnum.MODERATOR ||
-      req.user.role === UserRoleEnum.ADMIN;
-    await this.listingsService.softDelete(req.user.sub, id, isModerator);
+    await this.listingsService.softDelete(req.user.sub, id, req.user.role);
     return { success: true };
   }
 
@@ -248,7 +245,7 @@ export class ListingsController {
     @Body() dto: UpdateContentDto,
     @Req() req: any,
   ) {
-    return this.contentService.updateContent(req.user.sub, id, dto);
+    return this.contentService.updateContent(req.user.sub, id, dto, req.user.role);
   }
 
   // --- Listing Media (Multipart Upload) ---
@@ -271,7 +268,7 @@ export class ListingsController {
     @UploadedFile() file: Express.Multer.File,
     @Req() req: any,
   ) {
-    return this.mediaService.uploadMedia(req.user.sub, id, file);
+    return this.mediaService.uploadMedia(req.user.sub, id, file, req.user.role);
   }
 
   @Delete(':listing_id/media/:media_id')
@@ -285,7 +282,7 @@ export class ListingsController {
     @Param('media_id') mediaId: string,
     @Req() req: any,
   ) {
-    await this.mediaService.deleteMedia(req.user.sub, id, mediaId);
+    await this.mediaService.deleteMedia(req.user.sub, id, mediaId, req.user.role);
     return { success: true };
   }
 
@@ -368,7 +365,7 @@ export class ListingsController {
     @Body() dto: CancelListingDto,
     @Req() req: any,
   ) {
-    return this.stateMachineService.cancel(id, req.user.sub, dto.reason);
+    return this.stateMachineService.cancel(id, req.user.sub, dto.reason, req.user.role);
   }
 
   // --- Listing Chat Group ---

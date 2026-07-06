@@ -13,6 +13,7 @@ import {
 } from '../../database/mongo-schemas/schemas/event-document.schema';
 import { Evenement } from './entities/evenement.entity';
 import { EventUpdateContentDto } from './dto/event-routes.dtos';
+import { isModeratorOrAdmin } from '../../common/ownership';
 
 @Injectable()
 export class EventContentService {
@@ -68,13 +69,13 @@ export class EventContentService {
     };
   }
 
-  async updateContent(userId: string, eventId: string, dto: EventUpdateContentDto) {
+  async updateContent(userId: string, eventId: string, dto: EventUpdateContentDto, userRole?: string) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) {
       throw new NotFoundException('Event not found');
     }
 
-    if (event.creatorId !== userId) {
+    if (event.creatorId !== userId && !isModeratorOrAdmin(userRole)) {
       throw new ForbiddenException('Only the owner can update the content');
     }
 

@@ -234,6 +234,17 @@ export class Neo4jGeoService {
   ): Promise<NeighbourhoodWithAdjacencies> {
     this.validatePolygon(polygon);
 
+    // Reject duplicate pg_id
+    const existsQuery = `MATCH (n:Neighbourhood {pg_id: $pgId}) RETURN n.pg_id AS id`;
+    const existsResult = await this.neo4jService.run(existsQuery, {
+      pgId: metadata.pg_id,
+    });
+    if (existsResult.records.length > 0) {
+      throw new ConflictException(
+        `A neighbourhood with pg_id "${metadata.pg_id}" already exists`,
+      );
+    }
+
     const centroidFeature = turf.centroid(polygon);
     const [lng, lat] = centroidFeature.geometry.coordinates;
     const areaM2 = turf.area(polygon);

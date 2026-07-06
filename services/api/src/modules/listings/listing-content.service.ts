@@ -18,6 +18,7 @@ import {
 import { UpdateContentDto } from './dto/listing-routes.dtos';
 import { ListingStatusEnum } from '../../common/enums';
 import { ListingsService } from './listings.service';
+import { isModeratorOrAdmin } from '../../common/ownership';
 
 @Injectable()
 export class ListingContentService {
@@ -65,10 +66,11 @@ export class ListingContentService {
     userId: string,
     listingId: string,
     dto: UpdateContentDto,
+    userRole?: string,
   ): Promise<any> {
     const listing = await this.listingsService.findOne(listingId);
 
-    if (listing.creatorId !== userId) {
+    if (listing.creatorId !== userId && !isModeratorOrAdmin(userRole)) {
       throw new ForbiddenException('Action non autorisée');
     }
 
