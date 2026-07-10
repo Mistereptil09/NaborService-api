@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import { RedisIoAdapter } from './queue/adapters/redis-io.adapter';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { QueryFailedFilter } from './common/query-failed.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -34,6 +35,7 @@ async function bootstrap() {
     }),
   );
   app.use(cookieParser());
+  app.useGlobalFilters(new QueryFailedFilter());
 
   const config = new DocumentBuilder()
     .setTitle('Nabor Services API')

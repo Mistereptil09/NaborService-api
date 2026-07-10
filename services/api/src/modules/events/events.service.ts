@@ -12,6 +12,7 @@ import { Evenement } from './entities/evenement.entity';
 import { EventParticipant } from './entities/event-participant.entity';
 import { EventSwipe } from './entities/event-swipe.entity';
 import { EventStatusEnum, ParticipantStatusEnum } from '../../common/enums';
+import { isModeratorOrAdmin } from '../../common/ownership';
 import {
   CreateEventDto,
   UpdateEventDto,
@@ -94,10 +95,10 @@ export class EventsService {
     return event;
   }
 
-  async update(userId: string, id: string, dto: UpdateEventDto) {
+  async update(userId: string, id: string, dto: UpdateEventDto, userRole?: string) {
     const event = await this.findOne(id);
 
-    if (event.creatorId !== userId) {
+    if (event.creatorId !== userId && !isModeratorOrAdmin(userRole)) {
       throw new ForbiddenException('Only the owner can update this event');
     }
 
@@ -140,9 +141,10 @@ export class EventsService {
     return this.eventRepo.save(event);
   }
 
-  async softDelete(userId: string, id: string, isModerator: boolean) {
+  async softDelete(userId: string, id: string, userRole?: string) {
     const event = await this.findOne(id);
-    if (event.creatorId !== userId && !isModerator) {
+    const isModOrAdmin = isModeratorOrAdmin(userRole);
+    if (event.creatorId !== userId && !isModOrAdmin) {
       throw new ForbiddenException('Not authorized to delete this event');
     }
     await this.eventRepo.softDelete(id);
@@ -188,9 +190,9 @@ export class EventsService {
     await this.promoteQueue.add('promote', { eventId: id });
   }
 
-  async getParticipants(id: string, userId: string) {
+  async getParticipants(id: string, userId: string, userRole?: string) {
     const event = await this.findOne(id);
-    if (event.creatorId !== userId) {
+    if (event.creatorId !== userId && !isModeratorOrAdmin(userRole)) {
       throw new ForbiddenException('Only the owner can view participants');
     }
 
@@ -201,9 +203,9 @@ export class EventsService {
     });
   }
 
-  async getWaitlist(id: string, userId: string) {
+  async getWaitlist(id: string, userId: string, userRole?: string) {
     const event = await this.findOne(id);
-    if (event.creatorId !== userId) {
+    if (event.creatorId !== userId && !isModeratorOrAdmin(userRole)) {
       throw new ForbiddenException('Only the owner can view the waitlist');
     }
 
@@ -236,14 +238,16 @@ export class EventsService {
     await this.swipeRepo.save(swipe);
   }
 
-  async getChatGroup(id: string, userId: string) {
+  async getChatGroup(id: string, userId: string, userRole?: string) {
     const event = await this.findOne(id);
     if (!event.groupId) {
       throw new NotFoundException('No chat group for this event');
     }
 
-    // Check if participant is registered or owner
-    if (event.creatorId !== userId) {
+    const isModOrAdmin = isModeratorOrAdmin(userRole);
+
+    // Check if participant is registered, owner, or mod/admin
+    if (event.creatorId !== userId && !isModOrAdmin) {
       const participant = await this.participantRepo.findOne({
         where: {
           eventId: id,

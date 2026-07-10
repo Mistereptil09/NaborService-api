@@ -160,7 +160,7 @@ describe('ChatGateway', () => {
       const client = mockSocket();
       client.userId = 'u1';
       const result = await gateway.handleJoinGroup({ group_id: 'g1' }, client as any);
-      expect(result.event).toBe('joined');
+      expect(result?.event).toBe('joined');
       expect(client.join).toHaveBeenCalledWith('chat:group:g1');
     });
 
@@ -169,7 +169,7 @@ describe('ChatGateway', () => {
       const client = mockSocket();
       client.userId = 'u1';
       const result = await gateway.handleJoinGroup({ group_id: 'g1' }, client as any);
-      expect(result.event).toBe('forbidden');
+      expect(result?.event).toBe('forbidden');
     });
   });
 

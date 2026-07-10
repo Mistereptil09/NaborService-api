@@ -6,6 +6,7 @@ import { DataSource, Repository } from 'typeorm';
 import { Model } from 'mongoose';
 import { getQueueToken } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import * as crypto from 'crypto';
 
 // Services
 import { AuthService } from './modules/auth/auth.service';
@@ -71,7 +72,8 @@ import { IncidentDocument } from './database/mongo-schemas/schemas/incident-docu
 
 async function bootstrap() {
   console.log('=== Start Database Seeding ===');
-  const app = await NestFactory.createApplicationContext(AppModule);
+  const app = await NestFactory.create(AppModule);
+  await app.listen(0); // random port — needed for WebSocket server init
 
   try {
     const dataSource = app.get(DataSource);
@@ -476,10 +478,37 @@ async function bootstrap() {
     const msgMetaRepo = app.get<Repository<MessageMetadata>>(getRepositoryToken(MessageMetadata));
     const msgMongoModel = app.get<Model<any>>(getModelToken(Message.name));
 
+    // ── AES-256-GCM helpers (mirrors chat-message.service.ts) ──
+    const AES_ALGO = 'aes-256-gcm';
+    const IV_LENGTH = 12; // 96 bits
+    const masterKey = Buffer.from(process.env.AES_MASTER_KEY!, 'hex');
+
+    function encryptGroupKey(rawKey: Buffer): string {
+      const iv = crypto.randomBytes(IV_LENGTH);
+      const cipher = crypto.createCipheriv(AES_ALGO, masterKey, iv);
+      const encrypted = Buffer.concat([cipher.update(rawKey), cipher.final()]);
+      const authTag = cipher.getAuthTag();
+      return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted.toString('base64')}`;
+    }
+
+    function encryptMessage(plaintext: string, groupKey: Buffer): { encrypted: string; iv: string; authTag: string } {
+      const iv = crypto.randomBytes(IV_LENGTH);
+      const cipher = crypto.createCipheriv(AES_ALGO, groupKey, iv);
+      const encrypted = Buffer.concat([cipher.update(plaintext, 'utf-8'), cipher.final()]);
+      const authTag = cipher.getAuthTag();
+      return {
+        encrypted: encrypted.toString('base64'),
+        iv: iv.toString('base64'),
+        authTag: authTag.toString('base64'),
+      };
+    }
+
     // Downtown group chat
+    const groupKey = crypto.randomBytes(32);
     const groupChat = await chatGroupRepo.save(chatGroupRepo.create({
       name: 'Discussion générale - Downtown', description: 'Canal principal des résidents de Downtown.',
       createdBy: uEmma.id, type: ChatGroupTypeEnum.GROUP_CHAT,
+      encryptedGroupKey: encryptGroupKey(groupKey),
     }));
     await uigRepo.save([
       uigRepo.create({ userId: uAlice.id, groupId: groupChat.id, roleInGroup: GroupRoleEnum.MESSAGE }),
@@ -497,14 +526,14 @@ async function bootstrap() {
 
     for (const msg of messages) {
       const msgId = crypto.randomUUID();
+      const enc = encryptMessage(msg.content, groupKey);
       await msgMetaRepo.save(msgMetaRepo.create({
         id: msgId, mongoMessageId: msgId, groupId: groupChat.id,
         senderId: msg.senderId, sentAt: new Date(Date.now() - 600000 + msg.delay), isDeleted: false,
       }));
       await new msgMongoModel({
         pg_message_id: msgId, pg_group_id: groupChat.id, pg_sender_id: msg.senderId,
-        content_encrypted: Buffer.from(msg.content).toString('base64'),
-        iv: '012345678901', auth_tag: '0123456789012345',
+        content_encrypted: enc.encrypted, iv: enc.iv, auth_tag: enc.authTag,
         type: 'text', attachments: [], reactions: [], sent_at: new Date(),
       }).save();
     }
@@ -515,15 +544,21 @@ async function bootstrap() {
     });
 
     if (friendship?.groupId) {
+      const dmGroupKey = crypto.randomBytes(32);
+      await chatGroupRepo.update(
+        { id: friendship.groupId },
+        { encryptedGroupKey: encryptGroupKey(dmGroupKey) },
+      );
+
       const dmId = crypto.randomUUID();
+      const dmEnc = encryptMessage('Salut Bob, merci pour le coup de main !', dmGroupKey);
       await msgMetaRepo.save(msgMetaRepo.create({
         id: dmId, mongoMessageId: dmId, groupId: friendship.groupId,
         senderId: uAlice.id, sentAt: new Date(), isDeleted: false,
       }));
       await new msgMongoModel({
         pg_message_id: dmId, pg_group_id: friendship.groupId, pg_sender_id: uAlice.id,
-        content_encrypted: Buffer.from('Salut Bob, merci pour le coup de main !').toString('base64'),
-        iv: '112233445566', auth_tag: 'aabbccddeeff0011',
+        content_encrypted: dmEnc.encrypted, iv: dmEnc.iv, auth_tag: dmEnc.authTag,
         type: 'text', attachments: [], reactions: [], sent_at: new Date(),
       }).save();
       console.log('DM message seeded (Alice → Bob).');

@@ -7,7 +7,30 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Added
+- **Admin chat routes** — `GET /admin/chat/groups` (tous les groupes + memberCount), `GET /admin/chat/groups/:id/messages` (historique sans appartenance), `GET /admin/chat/messages/:id`, `DELETE /admin/chat/messages/:id` (traçage modérateur).
+- **Event media stream** — `GET /events/:id/media/:media_id` pour streamer cover et pièces jointes (public, cache immutable). Upload retourne maintenant `{ type, name, mimetype, size_bytes }` au lieu de `{ success: true }`.
+- **JWT query parameter** — la stratégie JWT accepte désormais `?token=` en plus de l'en-tête `Authorization: Bearer`. Compatible avec les balises `<img>` et les téléchargements directs.
+- **Bypass ownership pour modérateurs/admins** — les modérateurs et administrateurs peuvent désormais modifier/supprimer les événements, annonces, médias et sondages d'autres utilisateurs, ainsi qu'accéder aux participants, liste d'attente et groupes de discussion.
+- **`isModeratorOrAdmin()`** — helper centralisé dans `src/common/ownership.ts` pour les vérifications de rôle propriétaire/modérateur/admin.
+- **Filtre global `QueryFailedFilter`** — convertit les erreurs PostgreSQL `22P02` (UUID invalide) en `400 Bad Request` au lieu de `500 Internal Server Error`.
+- **`POST /admin/neighbourhoods/reconcile`** — déclenchement manuel de la réconciliation géographique PostgreSQL → Neo4j.
+- **BAN dataset import** — procédure documentée pour charger les données d'adresses dans l'instance Addok locale (département 91 par défaut).
+- **Documentation Swagger des réponses Admin/RGPD/Stats/Signalements** — ajout de DTOs de réponse typés (`AdminUserDto`, `AdminUsersListDto`, `RgpdRequestDto`, `RgpdRequestStatusDto`, `AdminOverviewStatsDto` et ses variantes par domaine, `ReportedListingsResponseDto`, `ReportedEventsResponseDto`, `SuccessResponseDto`) câblés via `@ApiOkResponse({ type })` sur `/admin/users*`, `/admin/rgpd/*`, `/admin/stats/*`, `GET /listings/reported` et `GET /events/reported` — routes dont le corps de réponse n'apparaissait pas du tout dans le schéma OpenAPI jusqu'ici.
+
+### Changed
+- **`POST /admin/neighbourhoods`** — retourne `409 Conflict` si le `pg_id` est déjà utilisé (évite les doublons silencieux dans Neo4j).
+- **`QueueHealthController`** — taggé `@ApiTags('Health')` dans Swagger (n'était plus orphelin).
+- **Seed script** — génère désormais de vraies clés AES-256-GCM par groupe et chiffre correctement le contenu des messages (au lieu de stocker du faux base64).
+- **Event state machine** — `getEventAndCheckOwner` accepte un paramètre `userRole` pour permettre le bypass modérateur/admin.
+
 ### Fixed
+- **Fuite de données sensibles — endpoints Admin Users** : `GET /admin/users`, `GET /admin/users/:user_id`, `PATCH /admin/users/:user_id/role`, `POST /admin/users/:user_id/suspend` et `/restore` retournaient l'entité `User` brute, incluant `passwordHash` et `totpSecret`. Mapping systématique via un nouveau `toAdminUserDto()` qui exclut ces deux champs et expose à la place un booléen dérivé `mfaEnabled`.
+- **Statistiques Admin — incohérence de type sur les compteurs** : les résultats bruts `COUNT()` des requêtes PostgreSQL (retournés en `string` par le driver `pg`) étaient renvoyés tels quels dans les breakdowns de `AdminStatsService`, contredisant le type `number` désormais documenté dans Swagger. Cast systématique via un helper `withNumericCount`.
+- **`GET /events/reported`** : ajout des décorateurs Swagger manquants (`@ApiOkResponse`, `@ApiForbiddenResponse`, `@ApiUnauthorizedResponse`), absents alors que la route sœur `GET /listings/reported` les avait déjà.
+- **Tests obsolètes après changements de signature de constructeur** : mise à jour des mocks `ListingStateMachineService` / `ListingSignatureService` dans les tests de propriétés (`fast-check`) et unitaires, qui n'instanciaient plus le bon nombre d'arguments depuis l'ajout de `configService`/`notificationsService` (causait des erreurs `tsc` silencieuses côté jest et un avalage silencieux d'exception de notification).
+- **Tests obsolètes après bypass d'appartenance admin** : correction des assertions `polls.controller.spec.ts` (`updatePoll`, `softDeletePoll`, `closePoll`) pour inclure le rôle utilisateur désormais transmis au service.
+- **`chat.gateway.spec.ts`** : correction d'un accès `possibly undefined` sur le retour de `handleJoinGroup` (chaînage optionnel).
 - **Client de Test d'API (AuthPage.tsx)** :
   - Prise en charge des tokens de challenge renvoyés en camelCase (`challengeToken`).
   - Correction de la condition d'activation du bouton de configuration TOTP (vérification de la présence d'un vrai JWT `appState.jwt` plutôt qu'un token de challenge temporaire).

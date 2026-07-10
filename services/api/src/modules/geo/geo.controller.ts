@@ -1,8 +1,30 @@
-import { Controller, Get, NotFoundException, Query } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { BanService, NoResultsError } from './ban.service';
+import {
+  Controller,
+  Get,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiBadRequestResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
+  BanService,
+  BanServerException,
+  BanTimeoutException,
+  BanUnavailableException,
+  NoResultsError,
+} from './ban.service';
 import { Neo4jGeoService } from './neo4j-geo.service';
-import { GeoAutocompleteQueryDto, GeoResolveQueryDto } from './dto/geo-routes.dtos';
+import {
+  GeoAutocompleteQueryDto,
+  GeoResolveQueryDto,
+} from './dto/geo-routes.dtos';
 
 @ApiTags('Geo')
 @Controller('geo')
@@ -10,20 +32,47 @@ export class GeoController {
   constructor(
     private readonly banService: BanService,
     private readonly neo4jGeoService: Neo4jGeoService,
-  ) { }
+  ) {}
 
   @Get('autocomplete')
   @ApiOperation({ summary: 'Autocompléter une adresse via la BAN' })
-  @ApiOkResponse({ description: 'Liste d’adresses BAN qui sont proche de la valeur d\'entrée' })
+  @ApiOkResponse({
+    description:
+      "Liste d'adresses BAN qui sont proche de la valeur d'entrée",
+  })
   @ApiBadRequestResponse({ description: 'Paramètres de recherche invalides' })
   async autocomplete(@Query() query: GeoAutocompleteQueryDto) {
-    return this.banService.autocomplete(query.q, query.limit);
+    try {
+      return await this.banService.autocomplete(query.q, query.limit);
+    } catch (error) {
+      if (error instanceof BanTimeoutException) {
+        throw new HttpException(
+          'Service BAN temporairement indisponible (timeout)',
+          HttpStatus.GATEWAY_TIMEOUT,
+        );
+      }
+      if (error instanceof BanServerException) {
+        throw new HttpException(
+          'Service BAN en erreur',
+          HttpStatus.BAD_GATEWAY,
+        );
+      }
+      if (error instanceof BanUnavailableException) {
+        throw new HttpException(
+          'Service BAN indisponible',
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
+      }
+      throw error;
+    }
   }
 
   @Get('resolve-neighbourhood')
   @ApiOperation({ summary: 'Résoudre un quartier depuis une adresse' })
   @ApiOkResponse({ description: 'Quartier résolu depuis une adresse' })
-  @ApiNotFoundResponse({ description: 'Aucun quartier trouvé pour cette adresse' })
+  @ApiNotFoundResponse({
+    description: 'Aucun quartier trouvé pour cette adresse',
+  })
   @ApiBadRequestResponse({ description: 'Adresse invalide' })
   async resolveNeighbourhood(@Query() query: GeoResolveQueryDto) {
     try {

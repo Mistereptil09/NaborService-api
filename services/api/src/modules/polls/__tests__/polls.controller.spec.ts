@@ -62,17 +62,17 @@ describe('PollsController', () => {
 
   it('PATCH /polls/:id', async () => {
     await controller.updatePoll('p1', mockUser as any, { title: 'New' });
-    expect(service.updatePoll).toHaveBeenCalledWith('p1', 'u1', { title: 'New' });
+    expect(service.updatePoll).toHaveBeenCalledWith('p1', 'u1', { title: 'New' }, 'resident');
   });
 
   it('DELETE /polls/:id', async () => {
     await controller.deletePoll('p1', mockUser as any);
-    expect(service.softDeletePoll).toHaveBeenCalledWith('p1', 'u1');
+    expect(service.softDeletePoll).toHaveBeenCalledWith('p1', 'u1', 'resident');
   });
 
   it('POST /polls/:id/close', async () => {
     await controller.closePoll('p1', mockUser as any);
-    expect(service.closePoll).toHaveBeenCalledWith('p1', 'u1');
+    expect(service.closePoll).toHaveBeenCalledWith('p1', 'u1', 'resident');
   });
 
   it('POST /polls/:id/options', async () => {

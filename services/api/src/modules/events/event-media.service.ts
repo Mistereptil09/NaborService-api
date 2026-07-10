@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  StreamableFile,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -14,6 +15,7 @@ import {
   EventDocumentDocument,
 } from '../../database/mongo-schemas/schemas/event-document.schema';
 import { Evenement } from './entities/evenement.entity';
+import { isModeratorOrAdmin } from '../../common/ownership';
 
 @Injectable()
 export class EventMediaService {
@@ -39,6 +41,7 @@ export class EventMediaService {
     userId: string,
     eventId: string,
     file: Express.Multer.File,
+    userRole?: string,
   ) {
     if (!file) {
       throw new BadRequestException('No file provided');
@@ -64,7 +67,7 @@ export class EventMediaService {
       throw new NotFoundException('Event not found');
     }
 
-    if (event.creatorId !== userId) {
+    if (event.creatorId !== userId && !isModeratorOrAdmin(userRole)) {
       throw new ForbiddenException('Only the owner can upload media');
     }
 
@@ -96,6 +99,10 @@ export class EventMediaService {
         mimetype: 'image/webp',
         size_bytes: compressedBuffer.length,
       };
+      document.updated_at = new Date();
+      await document.save();
+
+      return { type: 'cover', mimetype: 'image/webp', size_bytes: compressedBuffer.length };
     } else {
       // Attachments
       if (document.attachments.length >= 5) {
@@ -122,21 +129,42 @@ export class EventMediaService {
         size_bytes: bufferToSave.length,
         uploaded_at: new Date(),
       });
+      document.updated_at = new Date();
+      await document.save();
+
+      return { type: 'attachment', name: nameToSave, mimetype: mimetypeToSave, size_bytes: bufferToSave.length };
     }
-
-    document.updated_at = new Date();
-    await document.save(); // Enforces pre-save size limit hook
-
-    return { success: true };
   }
 
-  async deleteMedia(userId: string, eventId: string, mediaId: string) {
+  async getMedia(eventId: string, mediaId: string): Promise<{ data: Buffer; mimetype: string }> {
+    const document = await this.eventDocumentModel.findOne({
+      pg_event_id: eventId,
+    });
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    if (mediaId === 'cover') {
+      if (!document.cover || !document.cover.data) {
+        throw new NotFoundException('Cover not found');
+      }
+      return { data: document.cover.data, mimetype: document.cover.mimetype };
+    }
+
+    const attachment = document.attachments.find((a) => a.name === mediaId);
+    if (!attachment) {
+      throw new NotFoundException('Media not found');
+    }
+    return { data: attachment.data, mimetype: attachment.mimetype };
+  }
+
+  async deleteMedia(userId: string, eventId: string, mediaId: string, userRole?: string) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) {
       throw new NotFoundException('Event not found');
     }
 
-    if (event.creatorId !== userId) {
+    if (event.creatorId !== userId && !isModeratorOrAdmin(userRole)) {
       throw new ForbiddenException('Only the owner can delete media');
     }
 
@@ -161,5 +189,6 @@ export class EventMediaService {
 
     document.updated_at = new Date();
     await document.save();
+    return { success: true };
   }
 }

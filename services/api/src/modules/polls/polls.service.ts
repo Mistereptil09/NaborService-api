@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { isModeratorOrAdmin } from '../../common/ownership';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { Poll } from './entities/poll.entity';
@@ -67,8 +68,8 @@ export class PollsService {
     return { ...poll, results };
   }
 
-  async updatePoll(pollId: string, userId: string, dto: UpdatePollDto) {
-    const poll = await this.getPollOwned(pollId, userId);
+  async updatePoll(pollId: string, userId: string, dto: UpdatePollDto, userRole?: string) {
+    const poll = await this.getPollOwned(pollId, userId, userRole);
     const hasVotes = await this.voteRepo.count({ where: { option: { pollId } } });
     if (hasVotes > 0) throw new ForbiddenException('Impossible de modifier après le premier vote');
 
@@ -77,14 +78,14 @@ export class PollsService {
     return this.pollRepo.save(poll);
   }
 
-  async softDeletePoll(pollId: string, userId: string) {
-    const poll = await this.getPollOwned(pollId, userId);
+  async softDeletePoll(pollId: string, userId: string, userRole?: string) {
+    const poll = await this.getPollOwned(pollId, userId, userRole);
     poll.deletedAt = new Date();
     return this.pollRepo.save(poll);
   }
 
-  async closePoll(pollId: string, userId: string) {
-    const poll = await this.getPollOwned(pollId, userId);
+  async closePoll(pollId: string, userId: string, userRole?: string) {
+    const poll = await this.getPollOwned(pollId, userId, userRole);
     if (poll.closedAt) throw new ForbiddenException('Sondage déjà clôturé');
     poll.closedAt = new Date();
     poll.closedBy = userId;
@@ -93,8 +94,8 @@ export class PollsService {
 
   // ── Options ─────────────────────────────────────────────
 
-  async addOption(pollId: string, userId: string, label: string) {
-    const poll = await this.getPollOwned(pollId, userId);
+  async addOption(pollId: string, userId: string, label: string, userRole?: string) {
+    const poll = await this.getPollOwned(pollId, userId, userRole);
     if (poll.closedAt) throw new ForbiddenException('Sondage clôturé');
     const hasVotes = await this.voteRepo.count({ where: { option: { pollId } } });
     if (hasVotes > 0) throw new ForbiddenException('Impossible d\'ajouter une option après le premier vote');
@@ -103,8 +104,8 @@ export class PollsService {
     return this.optionRepo.save(option);
   }
 
-  async deleteOption(pollId: string, optionId: string, userId: string) {
-    await this.getPollOwned(pollId, userId);
+  async deleteOption(pollId: string, optionId: string, userId: string, userRole?: string) {
+    await this.getPollOwned(pollId, userId, userRole);
     const option = await this.optionRepo.findOne({ where: { id: optionId, pollId } });
     if (!option) throw new NotFoundException('Option introuvable');
     const hasVotes = await this.voteRepo.count({ where: { optionId } });
@@ -189,12 +190,12 @@ export class PollsService {
 
   // ── Helpers ─────────────────────────────────────────────
 
-  private async getPollOwned(pollId: string, userId: string): Promise<Poll> {
+  private async getPollOwned(pollId: string, userId: string, userRole?: string): Promise<Poll> {
     const poll = await this.pollRepo.findOne({
       where: { id: pollId, deletedAt: IsNull() },
     });
     if (!poll) throw new NotFoundException('Sondage introuvable');
-    if (poll.creatorId !== userId)
+    if (poll.creatorId !== userId && !isModeratorOrAdmin(userRole))
       throw new ForbiddenException('Seul le créateur peut modifier ce sondage');
     return poll;
   }

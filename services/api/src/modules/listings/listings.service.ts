@@ -15,6 +15,7 @@ import {
   ListListingsDto,
 } from './dto/listing-routes.dtos';
 import { ListingStatusEnum, ListingTypeEnum } from '../../common/enums';
+import { isModeratorOrAdmin } from '../../common/ownership';
 import { UserBlock } from '../social/entities/user-block.entity';
 
 @Injectable()
@@ -137,10 +138,11 @@ export class ListingsService {
     userId: string,
     id: string,
     dto: UpdateListingDto,
+    userRole?: string,
   ): Promise<Listing> {
     const listing = await this.findOne(id);
 
-    if (listing.creatorId !== userId) {
+    if (listing.creatorId !== userId && !isModeratorOrAdmin(userRole)) {
       throw new ForbiddenException('Action non autorisée');
     }
 
@@ -199,11 +201,11 @@ export class ListingsService {
   async softDelete(
     userId: string,
     id: string,
-    isModerator: boolean,
+    userRole?: string,
   ): Promise<void> {
     const listing = await this.findOne(id);
 
-    if (listing.creatorId !== userId && !isModerator) {
+    if (listing.creatorId !== userId && !isModeratorOrAdmin(userRole)) {
       throw new ForbiddenException('Action non autorisée');
     }
 

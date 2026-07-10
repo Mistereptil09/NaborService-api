@@ -26,6 +26,38 @@ export class ChatService {
 
   // ── Groups ──────────────────────────────────────────────
 
+  async getAllGroups(): Promise<
+    { id: string; name: string | null; type: ChatGroupTypeEnum; createdBy: string; createdAt: Date; memberCount: number }[]
+  > {
+    const groups = await this.groupRepo.find({
+      where: { deletedAt: IsNull() },
+      order: { createdAt: 'DESC' },
+    });
+
+    const counts = await this.uigRepo
+      .createQueryBuilder('uig')
+      .select('uig.groupId', 'groupId')
+      .addSelect('COUNT(uig.userId)', 'count')
+      .where('uig.leftAt IS NULL')
+      .andWhere('uig.kickedAt IS NULL')
+      .andWhere('uig.groupId IN (:...ids)', { ids: groups.map((g) => g.id) })
+      .groupBy('uig.groupId')
+      .getRawMany();
+
+    const countMap = new Map<string, number>(
+      counts.map((c: { groupId: string; count: string }) => [c.groupId, parseInt(c.count, 10)]),
+    );
+
+    return groups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      type: g.type,
+      createdBy: g.createdBy,
+      createdAt: g.createdAt,
+      memberCount: countMap.get(g.id) ?? 0,
+    }));
+  }
+
   async getUserGroups(userId: string) {
     const memberships = await this.uigRepo.find({
       where: { userId, leftAt: IsNull(), kickedAt: IsNull() },

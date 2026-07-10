@@ -68,7 +68,10 @@ export class EventReportService {
         reportCount: parseInt(r.reportCount, 10),
         lastReportedAt: r.lastReportedAt,
       }))
-      .filter((item) => item.event !== undefined);
+      .filter(
+        (item): item is { event: Evenement; reportCount: number; lastReportedAt: Date } =>
+          item.event !== undefined,
+      );
 
     const totalCountQuery = await this.reportRepo
       .createQueryBuilder('report')

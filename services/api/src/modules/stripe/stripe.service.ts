@@ -27,7 +27,7 @@ export class StripeService {
     const stripeKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeKey) throw new Error('STRIPE_SECRET_KEY is not defined');
     this.stripe = new Stripe(stripeKey, {
-      apiVersion: '2026-05-27.dahlia',
+      apiVersion: '2026-06-24.dahlia',
     });
 
     const webhookSecret = this.configService.get<string>(

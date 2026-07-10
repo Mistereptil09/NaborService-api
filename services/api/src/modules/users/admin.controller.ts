@@ -28,6 +28,12 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UsersService } from './users.service';
 import { UserRoleEnum } from '../../common/enums';
 import { PaginationDto } from './dto/user-routes.dtos';
+import {
+  AdminUserDto,
+  AdminUsersListDto,
+  toAdminUserDto,
+} from './dto/admin-user-response.dto';
+import { SuccessResponseDto } from '../../common/dto/success-response.dto';
 
 export class UpdateRoleDto {
   @ApiProperty({ enum: UserRoleEnum, example: UserRoleEnum.MODERATOR })
@@ -46,78 +52,89 @@ export class AdminController {
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Lister les utilisateurs (Admin)' })
-  @ApiOkResponse({ description: 'Liste des utilisateurs retournée avec succès' })
+  @ApiOkResponse({
+    description: 'Liste des utilisateurs retournée avec succès',
+    type: AdminUsersListDto,
+  })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   async getUsers(
     @Query() pagination: PaginationDto,
     @Query('role') role?: UserRoleEnum,
     @Query('neighbourhood_id') neighbourhoodId?: string,
     @Query('q') q?: string,
-  ) {
-    return this.usersService.findAllAdmin({
+  ): Promise<AdminUsersListDto> {
+    const { users, total } = await this.usersService.findAllAdmin({
       offset: pagination.offset,
       limit: pagination.limit,
       role,
       neighbourhoodId,
       q,
     });
+    return { users: users.map(toAdminUserDto), total };
   }
 
   @Get('users/:user_id')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Consulter le profil complet de tout utilisateur (Admin)' })
-  @ApiOkResponse({ description: 'Profil utilisateur complet retourné' })
+  @ApiOkResponse({ description: 'Profil utilisateur complet retourné', type: AdminUserDto })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   @ApiNotFoundResponse({ description: 'Utilisateur introuvable' })
-  async getUser(@Param('user_id') userId: string) {
-    return this.usersService.findOneAdmin(userId);
+  async getUser(@Param('user_id') userId: string): Promise<AdminUserDto> {
+    const user = await this.usersService.findOneAdmin(userId);
+    return toAdminUserDto(user);
   }
 
   @Patch('users/:user_id/role')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Modifier le rôle d\'un utilisateur (Admin)' })
-  @ApiOkResponse({ description: 'Rôle mis à jour' })
+  @ApiOkResponse({ description: 'Rôle mis à jour', type: AdminUserDto })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   @ApiNotFoundResponse({ description: 'Utilisateur introuvable' })
   async updateRole(
     @Param('user_id') userId: string,
     @Body() dto: UpdateRoleDto,
-  ) {
-    return this.usersService.updateRole(userId, dto.role);
+  ): Promise<AdminUserDto> {
+    const user = await this.usersService.updateRole(userId, dto.role);
+    return toAdminUserDto(user);
   }
 
   @Post('users/:user_id/suspend')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Suspendre un utilisateur (Admin)' })
-  @ApiOkResponse({ description: 'Utilisateur suspendu' })
+  @ApiOkResponse({ description: 'Utilisateur suspendu', type: AdminUserDto })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   @ApiNotFoundResponse({ description: 'Utilisateur introuvable' })
-  async suspendUser(@Param('user_id') userId: string) {
-    return this.usersService.suspendUser(userId);
+  async suspendUser(@Param('user_id') userId: string): Promise<AdminUserDto> {
+    const user = await this.usersService.suspendUser(userId);
+    return toAdminUserDto(user);
   }
 
   @Post('users/:user_id/restore')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Restaurer un utilisateur suspendu (Admin)' })
-  @ApiOkResponse({ description: 'Utilisateur restauré' })
+  @ApiOkResponse({ description: 'Utilisateur restauré', type: AdminUserDto })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   @ApiNotFoundResponse({ description: 'Utilisateur introuvable' })
-  async restoreUser(@Param('user_id') userId: string) {
-    return this.usersService.restoreUser(userId);
+  async restoreUser(@Param('user_id') userId: string): Promise<AdminUserDto> {
+    const user = await this.usersService.restoreUser(userId);
+    return toAdminUserDto(user);
   }
 
   @Delete('users/:user_id')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Supprimer définitivement un utilisateur (Admin)' })
-  @ApiOkResponse({ description: 'Utilisateur soft-deleté et anonymisation déclenchée' })
+  @ApiOkResponse({
+    description: 'Utilisateur soft-deleté et anonymisation déclenchée',
+    type: SuccessResponseDto,
+  })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   @ApiNotFoundResponse({ description: 'Utilisateur introuvable' })
-  async deleteUser(@Param('user_id') userId: string) {
+  async deleteUser(@Param('user_id') userId: string): Promise<SuccessResponseDto> {
     await this.usersService.adminSoftDelete(userId);
     return { success: true };
   }
@@ -126,11 +143,11 @@ export class AdminController {
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Désactiver la MFA TOTP pour un utilisateur' })
-  @ApiOkResponse({ description: 'MFA désactivée avec succès' })
+  @ApiOkResponse({ description: 'MFA désactivée avec succès', type: SuccessResponseDto })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   @ApiNotFoundResponse({ description: 'Utilisateur introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async disableTotp(@Param('user_id') userId: string) {
+  async disableTotp(@Param('user_id') userId: string): Promise<SuccessResponseDto> {
     await this.usersService.disableTotp(userId);
     return { success: true };
   }

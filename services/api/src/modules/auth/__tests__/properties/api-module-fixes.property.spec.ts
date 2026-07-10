@@ -101,6 +101,8 @@ describe('API Module Fixes Spec Verification', () => {
         null as any,
         null as any,
         null as any,
+        null as any,
+        null as any,
       );
 
       await expect(
@@ -248,6 +250,14 @@ describe('API Module Fixes Spec Verification', () => {
       const mockQueue = {
         add: jest.fn().mockResolvedValue({}),
       };
+      const mockConfigService = {
+        getConfig: jest
+          .fn()
+          .mockResolvedValue({ commissionPercent: 5, contractExpirationHours: 24 }),
+      };
+      const mockNotificationsService = {
+        create: jest.fn().mockResolvedValue({}),
+      };
 
       const smService = new ListingStateMachineService(
         mockListingRepo as any,
@@ -257,6 +267,8 @@ describe('API Module Fixes Spec Verification', () => {
         mockQueue,
         mockQueue,
         mockQueue,
+        mockConfigService as any,
+        mockNotificationsService as any,
       );
 
       const result = await smService.expressInterest('l1', 'requester-1');

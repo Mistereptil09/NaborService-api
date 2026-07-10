@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Listing } from './entities/listing.entity';
 import { MediaService } from '../media/services/media.service';
+import { isModeratorOrAdmin } from '../../common/ownership';
 
 @Injectable()
 export class ListingMediaService {
@@ -23,6 +24,7 @@ export class ListingMediaService {
     userId: string,
     listingId: string,
     file: Express.Multer.File,
+    userRole?: string,
   ): Promise<any> {
     const listing = await this.listingRepository.findOne({
       where: { id: listingId },
@@ -31,7 +33,7 @@ export class ListingMediaService {
       throw new NotFoundException('Annonce introuvable');
     }
 
-    if (listing.creatorId !== userId) {
+    if (listing.creatorId !== userId && !isModeratorOrAdmin(userRole)) {
       throw new ForbiddenException('Action non autorisée');
     }
 
@@ -57,6 +59,7 @@ export class ListingMediaService {
     userId: string,
     listingId: string,
     mediaId: string,
+    userRole?: string,
   ): Promise<void> {
     const listing = await this.listingRepository.findOne({
       where: { id: listingId },
@@ -65,7 +68,7 @@ export class ListingMediaService {
       throw new NotFoundException('Annonce introuvable');
     }
 
-    if (listing.creatorId !== userId) {
+    if (listing.creatorId !== userId && !isModeratorOrAdmin(userRole)) {
       throw new ForbiddenException('Action non autorisée');
     }
 

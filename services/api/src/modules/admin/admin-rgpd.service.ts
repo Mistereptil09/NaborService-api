@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, IsNull } from 'typeorm';
 import { User } from '../users/entities/user.entity';
+import { RgpdRequestDto, RgpdRequestStatusDto } from './dto/admin-rgpd-response.dto';
 
 @Injectable()
 export class AdminRgpdService {
@@ -20,7 +21,7 @@ export class AdminRgpdService {
     },
   ) {}
 
-  async getRgpdRequests() {
+  async getRgpdRequests(): Promise<RgpdRequestDto[]> {
     const users = await this.userRepository.find({
       where: { deletedAt: Not(IsNull()) },
       withDeleted: true,
@@ -33,13 +34,13 @@ export class AdminRgpdService {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        deletedAt: user.deletedAt,
-        status: isAnonymized ? 'completed' : 'pending',
+        deletedAt: user.deletedAt as Date,
+        status: isAnonymized ? ('completed' as const) : ('pending' as const),
       };
     });
   }
 
-  async getRgpdRequestStatus(userId: string) {
+  async getRgpdRequestStatus(userId: string): Promise<RgpdRequestStatusDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       withDeleted: true,
