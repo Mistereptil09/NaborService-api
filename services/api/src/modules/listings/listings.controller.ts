@@ -52,6 +52,7 @@ import {
   ReportListingDto,
   ModerateListingDto,
   SignDocumentDto,
+  ReportedListingsResponseDto,
 } from './dto/listing-routes.dtos';
 import { UserRoleEnum } from '../../common/enums';
 
@@ -81,12 +82,15 @@ export class ListingsController {
   @ApiOperation({ summary: 'Lister les annonces signalées (Modérateur/Admin)' })
   @ApiOkResponse({
     description: 'Liste des annonces signalées retournée avec succès',
+    type: ReportedListingsResponseDto,
   })
   @ApiForbiddenResponse({
     description: 'Action réservée aux modérateurs et administrateurs',
   })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async getReportedListings(@Query() query: ListListingsDto) {
+  async getReportedListings(
+    @Query() query: ListListingsDto,
+  ): Promise<ReportedListingsResponseDto> {
     return this.reportService.getReportedListings(query);
   }
 

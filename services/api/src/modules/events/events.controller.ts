@@ -49,6 +49,7 @@ import {
   ModerateDto,
   ScanTicketDto,
   EventSwipeDto,
+  ReportedEventsResponseDto,
 } from './dto/event-routes.dtos';
 import { UserRoleEnum } from '../../common/enums';
 
@@ -75,7 +76,17 @@ export class EventsController {
   @ApiOperation({
     summary: 'Lister les évènements signalés (Modérateur/Admin)',
   })
-  async getReportedEvents(@Query() query: ListEventsDto) {
+  @ApiOkResponse({
+    description: 'Liste des évènements signalés retournée avec succès',
+    type: ReportedEventsResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Action réservée aux modérateurs et administrateurs',
+  })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
+  async getReportedEvents(
+    @Query() query: ListEventsDto,
+  ): Promise<ReportedEventsResponseDto> {
     return this.reportService.getReportedEvents(query);
   }
 

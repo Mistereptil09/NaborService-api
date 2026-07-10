@@ -11,6 +11,7 @@ import {
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Evenement } from '../entities/evenement.entity';
 
 export class ListEventsDto {
   @ApiPropertyOptional({
@@ -319,4 +320,22 @@ export class ScanTicketDto {
   @IsString()
   @IsNotEmpty()
   hmac: string;
+}
+
+export class ReportedEventItemDto {
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: true,
+    description: "Entité évènement complète (Evenement)",
+  })
+  event: Evenement;
+  @ApiProperty({ description: 'Nombre de signalements sur cet évènement' })
+  reportCount: number;
+  @ApiProperty({ type: String, format: 'date-time' })
+  lastReportedAt: Date;
+}
+
+export class ReportedEventsResponseDto {
+  @ApiProperty({ type: [ReportedEventItemDto] }) items: ReportedEventItemDto[];
+  @ApiProperty() total: number;
 }

@@ -77,9 +77,9 @@ export class AdminStatsService {
       .getRawMany();
 
     return {
-      typeBreakdown,
-      statusBreakdown,
-      categoryBreakdown,
+      typeBreakdown: typeBreakdown.map(withNumericCount),
+      statusBreakdown: statusBreakdown.map(withNumericCount),
+      categoryBreakdown: categoryBreakdown.map(withNumericCount),
     };
   }
 
@@ -107,9 +107,9 @@ export class AdminStatsService {
       .getRawMany();
 
     return {
-      statusBreakdown,
-      categoryBreakdown,
-      participantBreakdown,
+      statusBreakdown: statusBreakdown.map(withNumericCount),
+      categoryBreakdown: categoryBreakdown.map(withNumericCount),
+      participantBreakdown: participantBreakdown.map(withNumericCount),
     };
   }
 
@@ -131,7 +131,7 @@ export class AdminStatsService {
     return {
       totalAmountCents: parseInt(sums?.totalAmount || '0', 10),
       totalCommissionCents: parseInt(sums?.totalCommission || '0', 10),
-      statusBreakdown,
+      statusBreakdown: statusBreakdown.map(withNumericCount),
     };
   }
 
@@ -157,9 +157,9 @@ export class AdminStatsService {
       .getRawMany();
 
     return {
-      roleBreakdown,
+      roleBreakdown: roleBreakdown.map(withNumericCount),
       suspendedCount,
-      neighbourhoodBreakdown,
+      neighbourhoodBreakdown: neighbourhoodBreakdown.map(withNumericCount),
     };
   }
 
@@ -179,8 +179,14 @@ export class AdminStatsService {
       .getRawMany();
 
     return {
-      statusBreakdown,
-      severityBreakdown,
+      statusBreakdown: statusBreakdown.map(withNumericCount),
+      severityBreakdown: severityBreakdown.map(withNumericCount),
     };
   }
+}
+
+function withNumericCount<T extends { count: string | number }>(
+  row: T,
+): T & { count: number } {
+  return { ...row, count: typeof row.count === 'string' ? parseInt(row.count, 10) : row.count };
 }

@@ -11,6 +11,7 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ListingTypeEnum, ListingStatusEnum } from '../../../common/enums';
 
 export class ListListingsDto {
   @ApiPropertyOptional({
@@ -238,4 +239,27 @@ export class SignDocumentDto {
   @IsString()
   @Length(6, 6)
   totp_code: string;
+}
+
+export class ReportedListingItemDto {
+  @ApiProperty() id: string;
+  @ApiProperty() title: string;
+  @ApiProperty({ enum: ListingTypeEnum }) listing_type: ListingTypeEnum;
+  @ApiProperty() price_cents: number;
+  @ApiProperty({ enum: ListingStatusEnum }) status: ListingStatusEnum;
+  @ApiProperty({ nullable: true }) neighbourhood_id: string | null;
+  @ApiProperty() category_id: string;
+  @ApiProperty() creator_id: string;
+  @ApiProperty({ type: String, format: 'date-time' }) created_at: Date;
+  @ApiProperty({ description: 'Nombre de signalements non résolus' })
+  reports_count: number;
+  @ApiProperty({ nullable: true, description: 'Motif du dernier signalement non résolu' })
+  last_reason: string | null;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' })
+  last_report_at: Date | null;
+}
+
+export class ReportedListingsResponseDto {
+  @ApiProperty({ type: [ReportedListingItemDto] }) data: ReportedListingItemDto[];
+  @ApiProperty() total: number;
 }

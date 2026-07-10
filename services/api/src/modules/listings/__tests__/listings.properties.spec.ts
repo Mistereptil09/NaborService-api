@@ -37,6 +37,18 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
     decryptSecret: jest.fn((s) => s),
   };
 
+  // Simple AdminConfigService mock
+  const mockConfigService = {
+    getConfig: jest
+      .fn()
+      .mockResolvedValue({ commissionPercent: 5, contractExpirationHours: 24 }),
+  };
+
+  // Simple NotificationsService mock
+  const mockNotificationsService = {
+    create: jest.fn().mockResolvedValue({}),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -323,6 +335,8 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             mockQueue,
             mockQueue,
             mockQueue,
+            mockConfigService as any,
+            mockNotificationsService as any,
           );
 
           if (transition === 'expressInterest') {
@@ -523,6 +537,8 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             mockQueue,
             mockQueue,
             mockQueue,
+            mockConfigService as any,
+            mockNotificationsService as any,
           );
 
           await smService.cancel('l1', 'c1', 'Cancelled by creator');
@@ -672,6 +688,7 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
           mockTotpService as any,
           {} as any,
           {} as any,
+          mockNotificationsService as any,
         );
 
         try {
@@ -742,6 +759,8 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             mockQueue,
             mockQueue,
             mockQueue,
+            mockConfigService as any,
+            mockNotificationsService as any,
           );
 
           try {
