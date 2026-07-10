@@ -111,7 +111,8 @@ export class SsoService {
       // Encode the full scan URL so any phone camera opens the web client directly.
       // device_name is included for display on the confirmation screen
       const deviceParam = encodeURIComponent(deviceName);
-      const scanUrl = `${qrcodeurl}/auth/sso/qr/validate?token=${tokenUuid}&device=${deviceParam}`;
+      const base = qrcodeurl.replace(/\/+$/, '');
+      const scanUrl = `${base}/auth/sso/qr/validate?token=${tokenUuid}&device=${deviceParam}`;
       const qr = await qrcode.toDataURL(scanUrl);
 
       return { qr, scanUrl };
