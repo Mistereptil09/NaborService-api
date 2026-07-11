@@ -77,14 +77,17 @@ export class EventModerationService {
     });
   }
 
-  async getAllModerationActions(query: ListEventsDto) {
-    const [items, total] = await this.moderationRepo.findAndCount({
+  async getAllModerationActions(query: ListEventsDto): Promise<{
+    data: EventModerationAction[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
+    const [data, total] = await this.moderationRepo.findAndCount({
       skip: query.offset,
       take: query.limit,
       order: { createdAt: 'DESC' },
       relations: ['moderator', 'event'],
     });
 
-    return { items, total };
+    return { data, meta: { total, offset: query.offset, limit: query.limit } };
   }
 }

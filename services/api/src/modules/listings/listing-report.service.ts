@@ -46,7 +46,10 @@ export class ListingReportService {
 
   async getReportedListings(
     dto: ListListingsDto,
-  ): Promise<{ data: any[]; total: number }> {
+  ): Promise<{
+    data: any[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
     // We want to fetch listings having at least one unresolved report (resolved_at IS NULL).
     // Sorted by unresolved report count descending.
     const rawData = await this.listingRepository.manager.query(
@@ -98,7 +101,7 @@ export class ListingReportService {
           ? new Date(row.last_report_at)
           : null,
       })),
-      total,
+      meta: { total, offset: dto.offset, limit: dto.limit },
     };
   }
 }

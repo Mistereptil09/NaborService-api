@@ -31,6 +31,10 @@ import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { ListIncidentsDto } from './dto/list-incidents.dto';
 import { AssignIncidentDto } from './dto/assign-incident.dto';
+import {
+  IncidentResponseDto,
+  ListIncidentsResponseDto,
+} from './dto/incident-response.dto';
 
 @ApiTags('Incidents')
 @Controller('incidents')
@@ -45,9 +49,15 @@ export class IncidentsController {
 
   @Get()
   @ApiOperation({ summary: 'Lister les incidents (filtrés et paginés)' })
-  @ApiOkResponse({ description: 'Liste paginée des incidents' })
+  @ApiOkResponse({
+    description: 'Liste paginée des incidents',
+    type: ListIncidentsResponseDto,
+  })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async list(@Query() filters: ListIncidentsDto, @Req() req: any) {
+  async list(
+    @Query() filters: ListIncidentsDto,
+    @Req() req: any,
+  ): Promise<ListIncidentsResponseDto> {
     return this.incidentsService.findAll(req.user.sub, filters);
   }
 
@@ -67,7 +77,10 @@ export class IncidentsController {
 
   @Get(':incident_id')
   @ApiOperation({ summary: "Détail d'un incident" })
-  @ApiOkResponse({ description: 'Détail de l\'incident' })
+  @ApiOkResponse({
+    description: 'Détail de l\'incident',
+    type: IncidentResponseDto,
+  })
   @ApiNotFoundResponse({ description: 'Incident introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async get(@Param('incident_id') id: string) {

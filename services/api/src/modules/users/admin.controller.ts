@@ -27,8 +27,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UsersService } from './users.service';
 import { UserRoleEnum } from '../../common/enums';
-import { PaginationDto } from './dto/user-routes.dtos';
 import {
+  AdminListUsersDto,
   AdminUserDto,
   AdminUsersListDto,
   toAdminUserDto,
@@ -57,20 +57,15 @@ export class AdminController {
     type: AdminUsersListDto,
   })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
-  async getUsers(
-    @Query() pagination: PaginationDto,
-    @Query('role') role?: UserRoleEnum,
-    @Query('neighbourhood_id') neighbourhoodId?: string,
-    @Query('q') q?: string,
-  ): Promise<AdminUsersListDto> {
-    const { users, total } = await this.usersService.findAllAdmin({
-      offset: pagination.offset,
-      limit: pagination.limit,
-      role,
-      neighbourhoodId,
-      q,
+  async getUsers(@Query() query: AdminListUsersDto): Promise<AdminUsersListDto> {
+    const { data, meta } = await this.usersService.findAllAdmin({
+      offset: query.offset,
+      limit: query.limit,
+      role: query.role,
+      neighbourhoodId: query.neighbourhood_id,
+      q: query.q,
     });
-    return { users: users.map(toAdminUserDto), total };
+    return { data: data.map(toAdminUserDto), meta };
   }
 
   @Get('users/:user_id')

@@ -11,7 +11,11 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ListingTypeEnum, ListingStatusEnum } from '../../../common/enums';
+import {
+  ListingTypeEnum,
+  ListingStatusEnum,
+  ModerationActionEnum,
+} from '../../../common/enums';
 
 export class ListListingsDto {
   @ApiPropertyOptional({
@@ -259,7 +263,47 @@ export class ReportedListingItemDto {
   last_report_at: Date | null;
 }
 
+export class ListingsPaginationMetaDto {
+  @ApiProperty() total: number;
+  @ApiProperty() offset: number;
+  @ApiProperty() limit: number;
+}
+
 export class ReportedListingsResponseDto {
   @ApiProperty({ type: [ReportedListingItemDto] }) data: ReportedListingItemDto[];
-  @ApiProperty() total: number;
+  @ApiProperty({ type: ListingsPaginationMetaDto }) meta: ListingsPaginationMetaDto;
+}
+
+export class ModerationActionItemDto {
+  @ApiProperty() id: string;
+  @ApiProperty() listingId: string;
+  @ApiProperty() moderatorId: string;
+  @ApiProperty({ enum: ModerationActionEnum }) action: ModerationActionEnum;
+  @ApiProperty() reason: string;
+  @ApiProperty({ type: String, format: 'date-time' }) createdAt: Date;
+}
+
+export class ListModerationActionsResponseDto {
+  @ApiProperty({ type: [ModerationActionItemDto] }) data: ModerationActionItemDto[];
+  @ApiProperty({ type: ListingsPaginationMetaDto }) meta: ListingsPaginationMetaDto;
+}
+
+export class ListingItemDto {
+  @ApiProperty() id: string;
+  @ApiProperty() creatorId: string;
+  @ApiProperty() title: string;
+  @ApiProperty({ nullable: true }) description: string | null;
+  @ApiProperty({ nullable: true }) categoryId: number | null;
+  @ApiProperty({ enum: ListingTypeEnum }) listingType: ListingTypeEnum;
+  @ApiProperty() priceCents: number;
+  @ApiProperty({ enum: ListingStatusEnum }) status: ListingStatusEnum;
+  @ApiProperty({ nullable: true }) neighbourhoodId: string | null;
+  @ApiProperty({ type: String, format: 'date-time' }) createdAt: Date;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' }) updatedAt: Date | null;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' }) closedAt: Date | null;
+}
+
+export class ListListingsResponseDto {
+  @ApiProperty({ type: [ListingItemDto] }) data: ListingItemDto[];
+  @ApiProperty({ type: ListingsPaginationMetaDto }) meta: ListingsPaginationMetaDto;
 }

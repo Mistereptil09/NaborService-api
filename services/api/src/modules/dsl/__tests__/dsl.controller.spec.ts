@@ -70,7 +70,7 @@ function createMockDslService(): Partial<DslService> {
     }),
     logQuery: jest.fn().mockResolvedValue(undefined),
     getAuditHistory: jest.fn().mockResolvedValue({
-      entries: [
+      data: [
         {
           id: 'audit-1',
           userId: 'admin-id',
@@ -87,7 +87,7 @@ function createMockDslService(): Partial<DslService> {
           createdAt: new Date('2026-06-16T12:00:00Z'),
         },
       ],
-      total: 1,
+      meta: { total: 1, offset: 0, limit: 50 },
     }),
   };
 }
@@ -226,21 +226,21 @@ describe('DslController', () => {
 
   describe('getAudit', () => {
     it('should return paginated audit history', async () => {
-      const result = await controller.getAudit();
+      const result = await controller.getAudit({ offset: 0, limit: 50 });
 
-      expect(result).toHaveProperty('entries');
-      expect(result).toHaveProperty('total', 1);
-      expect(result.entries[0].resultCount).toBe(5);
+      expect(result).toHaveProperty('data');
+      expect(result).toHaveProperty('meta.total', 1);
+      expect(result.data[0].resultCount).toBe(5);
     });
 
     it('should pass pagination params', async () => {
-      await controller.getAudit(10, 25);
+      await controller.getAudit({ offset: 10, limit: 25 });
 
       expect(mockService.getAuditHistory).toHaveBeenCalledWith(10, 25);
     });
 
-    it('should default offset to 0 and limit to 50', async () => {
-      await controller.getAudit();
+    it('defaults offset to 0 and limit to 50 via the DTO defaults', async () => {
+      await controller.getAudit({ offset: 0, limit: 50 });
 
       expect(mockService.getAuditHistory).toHaveBeenCalledWith(0, 50);
     });

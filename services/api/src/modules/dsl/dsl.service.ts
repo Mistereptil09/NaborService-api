@@ -157,13 +157,19 @@ export class DslService {
   async getAuditHistory(
     offset: number = 0,
     limit: number = 50,
-  ): Promise<{ entries: DslAuditEntry[]; total: number }> {
-    const [entries, total] = await this.dslQueryRepository.findAndCount({
+  ): Promise<{
+    data: DslAuditEntry[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
+    const cappedLimit = Math.min(limit, 100);
+    const [data, total] = await this.dslQueryRepository.findAndCount({
       order: { createdAt: 'DESC' },
       skip: offset,
-      take: Math.min(limit, 100),
+      take: cappedLimit,
     });
 
-    return { entries, total };
+    // { data, meta: { total, offset, limit } } — same pagination envelope
+    // used across the rest of the API.
+    return { data, meta: { total, offset, limit: cappedLimit } };
   }
 }

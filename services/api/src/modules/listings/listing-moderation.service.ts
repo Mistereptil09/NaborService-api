@@ -144,14 +144,15 @@ export class ListingModerationService {
     });
   }
 
-  async getAllModerationActions(
-    dto: ListListingsDto,
-  ): Promise<{ data: ListingModerationAction[]; total: number }> {
+  async getAllModerationActions(dto: ListListingsDto): Promise<{
+    data: ListingModerationAction[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
     const [data, total] = await this.moderationRepository.findAndCount({
       order: { createdAt: 'DESC' },
       skip: dto.offset,
       take: dto.limit,
     });
-    return { data, total };
+    return { data, meta: { total, offset: dto.offset, limit: dto.limit } };
   }
 }

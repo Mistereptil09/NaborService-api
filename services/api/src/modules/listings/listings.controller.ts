@@ -53,6 +53,8 @@ import {
   ModerateListingDto,
   SignDocumentDto,
   ReportedListingsResponseDto,
+  ListListingsResponseDto,
+  ListModerationActionsResponseDto,
 } from './dto/listing-routes.dtos';
 import { UserRoleEnum } from '../../common/enums';
 
@@ -102,12 +104,15 @@ export class ListingsController {
   })
   @ApiOkResponse({
     description: "Liste de l'historique global de modération retournée",
+    type: ListModerationActionsResponseDto,
   })
   @ApiForbiddenResponse({
     description: 'Action réservée aux modérateurs et administrateurs',
   })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async getAllModerationActions(@Query() query: ListListingsDto) {
+  async getAllModerationActions(
+    @Query() query: ListListingsDto,
+  ): Promise<ListModerationActionsResponseDto> {
     return this.moderationService.getAllModerationActions(query);
   }
 
@@ -160,12 +165,16 @@ export class ListingsController {
   @ApiOkResponse({
     description:
       'Liste paginée des annonces correspondantes retournée avec succès',
+    type: ListListingsResponseDto,
   })
   @ApiBadRequestResponse({
     description: 'Paramètres de filtre ou de pagination invalides',
   })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async listListings(@Query() query: ListListingsDto, @Req() req: any) {
+  async listListings(
+    @Query() query: ListListingsDto,
+    @Req() req: any,
+  ): Promise<ListListingsResponseDto> {
     return this.listingsService.list(req.user.sub, query);
   }
 

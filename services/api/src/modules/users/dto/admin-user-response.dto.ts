@@ -1,10 +1,29 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import {
   MessagePolicyEnum,
   UserRoleEnum,
   VisibilityEnum,
 } from '../../../common/enums';
 import { User } from '../entities/user.entity';
+import { PaginationDto } from './user-routes.dtos';
+
+export class AdminListUsersDto extends PaginationDto {
+  @ApiPropertyOptional({ enum: UserRoleEnum })
+  @IsOptional()
+  @IsEnum(UserRoleEnum)
+  role?: UserRoleEnum;
+
+  @ApiPropertyOptional({ description: "Filtrer par identifiant de quartier" })
+  @IsOptional()
+  @IsString()
+  neighbourhood_id?: string;
+
+  @ApiPropertyOptional({ description: 'Recherche par nom, prénom ou email' })
+  @IsOptional()
+  @IsString()
+  q?: string;
+}
 
 export class AdminUserDto {
   @ApiProperty() id: string;
@@ -36,9 +55,15 @@ export class AdminUserDto {
   deletedAt: Date | null;
 }
 
-export class AdminUsersListDto {
-  @ApiProperty({ type: [AdminUserDto] }) users: AdminUserDto[];
+export class AdminUsersPaginationMetaDto {
   @ApiProperty() total: number;
+  @ApiProperty() offset: number;
+  @ApiProperty() limit: number;
+}
+
+export class AdminUsersListDto {
+  @ApiProperty({ type: [AdminUserDto] }) data: AdminUserDto[];
+  @ApiProperty({ type: AdminUsersPaginationMetaDto }) meta: AdminUsersPaginationMetaDto;
 }
 
 export function toAdminUserDto(user: User): AdminUserDto {

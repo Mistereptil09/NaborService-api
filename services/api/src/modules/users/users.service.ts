@@ -15,12 +15,12 @@ import { IsNull, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { Follow } from '../social/entities/follow.entity';
 import { Friendship } from '../social/entities/friendship.entity';
-import { UserBlock } from '../social/entities/user-block.entity';
 import { UpdateProfileDto } from './dto/user-routes.dtos';
 import { TotpService } from '../auth/totp.service';
 import { SessionService } from '../auth/session.service';
 import { VisibilityEnum, UserRoleEnum } from '../../common/enums';
 import { Neo4jHealthService } from '../geo/neo4j-health.service';
+import { UserSocialService } from './user-social.service';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { authenticator } = require('otplib');
@@ -34,10 +34,9 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Follow)
     private readonly followRepository: Repository<Follow>,
-    @InjectRepository(UserBlock)
-    private readonly blockRepository: Repository<UserBlock>,
     private readonly totpService: TotpService,
     private readonly sessionService: SessionService,
+    private readonly userSocialService: UserSocialService,
     @Inject('BullQueue_neo4j-sync')
     private readonly neo4jSyncQueue: {
       add: (name: string, data: any) => Promise<any>;
@@ -345,12 +344,10 @@ export class UsersService {
     }
 
     // Check block relationship
-    const isBlocked = await this.blockRepository.findOne({
-      where: [
-        { blockerId: requesterId, blockedId: targetId },
-        { blockerId: targetId, blockedId: requesterId },
-      ],
-    });
+    const isBlocked = await this.userSocialService.isBlocked(
+      requesterId,
+      targetId,
+    );
     if (isBlocked) {
       throw new NotFoundException('Utilisateur introuvable'); // Masking block relationship
     }
@@ -405,7 +402,10 @@ export class UsersService {
     role?: UserRoleEnum;
     neighbourhoodId?: string;
     q?: string;
-  }): Promise<{ users: User[]; total: number }> {
+  }): Promise<{
+    data: User[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
     const queryBuilder = this.userRepository.createQueryBuilder('user').withDeleted();
 
     if (query.role) {
@@ -423,13 +423,15 @@ export class UsersService {
       );
     }
 
-    const [users, total] = await queryBuilder
+    const [data, total] = await queryBuilder
       .orderBy('user.createdAt', 'DESC')
       .skip(query.offset)
       .take(query.limit)
       .getManyAndCount();
 
-    return { users, total };
+    // { data, meta: { total, offset, limit } } — same pagination envelope
+    // used across the rest of the API.
+    return { data, meta: { total, offset: query.offset, limit: query.limit } };
   }
 
   async findOneAdmin(userId: string): Promise<User> {

@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, In } from 'typeorm';
+import Redis from 'ioredis';
+import { REDIS_CLIENT } from '../../database/redis.module';
 import { User } from './entities/user.entity';
 import { Follow } from '../social/entities/follow.entity';
 import { Friendship } from '../social/entities/friendship.entity';
@@ -46,6 +48,7 @@ export class UserSocialService {
       add: (name: string, data: any) => Promise<any>;
     },
     private readonly notificationsService: NotificationsService,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @Optional()
     private readonly healthService?: Neo4jHealthService,
   ) {}
@@ -72,6 +75,17 @@ export class UserSocialService {
       b.blockerId === userId ? b.blockedId : b.blockerId,
     );
     return [...new Set(ids)];
+  }
+
+  /** True if either user has blocked the other, in either direction. */
+  async isBlocked(userIdA: string, userIdB: string): Promise<boolean> {
+    const block = await this.blockRepository.findOne({
+      where: [
+        { blockerId: userIdA, blockedId: userIdB },
+        { blockerId: userIdB, blockedId: userIdA },
+      ],
+    });
+    return block !== null;
   }
 
   async follow(followerId: string, followedId: string): Promise<void> {
@@ -348,6 +362,11 @@ export class UserSocialService {
 
     const block = this.blockRepository.create({ blockerId, blockedId });
     await this.blockRepository.save(block);
+
+    // Invalidate the cached feed so a re-fetch doesn't keep serving this
+    // now-blocked user back (would otherwise 409 on a repeat block attempt).
+    await this.redis.del(`discover:${blockerId}`);
+
     await this.enqueueSync('user.blocks.create', {
       blockerId,
       blockedId,

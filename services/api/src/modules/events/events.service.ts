@@ -38,7 +38,13 @@ export class EventsService {
     @InjectQueue('waitlist-promote') private readonly promoteQueue: Queue,
   ) {}
 
-  async findAll(userId: string, query: ListEventsDto) {
+  async findAll(
+    userId: string,
+    query: ListEventsDto,
+  ): Promise<{
+    data: Evenement[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
     const qb = this.eventRepo.createQueryBuilder('event');
 
     const blocks = await this.blockRepo.find({
@@ -68,8 +74,10 @@ export class EventsService {
     qb.skip(query.offset).take(query.limit);
     qb.orderBy('event.createdAt', 'DESC');
 
-    const [items, total] = await qb.getManyAndCount();
-    return { items, total };
+    const [data, total] = await qb.getManyAndCount();
+    // { data, meta: { total, offset, limit } } — same pagination envelope
+    // used across the rest of the API (incidents, listings, users social/discovery).
+    return { data, meta: { total, offset: query.offset, limit: query.limit } };
   }
 
   async create(userId: string, dto: CreateEventDto) {

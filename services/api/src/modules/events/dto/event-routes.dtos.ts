@@ -12,6 +12,7 @@ import {
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Evenement } from '../entities/evenement.entity';
+import { EventStatusEnum, ModerationActionEnum } from '../../../common/enums';
 
 export class ListEventsDto {
   @ApiPropertyOptional({
@@ -335,7 +336,50 @@ export class ReportedEventItemDto {
   lastReportedAt: Date;
 }
 
-export class ReportedEventsResponseDto {
-  @ApiProperty({ type: [ReportedEventItemDto] }) items: ReportedEventItemDto[];
+export class EventsPaginationMetaDto {
   @ApiProperty() total: number;
+  @ApiProperty() offset: number;
+  @ApiProperty() limit: number;
+}
+
+export class ReportedEventsResponseDto {
+  @ApiProperty({ type: [ReportedEventItemDto] }) data: ReportedEventItemDto[];
+  @ApiProperty({ type: EventsPaginationMetaDto }) meta: EventsPaginationMetaDto;
+}
+
+export class EventModerationActionItemDto {
+  @ApiProperty() id: string;
+  @ApiProperty() eventId: string;
+  @ApiProperty() moderatorId: string;
+  @ApiProperty({ enum: ModerationActionEnum }) action: ModerationActionEnum;
+  @ApiProperty() reason: string;
+  @ApiProperty({ type: String, format: 'date-time' }) createdAt: Date;
+}
+
+export class ListEventModerationActionsResponseDto {
+  @ApiProperty({ type: [EventModerationActionItemDto] })
+  data: EventModerationActionItemDto[];
+  @ApiProperty({ type: EventsPaginationMetaDto }) meta: EventsPaginationMetaDto;
+}
+
+export class EventItemDto {
+  @ApiProperty() id: string;
+  @ApiProperty() creatorId: string;
+  @ApiProperty({ nullable: true }) neighbourhoodId: string | null;
+  @ApiProperty({ nullable: true }) categoryId: number | null;
+  @ApiProperty({ nullable: true }) groupId: string | null;
+  @ApiProperty() title: string;
+  @ApiProperty({ enum: EventStatusEnum }) status: EventStatusEnum;
+  @ApiProperty({ nullable: true }) inviteCode: string | null;
+  @ApiProperty() costCents: number;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' }) startsAt: Date | null;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' }) endsAt: Date | null;
+  @ApiProperty({ nullable: true }) maxParticipants: number | null;
+  @ApiProperty() refundDeadlineHours: number;
+  @ApiProperty({ type: String, format: 'date-time' }) createdAt: Date;
+}
+
+export class ListEventsResponseDto {
+  @ApiProperty({ type: [EventItemDto] }) data: EventItemDto[];
+  @ApiProperty({ type: EventsPaginationMetaDto }) meta: EventsPaginationMetaDto;
 }
