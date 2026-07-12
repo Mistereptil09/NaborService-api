@@ -5,16 +5,15 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Injectable, Logger } from '@nestjs/common';
-import { Server, Socket } from 'socket.io';
-import { JwtService } from '@nestjs/jwt';
+import { Injectable, Logger, UseGuards } from '@nestjs/common';
+import { Server } from 'socket.io';
+import { WsAuthService } from '../auth/ws-auth.service';
+import type { AuthenticatedSocket } from '../auth/ws-auth.service';
+import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
 import { PollsService } from './polls.service';
 
-interface AuthenticatedSocket extends Socket {
-  userId?: string;
-}
-
 @Injectable()
+@UseGuards(WsJwtGuard)
 @WebSocketGateway({ cors: true, namespace: 'polls' })
 export class PollsGateway {
   @WebSocketServer()
@@ -23,21 +22,13 @@ export class PollsGateway {
   private readonly logger = new Logger(PollsGateway.name);
 
   constructor(
-    private readonly jwtService: JwtService,
+    private readonly wsAuthService: WsAuthService,
     private readonly pollsService: PollsService,
   ) {}
 
   async handleConnection(client: AuthenticatedSocket) {
     try {
-      const token =
-        (client.handshake.auth as any)?.token ||
-        client.handshake.query?.token;
-      if (!token) {
-        client.disconnect();
-        return;
-      }
-      const payload = this.jwtService.verify(token as string);
-      client.userId = payload.sub;
+      this.wsAuthService.verify(client);
     } catch {
       client.disconnect();
     }

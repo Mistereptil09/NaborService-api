@@ -31,6 +31,7 @@ import { DslModule } from './modules/dsl/dsl.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { StripeModule } from './modules/stripe/stripe.module';
+import { CallsModule } from './modules/calls/calls.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { StripeModule } from './modules/stripe/stripe.module';
     CategoriesModule,
     DocumentsModule,
     StripeModule,
+    CallsModule,
   ],
   controllers: [AppController],
   providers: [AppService, MongoHealthService],

@@ -11,6 +11,7 @@ const delays: Record<string, number[]> = {
   'crypto-rotation': [1000, 5000, 30000],
   'event-register': [500, 1000, 2000],
   'contract-expiration': [1000, 5000, 30000],
+  'call-timeout': [1000, 5000, 30000],
 };
 
 /**

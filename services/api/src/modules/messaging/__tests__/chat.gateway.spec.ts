@@ -4,6 +4,7 @@ import { ChatGateway } from '../chat.gateway';
 import { ChatMessageService } from '../chat-message.service';
 import { ChatService } from '../chat.service';
 import { REDIS_CLIENT } from '../../../database/redis.module';
+import { WsAuthService } from '../../auth/ws-auth.service';
 
 describe('ChatGateway', () => {
   let gateway: ChatGateway;
@@ -43,6 +44,7 @@ describe('ChatGateway', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ChatGateway,
+        WsAuthService,
         { provide: JwtService, useValue: jwtService },
         { provide: ChatMessageService, useValue: chatMessageService },
         { provide: ChatService, useValue: chatService },

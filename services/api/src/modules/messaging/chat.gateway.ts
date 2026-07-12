@@ -7,20 +7,19 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Inject, Injectable } from '@nestjs/common';
-import { Server, Socket } from 'socket.io';
-import { JwtService } from '@nestjs/jwt';
+import { Inject, Injectable, UseGuards } from '@nestjs/common';
+import { Server } from 'socket.io';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import Redis from 'ioredis';
+import { WsAuthService } from '../auth/ws-auth.service';
+import type { AuthenticatedSocket } from '../auth/ws-auth.service';
+import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
 import { ChatMessageService } from './chat-message.service';
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/send-message.dto';
 
-interface AuthenticatedSocket extends Socket {
-  userId?: string;
-}
-
 @Injectable()
+@UseGuards(WsJwtGuard)
 @WebSocketGateway({
   cors: true,
   namespace: 'chat',
@@ -30,7 +29,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
 
   constructor(
-    private readonly jwtService: JwtService,
+    private readonly wsAuthService: WsAuthService,
     private readonly chatMessageService: ChatMessageService,
     private readonly chatService: ChatService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
@@ -38,17 +37,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async handleConnection(client: AuthenticatedSocket) {
     try {
-      const token =
-        (client.handshake.auth as any)?.token ||
-        client.handshake.query?.token;
-      if (!token) {
-        client.disconnect();
-        return;
-      }
-      const payload = this.jwtService.verify(token as string);
-      client.userId = payload.sub;
+      const { userId } = this.wsAuthService.verify(client);
       // Join personal room for notifications
-      client.join(`user:${payload.sub}`);
+      client.join(`user:${userId}`);
     } catch {
       client.disconnect();
     }
@@ -157,7 +148,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     if (!client.userId) return;
-    const isMember = await this.chatService.isMember(data.group_id, client.userId);
+    const isMember = await this.chatService.isMember(
+      data.group_id,
+      client.userId,
+    );
     if (isMember) {
       client.join(`chat:group:${data.group_id}`);
       return { event: 'joined', group_id: data.group_id };
