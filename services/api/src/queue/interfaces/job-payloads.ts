@@ -71,3 +71,7 @@ export interface EventRegisterJobPayload {
 export interface ContractExpirationJobPayload {
   transactionId: string;
 }
+
+export interface CallTimeoutJobPayload {
+  callId: string;
+}

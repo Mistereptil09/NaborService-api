@@ -8,16 +8,19 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { JwtService } from '@nestjs/jwt';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { Inject } from '@nestjs/common';
+import { Inject, UseGuards } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { User } from '../users/entities/user.entity';
+import { WsAuthService } from '../auth/ws-auth.service';
+import type { AuthenticatedSocket } from '../auth/ws-auth.service';
+import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
 
+@UseGuards(WsJwtGuard)
 @WebSocketGateway({ cors: true })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -26,29 +29,19 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private userSockets = new Map<string, string>(); // userId -> socketId
 
   constructor(
-    private readonly jwtService: JwtService,
+    private readonly wsAuthService: WsAuthService,
     @InjectQueue('email') private readonly emailQueue: Queue,
     @Inject(REDIS_CLIENT) private readonly redisClient: Redis,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
-  async handleConnection(client: Socket) {
-    const token = client.handshake.auth?.token;
-    if (!token) {
-      client.disconnect();
-      return;
-    }
+  async handleConnection(client: AuthenticatedSocket) {
     try {
-      const payload = this.jwtService.verify(token);
-      const userId = payload.sub;
-      if (userId) {
-        this.userSockets.set(userId, client.id);
-        this.redisClient
-          .setex(`presence:${userId}`, 3600, 'online')
-          .catch(() => {});
-      } else {
-        client.disconnect();
-      }
+      const { userId } = this.wsAuthService.verify(client);
+      this.userSockets.set(userId, client.id);
+      this.redisClient
+        .setex(`presence:${userId}`, 3600, 'online')
+        .catch(() => {});
     } catch {
       client.disconnect();
     }

@@ -15,9 +15,11 @@ import { UserSocialService } from './modules/users/user-social.service';
 import { ListingsService } from './modules/listings/listings.service';
 import { ListingContentService } from './modules/listings/listing-content.service';
 import { ListingTransactionService } from './modules/listings/listing-transaction.service';
+import { ListingReportService } from './modules/listings/listing-report.service';
 import { EventsService } from './modules/events/events.service';
 import { EventContentService } from './modules/events/event-content.service';
 import { EventStateMachineService } from './modules/events/event-state-machine.service';
+import { EventReportService } from './modules/events/event-report.service';
 import { Neo4jGeoService } from './modules/geo/neo4j-geo.service';
 import { Neo4jService } from './database/neo4j/neo4j.service';
 import { Neo4jSyncService } from './database/neo4j/neo4j-sync.service';
@@ -162,12 +164,21 @@ async function bootstrap() {
     const userRepo = app.get<Repository<User>>(getRepositoryToken(User));
 
     const mockUsers = [
-      { email: 'alice@nabor.fr',   firstName: 'Alice',   lastName: 'Martin',  password: 'Password123!', nbId: 'nb-downtown', role: UserRoleEnum.RESIDENT },
-      { email: 'bob@nabor.fr',     firstName: 'Bob',     lastName: 'Bernard', password: 'Password123!', nbId: 'nb-marais',   role: UserRoleEnum.RESIDENT },
-      { email: 'charlie@nabor.fr', firstName: 'Charlie', lastName: 'Dubois',  password: 'Password123!', nbId: 'nb-downtown', role: UserRoleEnum.MODERATOR },
-      { email: 'david@nabor.fr',   firstName: 'David',   lastName: 'Leroy',   password: 'Password123!', nbId: 'nb-villette', role: UserRoleEnum.ADMIN },
-      { email: 'emma@nabor.fr',    firstName: 'Emma',    lastName: 'Petit',   password: 'Password123!', nbId: 'nb-downtown', role: UserRoleEnum.NEIGHBOURHOOD_REP },
-      { email: 'felix@nabor.fr',   firstName: 'Félix',   lastName: 'Moreau',  password: 'Password123!', nbId: 'nb-marais',   role: UserRoleEnum.RESIDENT },
+      { email: 'alice@nabor.fr',   firstName: 'Alice',   lastName: 'Martin',   password: 'Password123!', nbId: 'nb-downtown', role: UserRoleEnum.RESIDENT },
+      { email: 'bob@nabor.fr',     firstName: 'Bob',     lastName: 'Bernard',  password: 'Password123!', nbId: 'nb-marais',   role: UserRoleEnum.RESIDENT },
+      { email: 'charlie@nabor.fr', firstName: 'Charlie', lastName: 'Dubois',   password: 'Password123!', nbId: 'nb-downtown', role: UserRoleEnum.MODERATOR },
+      { email: 'david@nabor.fr',   firstName: 'David',   lastName: 'Leroy',    password: 'Password123!', nbId: 'nb-villette', role: UserRoleEnum.ADMIN },
+      { email: 'emma@nabor.fr',    firstName: 'Emma',    lastName: 'Petit',    password: 'Password123!', nbId: 'nb-downtown', role: UserRoleEnum.NEIGHBOURHOOD_REP },
+      { email: 'felix@nabor.fr',   firstName: 'Félix',   lastName: 'Moreau',   password: 'Password123!', nbId: 'nb-marais',   role: UserRoleEnum.RESIDENT },
+      { email: 'gabriel@nabor.fr', firstName: 'Gabriel', lastName: 'Roux',     password: 'Password123!', nbId: 'nb-villette', role: UserRoleEnum.RESIDENT },
+      { email: 'helene@nabor.fr',  firstName: 'Hélène',  lastName: 'Fournier', password: 'Password123!', nbId: 'nb-downtown', role: UserRoleEnum.RESIDENT },
+      { email: 'ismael@nabor.fr',  firstName: 'Ismaël',  lastName: 'Girard',   password: 'Password123!', nbId: 'nb-marais',   role: UserRoleEnum.RESIDENT },
+      { email: 'julie@nabor.fr',   firstName: 'Julie',   lastName: 'Bonnet',   password: 'Password123!', nbId: 'nb-villette', role: UserRoleEnum.RESIDENT },
+      { email: 'karim@nabor.fr',   firstName: 'Karim',   lastName: 'Faure',    password: 'Password123!', nbId: 'nb-downtown', role: UserRoleEnum.RESIDENT },
+      { email: 'lea@nabor.fr',     firstName: 'Léa',     lastName: 'Mercier',  password: 'Password123!', nbId: 'nb-marais',   role: UserRoleEnum.RESIDENT },
+      { email: 'mathis@nabor.fr',  firstName: 'Mathis',  lastName: 'Blanc',    password: 'Password123!', nbId: 'nb-villette', role: UserRoleEnum.RESIDENT },
+      { email: 'nora@nabor.fr',    firstName: 'Nora',    lastName: 'Perrin',   password: 'Password123!', nbId: 'nb-downtown', role: UserRoleEnum.RESIDENT },
+      { email: 'oscar@nabor.fr',   firstName: 'Oscar',   lastName: 'Simon',    password: 'Password123!', nbId: 'nb-marais',   role: UserRoleEnum.RESIDENT },
     ];
 
     const seededUsers: User[] = [];
@@ -189,23 +200,35 @@ async function bootstrap() {
       console.log(`  ${dbUser.firstName} (${u.role}) → ${u.nbId}`);
     }
 
-    const [uAlice, uBob, uCharlie, uDavid, uEmma, uFelix] = seededUsers;
+    const [
+      uAlice, uBob, uCharlie, uDavid, uEmma, uFelix,
+      uGabriel, uHelene, uIsmael, uJulie, uKarim, uLea, uMathis, uNora, uOscar,
+    ] = seededUsers;
 
     // ==========================================
     // STEP 5: SEED SOCIAL RELATIONSHIPS
     // ==========================================
     console.log('Seeding social graph...');
     const socialService = app.get(UserSocialService);
+    const friendshipRepo = app.get<Repository<Friendship>>(getRepositoryToken(Friendship));
 
-    // Mutual follows → Friendship + DM group
-    await socialService.follow(uAlice.id, uBob.id);
-    await socialService.follow(uBob.id, uAlice.id);
+    // Mutual-follow ring: user[i] <-> user[i+1] (wrapping) — guarantees every
+    // seeded user has at least one friend (and a DM group + messages, seeded
+    // in STEP 12), regardless of how many users are in the list.
+    for (let i = 0; i < seededUsers.length; i++) {
+      const a = seededUsers[i];
+      const b = seededUsers[(i + 1) % seededUsers.length];
+      await socialService.follow(a.id, b.id);
+      await socialService.follow(b.id, a.id);
+    }
 
-    // One-way follows
+    // Extra one-way follows for a less uniform-looking social graph
     await socialService.follow(uCharlie.id, uAlice.id);
     await socialService.follow(uEmma.id, uAlice.id);
     await socialService.follow(uFelix.id, uBob.id);
-    await socialService.follow(uAlice.id, uEmma.id);
+    await socialService.follow(uKarim.id, uEmma.id);
+    await socialService.follow(uNora.id, uHelene.id);
+    await socialService.follow(uOscar.id, uIsmael.id);
 
     // Blocks
     await socialService.block(uAlice.id, uDavid.id);
@@ -216,9 +239,12 @@ async function bootstrap() {
       swipeRepo.create({ swiperId: uAlice.id, swipedId: uFelix.id, direction: SwipeDirectionEnum.LIKE }),
       swipeRepo.create({ swiperId: uEmma.id, swipedId: uAlice.id, direction: SwipeDirectionEnum.LIKE }),
       swipeRepo.create({ swiperId: uBob.id, swipedId: uEmma.id, direction: SwipeDirectionEnum.LIKE }),
+      swipeRepo.create({ swiperId: uKarim.id, swipedId: uNora.id, direction: SwipeDirectionEnum.LIKE }),
+      swipeRepo.create({ swiperId: uJulie.id, swipedId: uMathis.id, direction: SwipeDirectionEnum.LIKE }),
+      swipeRepo.create({ swiperId: uOscar.id, swipedId: uLea.id, direction: SwipeDirectionEnum.DISLIKE }),
     ]);
 
-    console.log('Social graph seeded (follows, blocks, swipes).');
+    console.log(`Social graph seeded (${seededUsers.length} users, ${seededUsers.length} mutual friendships via ring, extra follows, 1 block, 6 swipes).`);
 
     // ==========================================
     // STEP 6: SEED LISTINGS
@@ -276,13 +302,118 @@ async function bootstrap() {
       tags: ['informatique', 'réparation', 'pc', 'téléphone'],
     });
 
+    // Listing 5: Gabriel offers bike repair
+    const l5 = await listingsService.create(uGabriel.id, {
+      title: 'Réparation de vélos à domicile',
+      description: 'Crevaison, freins, dérailleur : je passe chez vous.',
+      listing_type: ListingTypeEnum.OFFER, price_cents: 1000,
+      category_id: toolsCat.id, neighbourhood_id: 'nb-villette',
+    });
+    await listingContentService.updateContent(uGabriel.id, l5.id, {
+      body_html: '<p>Mécanicien amateur, outillage complet. Devis avant intervention.</p>',
+      tags: ['vélo', 'réparation', 'mobilité'],
+    });
+
+    // Listing 6: Hélène requests babysitting
+    const l6 = await listingsService.create(uHelene.id, {
+      title: 'Recherche baby-sitter le mercredi',
+      description: 'Deux enfants (6 et 9 ans), mercredi après-midi.',
+      listing_type: ListingTypeEnum.REQUEST, price_cents: 1200,
+      category_id: kidsCat.id, neighbourhood_id: 'nb-downtown',
+    });
+    await listingContentService.updateContent(uHelene.id, l6.id, {
+      body_html: '<p>De 13h à 18h. Expérience et références appréciées.</p>',
+      tags: ['baby-sitting', 'enfants', 'mercredi'],
+    });
+
+    // Listing 7: Ismaël offers language lessons
+    const l7 = await listingsService.create(uIsmael.id, {
+      title: 'Cours d\'arabe pour débutants',
+      description: 'Cours particuliers ou en petit groupe, tous niveaux.',
+      listing_type: ListingTypeEnum.OFFER, price_cents: 1800,
+      category_id: servicesCat.id, neighbourhood_id: 'nb-marais',
+    });
+    await listingContentService.updateContent(uIsmael.id, l7.id, {
+      body_html: '<p>Approche conversationnelle, supports fournis.</p>',
+      tags: ['langue', 'arabe', 'cours'],
+    });
+
+    // Listing 8: Julie offers a dining table + chairs
+    const l8 = await listingsService.create(uJulie.id, {
+      title: 'Table à manger + 4 chaises',
+      description: 'Bon état, à venir démonter/récupérer sur place.',
+      listing_type: ListingTypeEnum.OFFER, price_cents: 4000,
+      category_id: furnitureCat.id, neighbourhood_id: 'nb-villette',
+    });
+    await listingContentService.updateContent(uJulie.id, l8.id, {
+      body_html: '<p>Bois massif, quelques traces d\'usage. Dimensions sur demande.</p>',
+      tags: ['mobilier', 'table', 'chaises'],
+    });
+
+    // Listing 9: Karim offers spare storage space
+    const l9 = await listingsService.create(uKarim.id, {
+      title: 'Cartons de déménagement à donner',
+      description: 'Une trentaine de cartons, tailles variées, pliés à plat.',
+      listing_type: ListingTypeEnum.OFFER, price_cents: 0,
+      category_id: servicesCat.id, neighbourhood_id: 'nb-downtown',
+    });
+    await listingContentService.updateContent(uKarim.id, l9.id, {
+      body_html: '<p>Récupérés lors de mon propre déménagement, en bon état.</p>',
+      tags: ['cartons', 'déménagement', 'gratuit'],
+    });
+
+    // Listing 10: Léa offers cooking classes
+    const l10 = await listingsService.create(uLea.id, {
+      title: 'Ateliers cuisine du monde',
+      description: 'Deux heures pour apprendre 2-3 recettes de saison.',
+      listing_type: ListingTypeEnum.OFFER, price_cents: 2500,
+      category_id: servicesCat.id, neighbourhood_id: 'nb-marais',
+    });
+    await listingContentService.updateContent(uLea.id, l10.id, {
+      body_html: '<p>Chez moi ou chez vous, ingrédients à partager.</p>',
+      tags: ['cuisine', 'atelier', 'convivial'],
+    });
+
+    // Listing 11: Nora offers pet-sitting
+    const l11 = await listingsService.create(uNora.id, {
+      title: 'Garde de chats et chiens',
+      description: 'Disponible week-ends et vacances scolaires.',
+      listing_type: ListingTypeEnum.OFFER, price_cents: 1500,
+      category_id: servicesCat.id, neighbourhood_id: 'nb-downtown',
+    });
+    await listingContentService.updateContent(uNora.id, l11.id, {
+      body_html: '<p>Amoureuse des animaux, plusieurs années d\'expérience.</p>',
+      tags: ['animaux', 'garde', 'week-end'],
+    });
+
+    // Listing 12: Oscar offers computer setup help
+    const l12 = await listingsService.create(uOscar.id, {
+      title: 'Installation et configuration PC/imprimante',
+      description: 'Installation, mises à jour, Wi-Fi, imprimante.',
+      listing_type: ListingTypeEnum.OFFER, price_cents: 2000,
+      category_id: techCat.id, neighbourhood_id: 'nb-marais',
+    });
+    await listingContentService.updateContent(uOscar.id, l12.id, {
+      body_html: '<p>Intervention à domicile, explication pas à pas.</p>',
+      tags: ['informatique', 'installation', 'aide'],
+    });
+
     // Transaction: Alice requests Bob's moving help
     const tx1 = await transactionService.create(l2.id, uBob.id, uAlice.id, 1500, 150);
 
     // Transaction + contract: Félix requests Emma's tutoring
     const tx2 = await transactionService.create(l3.id, uEmma.id, uFelix.id, 2000, 200);
 
-    console.log(`4 listings seeded. 2 transactions created.`);
+    // Transaction: Nora requests Julie's dining table
+    const tx3 = await transactionService.create(l8.id, uJulie.id, uNora.id, 4000, 400);
+
+    // Listing reports (moderation queue data)
+    const listingReportService = app.get(ListingReportService);
+    await listingReportService.createReport(uOscar.id, l6.id, 'Annonce suspecte, demande des informations personnelles avant tout échange.');
+    await listingReportService.createReport(uMathis.id, l9.id, 'Annonce en doublon, déjà publiée dans un autre groupe.');
+    await listingReportService.createReport(uGabriel.id, l11.id, 'Prix annoncé ne correspond pas à la description du service.');
+
+    console.log(`12 listings seeded. 3 transactions created. 3 listing reports created.`);
 
     // ==========================================
     // STEP 7: SEED CONTRACTS (MONGODB)
@@ -318,7 +449,21 @@ async function bootstrap() {
       signed_at: new Date(), created_at: new Date(),
     }).save();
 
-    console.log('2 contracts seeded.');
+    await new contractModel({
+      pg_transaction_id: tx3.id,
+      type: 'contract',
+      sha256_hash: 'b5d4045c3f466fa91fe2cc6abe79232a1a57cdf104f7a26e716e0a1917894e00',
+      pdf: { gridfs_file_id: 'gridfs-seed-contract-3', mimetype: 'application/pdf', size_bytes: 19800 },
+      parties: {
+        provider: { pg_user_id: uJulie.id, full_name: 'Julie Bonnet', email: 'julie@nabor.fr' },
+        requester: { pg_user_id: uNora.id, full_name: 'Nora Perrin', email: 'nora@nabor.fr' },
+      },
+      listing_snapshot: { title: 'Table à manger + 4 chaises', price_cents: 4000, listing_type: 'offer', neighbourhood_name: 'La Villette' },
+      signature: { canvas_b64: null, totp_verified_at: new Date(), signed_ip: '127.0.0.1', user_agent: 'Seed Script' },
+      signed_at: new Date(), created_at: new Date(),
+    }).save();
+
+    console.log('3 contracts seeded.');
 
     // ==========================================
     // STEP 8: SEED EVENTS
@@ -382,7 +527,68 @@ async function bootstrap() {
     await stateMachineService.open(e3.id, uCharlie.id);
     await eventsService.register(e3.id, uAlice.id);
 
-    console.log('3 events seeded.');
+    // Event 4: Bike repair workshop (Villette)
+    const e4 = await eventsService.create(uGabriel.id, {
+      title: 'Atelier réparation de vélos',
+      description: 'Apportez votre vélo, on répare ensemble.',
+      cost_cents: 0, max_participants: 12, refund_deadline_hours: 24,
+      category_id: workshopEventCat.id, neighbourhood_id: 'nb-villette',
+      starts_at: new Date(Date.now() + 7 * 86400000).toISOString(),
+      ends_at: new Date(Date.now() + 7 * 86400000 + 3 * 3600000).toISOString(),
+    });
+    await eventContentService.updateContent(uGabriel.id, e4.id, {
+      body_html: '<p>Outillage fourni. Chacun repart avec son vélo réparé.</p>',
+      location: { address: 'Place de la Villette, Paris', geocode: '48.866,2.356' },
+    });
+    await stateMachineService.publish(e4.id, uGabriel.id);
+    await stateMachineService.open(e4.id, uGabriel.id);
+    await eventsService.register(e4.id, uJulie.id);
+    await eventsService.register(e4.id, uMathis.id);
+
+    // Event 5: Pétanque tournament (Downtown)
+    const e5 = await eventsService.create(uKarim.id, {
+      title: 'Tournoi de pétanque amical',
+      description: 'Équipes de 2, inscriptions sur place.',
+      cost_cents: 300, max_participants: 24, refund_deadline_hours: 24,
+      category_id: sportsEventCat.id, neighbourhood_id: 'nb-downtown',
+      starts_at: new Date(Date.now() + 8 * 86400000).toISOString(),
+      ends_at: new Date(Date.now() + 8 * 86400000 + 4 * 3600000).toISOString(),
+    });
+    await eventContentService.updateContent(uKarim.id, e5.id, {
+      body_html: '<p>Boules prêtées sur place. Buvette associative.</p>',
+      location: { address: 'Square Karim, Paris', geocode: '48.856,2.347' },
+    });
+    await stateMachineService.publish(e5.id, uKarim.id);
+    await stateMachineService.open(e5.id, uKarim.id);
+    await eventsService.register(e5.id, uAlice.id);
+    await eventsService.register(e5.id, uHelene.id);
+    await eventsService.register(e5.id, uNora.id);
+
+    // Event 6: Language exchange meetup (Marais)
+    const e6 = await eventsService.create(uLea.id, {
+      title: 'Soirée échange linguistique',
+      description: 'Français, arabe, anglais... venez pratiquer !',
+      cost_cents: 0, max_participants: 20, refund_deadline_hours: 24,
+      category_id: cultureEventCat.id, neighbourhood_id: 'nb-marais',
+      starts_at: new Date(Date.now() + 12 * 86400000).toISOString(),
+      ends_at: new Date(Date.now() + 12 * 86400000 + 3 * 3600000).toISOString(),
+    });
+    await eventContentService.updateContent(uLea.id, e6.id, {
+      body_html: '<p>Ambiance décontractée, boissons chacun apporte quelque chose.</p>',
+      location: { address: 'Café associatif, Paris', geocode: '48.859,2.362' },
+    });
+    await stateMachineService.publish(e6.id, uLea.id);
+    await stateMachineService.open(e6.id, uLea.id);
+    await eventsService.register(e6.id, uBob.id);
+    await eventsService.register(e6.id, uIsmael.id);
+    await eventsService.register(e6.id, uOscar.id);
+
+    // Event reports (moderation queue data)
+    const eventReportService = app.get(EventReportService);
+    await eventReportService.createReport(uJulie.id, e5.id, 'Lieu indiqué inexact, l\'adresse ne correspond à aucun square.');
+    await eventReportService.createReport(uNora.id, e6.id, 'Contenu à caractère commercial déguisé en événement communautaire.');
+
+    console.log('6 events seeded. 2 event reports created.');
 
     // ==========================================
     // STEP 9: SEED EVENT TICKETS (MONGODB)
@@ -392,7 +598,16 @@ async function bootstrap() {
     const crypto = require('crypto');
 
     for (const [eventId, userId, firstName] of [
-      [e1.id, uBob.id, 'Bob'], [e2.id, uAlice.id, 'Alice'], [e2.id, uFelix.id, 'Félix'], [e3.id, uAlice.id, 'Alice'],
+      [e1.id, uBob.id, 'Bob'],
+      [e2.id, uAlice.id, 'Alice'],
+      [e2.id, uFelix.id, 'Félix'],
+      [e3.id, uAlice.id, 'Alice'],
+      [e4.id, uJulie.id, 'Julie'],
+      [e4.id, uMathis.id, 'Mathis'],
+      [e5.id, uAlice.id, 'Alice'],
+      [e5.id, uHelene.id, 'Hélène'],
+      [e6.id, uBob.id, 'Bob'],
+      [e6.id, uIsmael.id, 'Ismaël'],
     ]) {
       const hmac = crypto.createHmac('sha256', 'seed-secret').update(`${eventId}:${userId}`).digest('hex');
       await new ticketModel({
@@ -403,7 +618,7 @@ async function bootstrap() {
       }).save();
     }
 
-    console.log('4 event tickets seeded.');
+    console.log('10 event tickets seeded.');
 
     // ==========================================
     // STEP 10: SEED INCIDENTS
@@ -416,6 +631,15 @@ async function bootstrap() {
       { reporterId: uAlice.id, assignedTo: uDavid.id, nbId: 'nb-downtown', title: 'Nid de poule béant', description: 'Trou énorme chaussée principale.', severity: IncidentSeverityEnum.HIGH, status: IncidentStatusEnum.IN_PROGRESS, body: '~50cm large, 15cm profond. Risque crevaison.', hint: '12 rue principale' },
       { reporterId: uBob.id, assignedTo: uCharlie.id, nbId: 'nb-marais', title: 'Éclairage public défectueux', description: '3 lampadaires éteints rue des Lilas.', severity: IncidentSeverityEnum.MEDIUM, status: IncidentStatusEnum.OPEN, body: 'Depuis une semaine. Zone très sombre le soir.', hint: 'Rue des Lilas, entre n°5 et n°15' },
       { reporterId: uFelix.id, assignedTo: null, nbId: 'nb-marais', title: 'Dépôt sauvage', description: 'Déchets abandonnés au coin de la rue.', severity: IncidentSeverityEnum.LOW, status: IncidentStatusEnum.OPEN, body: 'Cartons, vieux meubles. Présent depuis 3 jours.', hint: 'Angle rue des Écoles / rue Pasteur' },
+      { reporterId: uJulie.id, assignedTo: uDavid.id, nbId: 'nb-villette', title: 'Banc public cassé', description: 'Planche fendue, risque de blessure.', severity: IncidentSeverityEnum.LOW, status: IncidentStatusEnum.OPEN, body: 'Assise fendue sur toute la longueur.', hint: 'Allée centrale du parc de la Villette' },
+      { reporterId: uKarim.id, assignedTo: uCharlie.id, nbId: 'nb-downtown', title: 'Tags sur la façade de l\'école', description: 'Graffitis apparus dans la nuit.', severity: IncidentSeverityEnum.MEDIUM, status: IncidentStatusEnum.IN_PROGRESS, body: 'Mur entier côté cour recouvert.', hint: 'École primaire, rue des Tilleuls' },
+      { reporterId: uOscar.id, assignedTo: null, nbId: 'nb-marais', title: 'Nuisances sonores nocturnes', description: 'Bruit récurrent après 23h depuis un chantier.', severity: IncidentSeverityEnum.LOW, status: IncidentStatusEnum.OPEN, body: 'Plusieurs riverains concernés, tous les soirs cette semaine.', hint: 'Chantier rue de la Poterne' },
+      { reporterId: uGabriel.id, assignedTo: uDavid.id, nbId: 'nb-villette', title: 'Fuite d\'eau importante', description: 'Eau qui ruisselle en continu depuis un regard.', severity: IncidentSeverityEnum.HIGH, status: IncidentStatusEnum.IN_PROGRESS, body: 'Chaussée glissante, risque de chute. Signalé à la mairie.', hint: 'Angle quai de la Loire / rue de Crimée' },
+      { reporterId: uHelene.id, assignedTo: uCharlie.id, nbId: 'nb-downtown', title: 'Jeux d\'enfants endommagés', description: 'Toboggan fissuré au square principal.', severity: IncidentSeverityEnum.MEDIUM, status: IncidentStatusEnum.RESOLVED, body: 'Pièce remplacée par les services techniques.', hint: 'Square du centre ville, aire de jeux' },
+      { reporterId: uIsmael.id, assignedTo: uDavid.id, nbId: 'nb-marais', title: 'Odeur de gaz suspecte', description: 'Forte odeur près d\'un immeuble résidentiel.', severity: IncidentSeverityEnum.CRITICAL, status: IncidentStatusEnum.IN_PROGRESS, body: 'Pompiers et GRDF prévenus, immeuble évacué par précaution.', hint: '8 rue des Archives' },
+      { reporterId: uMathis.id, assignedTo: uDavid.id, nbId: 'nb-villette', title: 'Arbre tombé sur le trottoir', description: 'Grosse branche bloque le passage piéton.', severity: IncidentSeverityEnum.MEDIUM, status: IncidentStatusEnum.RESOLVED, body: 'Évacuée par les espaces verts le lendemain matin.', hint: 'Avenue Jean Jaurès, hauteur n°40' },
+      { reporterId: uLea.id, assignedTo: null, nbId: 'nb-marais', title: 'Fuite d\'eau en cave commune', description: 'Infiltration visible au sous-sol de l\'immeuble.', severity: IncidentSeverityEnum.HIGH, status: IncidentStatusEnum.OPEN, body: 'Odeur d\'humidité, murs qui noircissent.', hint: '22 rue Vieille du Temple, sous-sol' },
+      { reporterId: uNora.id, assignedTo: uCharlie.id, nbId: 'nb-downtown', title: 'Balançoire cassée', description: 'Chaîne rompue sur une balançoire du square.', severity: IncidentSeverityEnum.LOW, status: IncidentStatusEnum.RESOLVED, body: 'Remplacée lors de la maintenance mensuelle.', hint: 'Square du centre ville, aire de jeux' },
     ];
 
     for (const inc of incidents) {
@@ -430,7 +654,7 @@ async function bootstrap() {
       }).save();
     }
 
-    console.log('3 incidents seeded.');
+    console.log(`${incidents.length} incidents seeded.`);
 
     // ==========================================
     // STEP 11: SEED POLLS
@@ -440,7 +664,7 @@ async function bootstrap() {
     const pollOptRepo = app.get<Repository<PollOption>>(getRepositoryToken(PollOption));
     const voteRepo = app.get<Repository<Vote>>(getRepositoryToken(Vote));
 
-    // Poll 1: Single choice — bench color
+    // Poll 1: Single choice — bench color (Downtown)
     const p1 = await pollRepo.save(pollRepo.create({
       title: 'Couleur des bancs publics', description: 'Quelle couleur pour les nouveaux bancs ?',
       creatorId: uEmma.id, neighbourhoodId: 'nb-downtown', pollType: PollTypeEnum.SINGLE,
@@ -452,7 +676,7 @@ async function bootstrap() {
     await voteRepo.save(voteRepo.create({ userId: uAlice.id, optionId: oVert.id, weight: 1 }));
     await voteRepo.save(voteRepo.create({ userId: uBob.id, optionId: oBleu.id, weight: 1 }));
 
-    // Poll 2: Multiple choice — activities
+    // Poll 2: Multiple choice — activities (Downtown)
     const p2 = await pollRepo.save(pollRepo.create({
       title: 'Activités à développer au centre social', description: 'Choisissez les activités qui vous intéressent.',
       creatorId: uCharlie.id, neighbourhoodId: 'nb-downtown', pollType: PollTypeEnum.MULTIPLE,
@@ -467,12 +691,39 @@ async function bootstrap() {
     await voteRepo.save(voteRepo.create({ userId: uEmma.id, optionId: oInformatique.id, weight: 1 }));
     await voteRepo.save(voteRepo.create({ userId: uFelix.id, optionId: oInformatique.id, weight: 1 }));
 
-    console.log('2 polls seeded (single + multiple, 6 votes).');
+    // Poll 3: Single choice — market square layout (Marais)
+    const p3 = await pollRepo.save(pollRepo.create({
+      title: 'Aménagement de la place du marché', description: 'Quel équipement ajouter en priorité ?',
+      creatorId: uIsmael.id, neighbourhoodId: 'nb-marais', pollType: PollTypeEnum.SINGLE,
+      startsAt: new Date(), endsAt: new Date(Date.now() + 10 * 86400000), isAnonymous: false,
+    }));
+    const oKiosque = await pollOptRepo.save(pollOptRepo.create({ pollId: p3.id, label: 'Kiosque à journaux' }));
+    const oFontaine = await pollOptRepo.save(pollOptRepo.create({ pollId: p3.id, label: 'Fontaine à eau' }));
+    const oBoiteLivres = await pollOptRepo.save(pollOptRepo.create({ pollId: p3.id, label: 'Boîte à livres' }));
+    await voteRepo.save(voteRepo.create({ userId: uBob.id, optionId: oFontaine.id, weight: 1 }));
+    await voteRepo.save(voteRepo.create({ userId: uFelix.id, optionId: oBoiteLivres.id, weight: 1 }));
+    await voteRepo.save(voteRepo.create({ userId: uLea.id, optionId: oFontaine.id, weight: 1 }));
+
+    // Poll 4: Multiple choice — neighbourhood party theme (Villette)
+    const p4 = await pollRepo.save(pollRepo.create({
+      title: 'Thème de la fête de quartier', description: 'Plusieurs choix possibles.',
+      creatorId: uJulie.id, neighbourhoodId: 'nb-villette', pollType: PollTypeEnum.MULTIPLE,
+      startsAt: new Date(), endsAt: new Date(Date.now() + 21 * 86400000), isAnonymous: true,
+    }));
+    const oRetro = await pollOptRepo.save(pollOptRepo.create({ pollId: p4.id, label: 'Décennies rétro' }));
+    const oCarnaval = await pollOptRepo.save(pollOptRepo.create({ pollId: p4.id, label: 'Carnaval' }));
+    const oGuinguette = await pollOptRepo.save(pollOptRepo.create({ pollId: p4.id, label: 'Guinguette' }));
+    await voteRepo.save(voteRepo.create({ userId: uDavid.id, optionId: oGuinguette.id, weight: 1 }));
+    await voteRepo.save(voteRepo.create({ userId: uGabriel.id, optionId: oRetro.id, weight: 1 }));
+    await voteRepo.save(voteRepo.create({ userId: uGabriel.id, optionId: oCarnaval.id, weight: 1 }));
+    await voteRepo.save(voteRepo.create({ userId: uMathis.id, optionId: oCarnaval.id, weight: 1 }));
+
+    console.log('4 polls seeded (2 single, 2 multiple, 13 votes).');
 
     // ==========================================
-    // STEP 12: SEED MESSAGES
+    // STEP 12: SEED GROUP CHATS + MESSAGES
     // ==========================================
-    console.log('Seeding messages...');
+    console.log('Seeding group chats and messages...');
     const chatGroupRepo = app.get<Repository<ChatGroup>>(getRepositoryToken(ChatGroup));
     const uigRepo = app.get<Repository<UsersInGroup>>(getRepositoryToken(UsersInGroup));
     const msgMetaRepo = app.get<Repository<MessageMetadata>>(getRepositoryToken(MessageMetadata));
@@ -503,68 +754,125 @@ async function bootstrap() {
       };
     }
 
-    // Downtown group chat
-    const groupKey = crypto.randomBytes(32);
-    const groupChat = await chatGroupRepo.save(chatGroupRepo.create({
-      name: 'Discussion générale - Downtown', description: 'Canal principal des résidents de Downtown.',
-      createdBy: uEmma.id, type: ChatGroupTypeEnum.GROUP_CHAT,
-      encryptedGroupKey: encryptGroupKey(groupKey),
-    }));
-    await uigRepo.save([
-      uigRepo.create({ userId: uAlice.id, groupId: groupChat.id, roleInGroup: GroupRoleEnum.MESSAGE }),
-      uigRepo.create({ userId: uEmma.id, groupId: groupChat.id, roleInGroup: GroupRoleEnum.ADMIN }),
-      uigRepo.create({ userId: uCharlie.id, groupId: groupChat.id, roleInGroup: GroupRoleEnum.MESSAGE }),
-    ]);
+    async function sendMessage(groupId: string, groupKey: Buffer, sender: User, content: string, atMs: number) {
+      const msgId = crypto.randomUUID();
+      const enc = encryptMessage(content, groupKey);
+      await msgMetaRepo.save(msgMetaRepo.create({
+        id: msgId, mongoMessageId: msgId, groupId,
+        senderId: sender.id, sentAt: new Date(atMs), isDeleted: false,
+      }));
+      await new msgMongoModel({
+        pg_message_id: msgId, pg_group_id: groupId, pg_sender_id: sender.id,
+        content_encrypted: enc.encrypted, iv: enc.iv, auth_tag: enc.authTag,
+        type: 'text', attachments: [], reactions: [], sent_at: new Date(atMs),
+      }).save();
+    }
 
-    // Messages in the group chat
-    const messages = [
-      { senderId: uEmma.id, content: 'Bienvenue à tous dans le groupe Downtown !', delay: 0 },
-      { senderId: uAlice.id, content: 'Merci Emma ! Qui est dispo pour le BBQ samedi prochain ?', delay: 120000 },
-      { senderId: uCharlie.id, content: 'Je viendrai avec une salade et des boissons.', delay: 240000 },
-      { senderId: uEmma.id, content: 'Super ! Je m\'occupe du matériel de cuisson.', delay: 300000 },
+    // ── Multi-person neighbourhood group chats ──
+    const neighbourhoodGroups: {
+      name: string; description: string; nbId: string; admin: User; members: User[];
+      messages: { sender: User; content: string }[];
+    }[] = [
+      {
+        name: 'Discussion générale - Downtown', description: 'Canal principal des résidents de Downtown.',
+        nbId: 'nb-downtown', admin: uEmma,
+        members: [uAlice, uCharlie, uEmma, uHelene, uKarim, uNora],
+        messages: [
+          { sender: uEmma, content: 'Bienvenue à tous dans le groupe Downtown !' },
+          { sender: uAlice, content: 'Merci Emma ! Qui est dispo pour le BBQ samedi prochain ?' },
+          { sender: uCharlie, content: 'Je viendrai avec une salade et des boissons.' },
+          { sender: uHelene, content: 'Je peux amener des chaises pliantes si besoin.' },
+          { sender: uKarim, content: 'Et moi le tournoi de pétanque du week-end d\'après, qui est chaud ?' },
+          { sender: uEmma, content: 'Super ! Je m\'occupe du matériel de cuisson pour le BBQ.' },
+        ],
+      },
+      {
+        name: 'Discussion générale - Marais', description: 'Canal principal des résidents du Marais.',
+        nbId: 'nb-marais', admin: uBob,
+        members: [uBob, uFelix, uIsmael, uLea, uOscar],
+        messages: [
+          { sender: uBob, content: 'Salut le Marais, bienvenue dans le canal !' },
+          { sender: uFelix, content: 'Hello ! Quelqu\'un a des nouvelles du nettoyage de rue ?' },
+          { sender: uIsmael, content: 'C\'est prévu le mois prochain je crois.' },
+          { sender: uLea, content: 'Je peux relayer l\'info sur le tableau d\'affichage.' },
+          { sender: uOscar, content: 'Merci Léa, tiens-nous au courant !' },
+        ],
+      },
+      {
+        name: 'Discussion générale - La Villette', description: 'Canal principal des résidents de La Villette.',
+        nbId: 'nb-villette', admin: uDavid,
+        members: [uDavid, uGabriel, uJulie, uMathis],
+        messages: [
+          { sender: uDavid, content: 'Bienvenue dans le canal de La Villette.' },
+          { sender: uGabriel, content: 'Merci David, content d\'être là !' },
+          { sender: uJulie, content: 'Quelqu\'un connaît un bon plombier dans le coin ?' },
+          { sender: uMathis, content: 'Oui, je t\'envoie un contact en MP.' },
+        ],
+      },
     ];
 
-    for (const msg of messages) {
-      const msgId = crypto.randomUUID();
-      const enc = encryptMessage(msg.content, groupKey);
-      await msgMetaRepo.save(msgMetaRepo.create({
-        id: msgId, mongoMessageId: msgId, groupId: groupChat.id,
-        senderId: msg.senderId, sentAt: new Date(Date.now() - 600000 + msg.delay), isDeleted: false,
+    let totalGroupMessages = 0;
+    for (const g of neighbourhoodGroups) {
+      const groupKey = crypto.randomBytes(32);
+      const group = await chatGroupRepo.save(chatGroupRepo.create({
+        name: g.name, description: g.description,
+        createdBy: g.admin.id, type: ChatGroupTypeEnum.GROUP_CHAT,
+        encryptedGroupKey: encryptGroupKey(groupKey),
       }));
-      await new msgMongoModel({
-        pg_message_id: msgId, pg_group_id: groupChat.id, pg_sender_id: msg.senderId,
-        content_encrypted: enc.encrypted, iv: enc.iv, auth_tag: enc.authTag,
-        type: 'text', attachments: [], reactions: [], sent_at: new Date(),
-      }).save();
-    }
-
-    // DM chat group (from Alice ↔ Bob friendship — use the auto-created one if available)
-    const friendship = await app.get<Repository<Friendship>>(getRepositoryToken(Friendship)).findOne({
-      where: [{ user1Id: uAlice.id, user2Id: uBob.id }, { user1Id: uBob.id, user2Id: uAlice.id }],
-    });
-
-    if (friendship?.groupId) {
-      const dmGroupKey = crypto.randomBytes(32);
-      await chatGroupRepo.update(
-        { id: friendship.groupId },
-        { encryptedGroupKey: encryptGroupKey(dmGroupKey) },
+      await uigRepo.save(
+        g.members.map((m) =>
+          uigRepo.create({
+            userId: m.id, groupId: group.id,
+            roleInGroup: m.id === g.admin.id ? GroupRoleEnum.ADMIN : GroupRoleEnum.MESSAGE,
+          }),
+        ),
       );
 
-      const dmId = crypto.randomUUID();
-      const dmEnc = encryptMessage('Salut Bob, merci pour le coup de main !', dmGroupKey);
-      await msgMetaRepo.save(msgMetaRepo.create({
-        id: dmId, mongoMessageId: dmId, groupId: friendship.groupId,
-        senderId: uAlice.id, sentAt: new Date(), isDeleted: false,
-      }));
-      await new msgMongoModel({
-        pg_message_id: dmId, pg_group_id: friendship.groupId, pg_sender_id: uAlice.id,
-        content_encrypted: dmEnc.encrypted, iv: dmEnc.iv, auth_tag: dmEnc.authTag,
-        type: 'text', attachments: [], reactions: [], sent_at: new Date(),
-      }).save();
-      console.log('DM message seeded (Alice → Bob).');
+      // Sequential (not parallel) so sentAt ordering matches array order and
+      // Mongo writes don't race each other for the same group.
+      const baseMs = Date.now() - 600000;
+      for (let idx = 0; idx < g.messages.length; idx++) {
+        const msg = g.messages[idx];
+        await sendMessage(group.id, groupKey, msg.sender, msg.content, baseMs + idx * 120000);
+      }
+      totalGroupMessages += g.messages.length;
     }
 
-    console.log(`Group chat + ${messages.length} messages seeded.`);
+    console.log(`${neighbourhoodGroups.length} neighbourhood group chats seeded (${totalGroupMessages} messages).`);
+
+    // ── DM threads for every ring friendship (guarantees every seeded user
+    // has at least one 1:1 conversation with messages) ──
+    const dmTemplates: [string, string][] = [
+      ['Salut ! Contente qu\'on soit voisins :)', 'Hello ! Oui, hâte de faire connaissance.'],
+      ['Hey, tu connais un bon plombier dans le coin ?', 'Oui je peux te filer un contact !'],
+      ['Merci encore pour hier, c\'était top.', 'Avec plaisir, on remet ça quand tu veux !'],
+      ['Tu vas au marché ce week-end ?', 'Oui, dimanche matin normalement.'],
+      ['J\'ai vu ton annonce, ça m\'intéresse !', 'Super, je t\'envoie les détails.'],
+      ['Bienvenue dans le quartier !', 'Merci beaucoup, ça fait plaisir :)'],
+      ['On se croise au parc parfois non ?', 'Ah oui je crois t\'avoir déjà vu !'],
+      ['Dispo pour un café cette semaine ?', 'Avec plaisir, jeudi ça te va ?'],
+    ];
+
+    let dmCount = 0;
+    for (let i = 0; i < seededUsers.length; i++) {
+      const a = seededUsers[i];
+      const b = seededUsers[(i + 1) % seededUsers.length];
+      const fr = await friendshipRepo.findOne({
+        where: [{ user1Id: a.id, user2Id: b.id }, { user1Id: b.id, user2Id: a.id }],
+      });
+      if (!fr?.groupId) continue;
+
+      const dmGroupKey = crypto.randomBytes(32);
+      await chatGroupRepo.update({ id: fr.groupId }, { encryptedGroupKey: encryptGroupKey(dmGroupKey) });
+
+      const [msg1, msg2] = dmTemplates[i % dmTemplates.length];
+      const baseMs = Date.now() - 600000;
+      await sendMessage(fr.groupId, dmGroupKey, a, msg1, baseMs);
+      await sendMessage(fr.groupId, dmGroupKey, b, msg2, baseMs + 180000);
+      dmCount++;
+    }
+
+    console.log(`${dmCount} DM threads seeded (${dmCount * 2} messages) — every user has at least one friend + conversation.`);
 
     // ==========================================
     // STEP 13: SEED USER MEDIA (AVATARS)
@@ -591,7 +899,7 @@ async function bootstrap() {
     const queueNames = [
       'neo4j-sync', 'email', 'pdf-generation', 'stripe-webhook',
       'waitlist-promote', 'rgpd-anonymise', 'crypto-rotation',
-      'event-register', 'contract-expiration',
+      'event-register', 'contract-expiration', 'call-timeout',
     ];
 
     for (const qName of queueNames) {

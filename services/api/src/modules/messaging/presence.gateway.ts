@@ -7,17 +7,16 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import { Server, Socket } from 'socket.io';
-import { JwtService } from '@nestjs/jwt';
+import { Inject, Injectable, Logger, UseGuards } from '@nestjs/common';
+import { Server } from 'socket.io';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import Redis from 'ioredis';
-
-interface AuthenticatedSocket extends Socket {
-  userId?: string;
-}
+import { WsAuthService } from '../auth/ws-auth.service';
+import type { AuthenticatedSocket } from '../auth/ws-auth.service';
+import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
 
 @Injectable()
+@UseGuards(WsJwtGuard)
 @WebSocketGateway({ cors: true })
 export class PresenceGateway
   implements OnGatewayConnection, OnGatewayDisconnect
@@ -28,24 +27,16 @@ export class PresenceGateway
   private readonly logger = new Logger(PresenceGateway.name);
 
   constructor(
-    private readonly jwtService: JwtService,
+    private readonly wsAuthService: WsAuthService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
   async handleConnection(client: AuthenticatedSocket) {
     try {
-      const token =
-        (client.handshake.auth as any)?.token ||
-        client.handshake.query?.token;
-      if (!token) {
-        client.disconnect();
-        return;
-      }
-      const payload = this.jwtService.verify(token as string);
-      client.userId = payload.sub;
+      const { userId } = this.wsAuthService.verify(client);
 
       // Update presence in Redis
-      const presenceKey = `presence:${payload.sub}`;
+      const presenceKey = `presence:${userId}`;
       await this.redis.set(
         presenceKey,
         JSON.stringify({
@@ -58,7 +49,7 @@ export class PresenceGateway
       );
 
       // Broadcast to all connected clients
-      this.server.emit('presence:online', { user_id: payload.sub });
+      this.server.emit('presence:online', { user_id: userId });
     } catch {
       client.disconnect();
     }
@@ -70,7 +61,9 @@ export class PresenceGateway
     // Check if user has other active connections
     const sockets = await this.server.fetchSockets();
     const hasOtherConnection = sockets.some(
-      (s) => (s as unknown as AuthenticatedSocket).userId === client.userId && s.id !== client.id,
+      (s) =>
+        (s as unknown as AuthenticatedSocket).userId === client.userId &&
+        s.id !== client.id,
     );
 
     if (!hasOtherConnection) {

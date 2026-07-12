@@ -34,7 +34,10 @@ export class ListingsService {
   async list(
     userId: string,
     dto: ListListingsDto,
-  ): Promise<{ data: Listing[]; total: number }> {
+  ): Promise<{
+    data: Listing[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
     const query = this.listingRepository
       .createQueryBuilder('listing')
       .where('listing.deletedAt IS NULL');
@@ -74,7 +77,9 @@ export class ListingsService {
     query.orderBy('listing.createdAt', 'DESC').skip(dto.offset).take(dto.limit);
 
     const [data, total] = await query.getManyAndCount();
-    return { data, total };
+    // { data, meta: { total, offset, limit } } — same pagination envelope
+    // used across the rest of the API (incidents, users social/discovery).
+    return { data, meta: { total, offset: dto.offset, limit: dto.limit } };
   }
 
   async create(creatorId: string, dto: CreateListingDto): Promise<Listing> {

@@ -50,6 +50,8 @@ import {
   ScanTicketDto,
   EventSwipeDto,
   ReportedEventsResponseDto,
+  ListEventsResponseDto,
+  ListEventModerationActionsResponseDto,
 } from './dto/event-routes.dtos';
 import { UserRoleEnum } from '../../common/enums';
 
@@ -96,7 +98,17 @@ export class EventsController {
   @ApiOperation({
     summary: 'Lister toutes les actions de modération (Modérateur/Admin)',
   })
-  async getAllModerationActions(@Query() query: ListEventsDto) {
+  @ApiOkResponse({
+    description: "Liste de l'historique global de modération retournée",
+    type: ListEventModerationActionsResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'Action réservée aux modérateurs et administrateurs',
+  })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
+  async getAllModerationActions(
+    @Query() query: ListEventsDto,
+  ): Promise<ListEventModerationActionsResponseDto> {
     return this.moderationService.getAllModerationActions(query);
   }
 
@@ -128,7 +140,18 @@ export class EventsController {
 
   @Get()
   @ApiOperation({ summary: 'Lister les évènements' })
-  async listEvents(@Query() query: ListEventsDto, @Req() req: any) {
+  @ApiOkResponse({
+    description: 'Liste paginée des évènements retournée avec succès',
+    type: ListEventsResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Paramètres de filtre ou de pagination invalides',
+  })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
+  async listEvents(
+    @Query() query: ListEventsDto,
+    @Req() req: any,
+  ): Promise<ListEventsResponseDto> {
     return this.eventsService.findAll(req.user.sub, query);
   }
 

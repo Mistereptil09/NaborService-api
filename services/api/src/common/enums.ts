@@ -100,3 +100,28 @@ export enum IncidentStatusEnum {
   IN_PROGRESS = 'in_progress',
   RESOLVED = 'resolved',
 }
+
+export enum CallTypeEnum {
+  AUDIO = 'audio',
+  VIDEO = 'video',
+}
+
+/**
+ * 'ringing'/'active' only ever exist in Redis (live call state) — the
+ * Postgres CallLog only ever gets written with a final status.
+ */
+export enum CallStatusEnum {
+  RINGING = 'ringing',
+  ACTIVE = 'active',
+  ENDED = 'ended',
+  MISSED = 'missed',
+  DECLINED = 'declined',
+}
+
+export enum CallParticipantStatusEnum {
+  INVITED = 'invited',
+  JOINED = 'joined',
+  DECLINED = 'declined',
+  LEFT = 'left',
+  MISSED = 'missed',
+}

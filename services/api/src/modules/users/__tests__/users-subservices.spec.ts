@@ -253,10 +253,13 @@ describe('Users Module Services Unit Tests', () => {
     let discoveryService: UserDiscoveryService;
     let mockUserRepo: jest.Mocked<Repository<User>>;
     let mockSwipeRepo: jest.Mocked<Repository<UserSwipe>>;
-    let mockBlockRepo: jest.Mocked<Repository<UserBlock>>;
+    let mockUserSocialService: jest.Mocked<
+      Pick<UserSocialService, 'getBlockedUserIds'>
+    >;
     let mockDataProcessingService: jest.Mocked<DataProcessingService>;
     let mockNeo4jService: jest.Mocked<Neo4jService>;
     let mockQueue: any;
+    let mockRedis: any;
 
     beforeEach(() => {
       mockUserRepo = {
@@ -272,9 +275,9 @@ describe('Users Module Services Unit Tests', () => {
         save: jest.fn(),
       } as unknown as jest.Mocked<Repository<UserSwipe>>;
 
-      mockBlockRepo = {
-        find: jest.fn(),
-      } as unknown as jest.Mocked<Repository<UserBlock>>;
+      mockUserSocialService = {
+        getBlockedUserIds: jest.fn().mockResolvedValue([]),
+      };
 
       mockDataProcessingService = {
         isOptedOut: jest.fn().mockResolvedValue(false),
@@ -288,18 +291,24 @@ describe('Users Module Services Unit Tests', () => {
         add: jest.fn(),
       };
 
+      mockRedis = {
+        get: jest.fn().mockResolvedValue(null),
+        set: jest.fn(),
+        del: jest.fn(),
+      };
+
       discoveryService = new UserDiscoveryService(
         mockUserRepo,
         mockSwipeRepo,
-        mockBlockRepo,
+        mockUserSocialService as unknown as UserSocialService,
         mockDataProcessingService,
         mockNeo4jService,
         mockQueue,
-        { get: jest.fn(), set: jest.fn() } as any,
+        mockRedis,
       );
     });
 
-    it('should swipe target user and publish job to Neo4j queue', async () => {
+    it('should swipe target user, publish job to Neo4j queue, and invalidate the feed cache', async () => {
       const mockUser = new User();
       mockUser.id = 'target-user';
       mockUserRepo.findOne.mockResolvedValue(mockUser);
@@ -316,6 +325,50 @@ describe('Users Module Services Unit Tests', () => {
         swipedId: 'target-user',
         direction: 'like',
       });
+      expect(mockRedis.del).toHaveBeenCalledWith('discover:user-1');
+    });
+
+    describe('getDiscoverFeed', () => {
+      it('computes and caches the full candidate list under one per-user key on a cache miss', async () => {
+        mockRedis.get.mockResolvedValue(null);
+        mockSwipeRepo.find.mockResolvedValue([]);
+        const candidate = new User();
+        candidate.id = 'candidate-1';
+        mockUserRepo.find.mockResolvedValue([candidate]);
+
+        const result = await discoveryService.getDiscoverFeed('user-1', {
+          offset: 0,
+          limit: 10,
+        } as any);
+
+        expect(result.data).toHaveLength(1);
+        expect(result.data[0].id).toBe('candidate-1');
+        expect(mockRedis.set).toHaveBeenCalledWith(
+          'discover:user-1',
+          expect.any(String),
+          'EX',
+          600,
+        );
+      });
+
+      it('slices the cached full list instead of recomputing on a cache hit', async () => {
+        mockRedis.get.mockResolvedValue(
+          JSON.stringify([
+            { id: 'a', score: 2 },
+            { id: 'b', score: 1 },
+          ]),
+        );
+
+        const result = await discoveryService.getDiscoverFeed('user-1', {
+          offset: 1,
+          limit: 10,
+        } as any);
+
+        expect(result.data).toEqual([{ id: 'b', score: 1 }]);
+        expect(result.meta.total).toBe(2);
+        expect(mockUserRepo.find).not.toHaveBeenCalled();
+        expect(mockRedis.set).not.toHaveBeenCalled();
+      });
     });
   });
 
@@ -330,6 +383,7 @@ describe('Users Module Services Unit Tests', () => {
     let mockBlockRepo: jest.Mocked<Repository<UserBlock>>;
     let mockReportRepo: jest.Mocked<Repository<UserReport>>;
     let mockQueue: any;
+    let mockRedis: any;
 
     beforeEach(() => {
       mockUserRepo = {
@@ -365,6 +419,10 @@ describe('Users Module Services Unit Tests', () => {
         add: jest.fn(),
       };
 
+      mockRedis = {
+        del: jest.fn(),
+      };
+
       socialService = new UserSocialService(
         mockUserRepo,
         mockFollowRepo,
@@ -382,6 +440,7 @@ describe('Users Module Services Unit Tests', () => {
         { create: jest.fn(), save: jest.fn() } as any, // usersInGroupRepo
         mockQueue,
         { create: jest.fn() } as any, // notificationsService
+        mockRedis,
       );
     });
 
@@ -429,6 +488,7 @@ describe('Users Module Services Unit Tests', () => {
         followerId: 'user-2',
         followedId: 'user-1',
       });
+      expect(mockRedis.del).toHaveBeenCalledWith('discover:user-1');
     });
 
     it('should report user successfully with reason', async () => {
@@ -440,6 +500,28 @@ describe('Users Module Services Unit Tests', () => {
       await socialService.report('user-1', 'user-2', 'Inappropriate content');
 
       expect(mockReportRepo.save).toHaveBeenCalled();
+    });
+
+    describe('isBlocked', () => {
+      it('returns true when either user has blocked the other, in either direction', async () => {
+        mockBlockRepo.findOne.mockResolvedValueOnce({} as any);
+        await expect(
+          socialService.isBlocked('user-1', 'user-2'),
+        ).resolves.toBe(true);
+        expect(mockBlockRepo.findOne).toHaveBeenCalledWith({
+          where: [
+            { blockerId: 'user-1', blockedId: 'user-2' },
+            { blockerId: 'user-2', blockedId: 'user-1' },
+          ],
+        });
+      });
+
+      it('returns false when no block relationship exists', async () => {
+        mockBlockRepo.findOne.mockResolvedValueOnce(null);
+        await expect(
+          socialService.isBlocked('user-1', 'user-2'),
+        ).resolves.toBe(false);
+      });
     });
   });
 });

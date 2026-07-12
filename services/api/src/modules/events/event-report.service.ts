@@ -56,13 +56,16 @@ export class EventReportService {
     // Fetch the actual events
     const eventIds = rawResults.map((r) => r.eventId);
     if (eventIds.length === 0) {
-      return { items: [], total: 0 };
+      return {
+        data: [],
+        meta: { total: 0, offset: query.offset, limit: query.limit },
+      };
     }
 
     const events = await this.eventRepo.findByIds(eventIds);
     const eventMap = new Map(events.map((e) => [e.id, e]));
 
-    const items = rawResults
+    const data = rawResults
       .map((r) => ({
         event: eventMap.get(r.eventId),
         reportCount: parseInt(r.reportCount, 10),
@@ -79,8 +82,12 @@ export class EventReportService {
       .getRawOne();
 
     return {
-      items,
-      total: parseInt(totalCountQuery.total, 10),
+      data,
+      meta: {
+        total: parseInt(totalCountQuery.total, 10),
+        offset: query.offset,
+        limit: query.limit,
+      },
     };
   }
 }

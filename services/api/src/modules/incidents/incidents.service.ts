@@ -49,7 +49,14 @@ export class IncidentsService {
       order: { createdAt: 'DESC' },
     });
 
-    return { data, total, offset: filters.offset ?? 0, limit: filters.limit ?? 20 };
+    // { data, meta: { total, offset, limit } } — same pagination envelope
+    // used across the rest of the API (UserSocialService, UserDiscoveryService).
+    // This previously returned a flat { data, total, offset, limit } shape,
+    // which broke frontend clients built against the shared Paginated<T> type.
+    return {
+      data,
+      meta: { total, offset: filters.offset ?? 0, limit: filters.limit ?? 20 },
+    };
   }
 
   // ── Detail ──────────────────────────────────────────────

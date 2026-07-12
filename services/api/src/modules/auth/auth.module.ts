@@ -11,11 +11,13 @@ import { UserSession } from '../../common/entities/user-session.entity';
 import { UserDataProcessing } from '../users/entities/user-data-processing.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
+import { WsJwtGuard } from './guards/ws-jwt.guard';
 import { RateLimitService } from './rate-limit.service';
 import { SessionService } from './session.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { TokenService } from './token.service';
 import { TotpService } from './totp.service';
+import { WsAuthService } from './ws-auth.service';
 
 import { SsoService } from './sso.service';
 import { UserSecurityService } from './user-security.service';
@@ -52,6 +54,8 @@ import { SsoGateway } from './sso.gateway';
     JwtStrategy,
     JwtAuthGuard,
     RateLimitGuard,
+    WsAuthService,
+    WsJwtGuard,
   ],
   exports: [
     AuthService,
@@ -60,6 +64,8 @@ import { SsoGateway } from './sso.gateway';
     RateLimitService,
     TotpService,
     JwtModule,
+    WsAuthService,
+    WsJwtGuard,
   ],
 })
 export class AuthModule {}

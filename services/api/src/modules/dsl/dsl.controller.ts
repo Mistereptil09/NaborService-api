@@ -17,13 +17,16 @@ import {
   ApiBadRequestResponse,
   ApiForbiddenResponse,
   ApiUnauthorizedResponse,
-  ApiQuery,
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { DslService } from './dsl.service';
+import {
+  ListDslAuditDto,
+  ListDslAuditResponseDto,
+} from './dto/list-dsl-audit.dto';
 
 @ApiTags('DSL')
 @Controller('dsl')
@@ -121,18 +124,15 @@ export class DslController {
       'Retourne la liste paginée des requêtes DSL exécutées, ' +
       'avec le filtre MongoDB généré, le statut et l\'utilisateur.',
   })
-  @ApiQuery({ name: 'offset', required: false })
-  @ApiQuery({ name: 'limit', required: false })
-  @ApiOkResponse({ description: 'Historique des requêtes DSL' })
+  @ApiOkResponse({
+    description: 'Historique paginé des requêtes DSL',
+    type: ListDslAuditResponseDto,
+  })
   @ApiForbiddenResponse({ description: 'Réservé aux administrateurs' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async getAudit(
-    @Query('offset') offset?: number,
-    @Query('limit') limit?: number,
-  ) {
-    return this.dslService.getAuditHistory(
-      offset ? Number(offset) : 0,
-      limit ? Number(limit) : 50,
-    );
+    @Query() query: ListDslAuditDto,
+  ): Promise<ListDslAuditResponseDto> {
+    return this.dslService.getAuditHistory(query.offset, query.limit);
   }
 }

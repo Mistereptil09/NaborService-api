@@ -32,6 +32,7 @@ const queues = [
   'crypto-rotation',
   'event-register',
   'contract-expiration',
+  'call-timeout',
 ];
 
 // queueProviders removed since BullModule.registerQueue automatically provides the getQueueToken() injection tokens
@@ -101,6 +102,10 @@ const queues = [
       },
       {
         name: 'contract-expiration',
+        defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } },
+      },
+      {
+        name: 'call-timeout',
         defaultJobOptions: { attempts: 3, backoff: { type: 'custom' } },
       },
     ),

@@ -11,11 +11,11 @@ import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import { User } from './entities/user.entity';
 import { UserSwipe } from '../social/entities/user-swipe.entity';
-import { UserBlock } from '../social/entities/user-block.entity';
 import { DataProcessingService } from './data-processing.service';
 import { Neo4jService } from '../../database/neo4j/neo4j.service';
 import { PaginationDto, SwipeDto } from './dto/user-routes.dtos';
 import { SwipeDirectionEnum, VisibilityEnum } from '../../common/enums';
+import { UserSocialService } from './user-social.service';
 
 @Injectable()
 export class UserDiscoveryService {
@@ -24,8 +24,7 @@ export class UserDiscoveryService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserSwipe)
     private readonly swipeRepository: Repository<UserSwipe>,
-    @InjectRepository(UserBlock)
-    private readonly blockRepository: Repository<UserBlock>,
+    private readonly userSocialService: UserSocialService,
     private readonly dataProcessingService: DataProcessingService,
     private readonly neo4jService: Neo4jService,
     @Inject('BullQueue_neo4j-sync')
@@ -35,17 +34,6 @@ export class UserDiscoveryService {
     @Inject(REDIS_CLIENT)
     private readonly redis: Redis,
   ) {}
-
-  private async getBlockedUserIds(userId: string): Promise<string[]> {
-    const blocks = await this.blockRepository.find({
-      where: [{ blockerId: userId }, { blockedId: userId }],
-    });
-    return Array.from(
-      new Set(
-        blocks.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId)),
-      ),
-    );
-  }
 
   async search(
     requesterId: string,
@@ -62,7 +50,8 @@ export class UserDiscoveryService {
       );
     }
 
-    const blockedIds = await this.getBlockedUserIds(requesterId);
+    const blockedIds =
+      await this.userSocialService.getBlockedUserIds(requesterId);
     const excludeIds = [...blockedIds, requesterId];
 
     const whereClause: any = {
@@ -127,13 +116,26 @@ export class UserDiscoveryService {
     data: any[];
     meta: { total: number; offset: number; limit: number };
   }> {
-    const cacheKey = `discover:${userId}:offset:${pagination.offset}:limit:${pagination.limit}`;
+    // Cached per-user (not per offset/limit) so a swipe/block can invalidate
+    // it with a single DEL instead of a pattern scan across every page.
+    const cacheKey = `discover:${userId}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) {
-      return JSON.parse(cached);
+      const fullList: any[] = JSON.parse(cached);
+      return {
+        data: fullList.slice(
+          pagination.offset,
+          pagination.offset + pagination.limit,
+        ),
+        meta: {
+          total: fullList.length,
+          offset: pagination.offset,
+          limit: pagination.limit,
+        },
+      };
     }
 
-    const blockedIds = await this.getBlockedUserIds(userId);
+    const blockedIds = await this.userSocialService.getBlockedUserIds(userId);
     const swiped = await this.swipeRepository.find({
       where: { swiperId: userId },
     });
@@ -237,13 +239,7 @@ export class UserDiscoveryService {
     // Sort by score descending
     candidatesWithScores.sort((a, b) => b.score - a.score);
 
-    const total = candidatesWithScores.length;
-    const paginated = candidatesWithScores.slice(
-      pagination.offset,
-      pagination.offset + pagination.limit,
-    );
-
-    const data = paginated.map((item) => ({
+    const fullList = candidatesWithScores.map((item) => ({
       id: item.user.id,
       firstName: item.user.firstName,
       lastName: item.user.lastName,
@@ -255,18 +251,19 @@ export class UserDiscoveryService {
       score: item.score,
     }));
 
-    const result = {
-      data,
+    await this.redis.set(cacheKey, JSON.stringify(fullList), 'EX', 600);
+
+    return {
+      data: fullList.slice(
+        pagination.offset,
+        pagination.offset + pagination.limit,
+      ),
       meta: {
-        total,
+        total: fullList.length,
         offset: pagination.offset,
         limit: pagination.limit,
       },
     };
-
-    await this.redis.set(cacheKey, JSON.stringify(result), 'EX', 600);
-
-    return result;
   }
 
   async swipe(userId: string, targetId: string, dto: SwipeDto): Promise<void> {
@@ -294,6 +291,10 @@ export class UserDiscoveryService {
       direction: dto.direction as SwipeDirectionEnum,
     });
     await this.swipeRepository.save(swipe);
+
+    // Invalidate the cached feed so a re-fetch doesn't keep serving this
+    // now-swiped user back (would otherwise 409 on a repeat swipe attempt).
+    await this.redis.del(`discover:${userId}`);
 
     // Publish sync job to Neo4j queue
     await this.neo4jSyncQueue.add('user.swipe', {
