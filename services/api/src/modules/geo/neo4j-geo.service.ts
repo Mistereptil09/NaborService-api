@@ -6,12 +6,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Neo4jService } from '../../database/neo4j/neo4j.service';
 import { NeighbourhoodService } from '../../database/neo4j/neighbourhood.service';
 import { User } from '../users/entities/user.entity';
 import { ChatService } from '../messaging/chat.service';
-import { GroupRoleEnum, UserRoleEnum } from '../../common/enums';
 import { neighbourhoodGroupRoleFor } from '../../common/group-role.util';
 import * as turf from '@turf/turf';
 
@@ -308,52 +307,33 @@ export class Neo4jGeoService {
       areaM2,
     );
 
-    // Brand-new neighbourhood has no residents yet — seed the auto-managed
-    // group with current staff only; residents join as they set their
-    // neighbourhoodId (see UsersService.updateProfile).
-    const staff = await this.userRepository.find({
-      where: {
-        role: In([UserRoleEnum.MODERATOR, UserRoleEnum.ADMIN]),
-        deletedAt: IsNull(),
-      },
-      select: ['id'],
-    });
+    // Brand-new neighbourhood has no residents yet — create the auto-managed
+    // group empty; residents (and the neighbourhood rep) join as they set
+    // their neighbourhoodId (see UsersService.updateProfile). Platform staff
+    // moderate via ChatAdminController, independent of group membership, so
+    // they're not force-joined here.
     await this.chatService.ensureNeighbourhoodGroup(
       metadata.pg_id,
       metadata.name,
-      staff.map((u) => ({ userId: u.id, role: GroupRoleEnum.ADMIN })),
+      [],
     );
 
     return result;
   }
 
-  /** (Re)crée le groupe de discussion du quartier et resynchronise tous ses membres (résidents + staff). Idempotent — sert de backfill/réparation. */
+  /** (Re)crée le groupe de discussion du quartier et resynchronise tous ses résidents. Idempotent — sert de backfill/réparation. */
   async syncNeighbourhoodChatGroup(pgId: string) {
     const nb = await this.neighbourhoodService.findByPgId(pgId);
     if (!nb) throw new NotFoundException('Neighbourhood not found');
 
-    const [residents, staff] = await Promise.all([
-      this.userRepository.find({
-        where: { neighbourhoodId: pgId, deletedAt: IsNull() },
-      }),
-      this.userRepository.find({
-        where: {
-          role: In([UserRoleEnum.MODERATOR, UserRoleEnum.ADMIN]),
-          deletedAt: IsNull(),
-        },
-      }),
-    ]);
+    const residents = await this.userRepository.find({
+      where: { neighbourhoodId: pgId, deletedAt: IsNull() },
+    });
 
-    const residentIds = new Set(residents.map((u) => u.id));
-    const members = [
-      ...residents.map((u) => ({
-        userId: u.id,
-        role: neighbourhoodGroupRoleFor(u.role),
-      })),
-      ...staff
-        .filter((u) => !residentIds.has(u.id))
-        .map((u) => ({ userId: u.id, role: GroupRoleEnum.ADMIN })),
-    ];
+    const members = residents.map((u) => ({
+      userId: u.id,
+      role: neighbourhoodGroupRoleFor(u.role),
+    }));
 
     return this.chatService.ensureNeighbourhoodGroup(pgId, nb.name, members);
   }

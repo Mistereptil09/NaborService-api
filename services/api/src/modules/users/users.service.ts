@@ -478,7 +478,6 @@ export class UsersService {
     if (oldRole !== role) {
       await this.chatService.resyncNeighbourhoodGroupMembershipForRoleChange(
         userId,
-        oldRole,
         role,
         user.neighbourhoodId,
       );

@@ -42,9 +42,7 @@ describe('Neo4jGeoService — neighbourhood chat group sync', () => {
   });
 
   describe('createNeighbourhood', () => {
-    it('should seed the auto-managed group with staff only (no residents yet)', async () => {
-      userRepository.find.mockResolvedValue([{ id: 'mod1' }, { id: 'admin1' }]);
-
+    it('should create the auto-managed group empty (no residents yet, staff not force-joined)', async () => {
       await service.createNeighbourhood(validPolygon, {
         pg_id: 'nb-test',
         name: 'Test District',
@@ -53,18 +51,11 @@ describe('Neo4jGeoService — neighbourhood chat group sync', () => {
         country: 'France',
       });
 
-      expect(userRepository.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({ role: expect.anything() }),
-        }),
-      );
+      expect(userRepository.find).not.toHaveBeenCalled();
       expect(chatService.ensureNeighbourhoodGroup).toHaveBeenCalledWith(
         'nb-test',
         'Test District',
-        [
-          { userId: 'mod1', role: GroupRoleEnum.ADMIN },
-          { userId: 'admin1', role: GroupRoleEnum.ADMIN },
-        ],
+        [],
       );
     });
   });
@@ -77,31 +68,26 @@ describe('Neo4jGeoService — neighbourhood chat group sync', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should combine residents (role-mapped) and staff (not already a resident) into the member list', async () => {
+    it('should map only residents by role (reps as ADMIN, others per neighbourhoodGroupRoleFor); staff not force-joined', async () => {
       neighbourhoodService.findByPgId.mockResolvedValue({
         name: 'Downtown',
       } as any);
-      userRepository.find
-        .mockResolvedValueOnce([
-          { id: 'res1', role: UserRoleEnum.RESIDENT },
-          { id: 'rep1', role: UserRoleEnum.NEIGHBOURHOOD_REP },
-          { id: 'mod-resident', role: UserRoleEnum.MODERATOR }, // staff who also resides here
-        ])
-        .mockResolvedValueOnce([
-          { id: 'mod-resident', role: UserRoleEnum.MODERATOR },
-          { id: 'admin-elsewhere', role: UserRoleEnum.ADMIN },
-        ]);
+      userRepository.find.mockResolvedValueOnce([
+        { id: 'res1', role: UserRoleEnum.RESIDENT },
+        { id: 'rep1', role: UserRoleEnum.NEIGHBOURHOOD_REP },
+        { id: 'mod-resident', role: UserRoleEnum.MODERATOR }, // staff who also resides here
+      ]);
 
       await service.syncNeighbourhoodChatGroup('nb1');
 
+      expect(userRepository.find).toHaveBeenCalledTimes(1);
       expect(chatService.ensureNeighbourhoodGroup).toHaveBeenCalledWith(
         'nb1',
         'Downtown',
         [
           { userId: 'res1', role: GroupRoleEnum.WATCH },
-          { userId: 'rep1', role: GroupRoleEnum.MESSAGE },
+          { userId: 'rep1', role: GroupRoleEnum.ADMIN },
           { userId: 'mod-resident', role: GroupRoleEnum.ADMIN },
-          { userId: 'admin-elsewhere', role: GroupRoleEnum.ADMIN },
         ],
       );
     });

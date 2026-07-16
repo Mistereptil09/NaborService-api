@@ -800,65 +800,47 @@ describe('ChatService', () => {
   });
 
   describe('resyncNeighbourhoodGroupMembershipForRoleChange', () => {
-    it('promote to staff: grants ADMIN in every neighbourhood group', async () => {
-      groupRepo.find.mockResolvedValue([
+    it('no current neighbourhood: no-op', async () => {
+      await service.resyncNeighbourhoodGroupMembershipForRoleChange(
+        'u1',
+        'moderator' as any,
+        null,
+      );
+
+      expect(groupRepo.findOne).not.toHaveBeenCalled();
+      expect(uigRepo.save).not.toHaveBeenCalled();
+    });
+
+    it("neighbourhood has no auto-managed group yet (not backfilled): no-op", async () => {
+      groupRepo.findOne.mockResolvedValue(null);
+
+      await service.resyncNeighbourhoodGroupMembershipForRoleChange(
+        'u1',
+        'moderator' as any,
+        'nb1',
+      );
+
+      expect(uigRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('promoted to moderator/admin: becomes ADMIN in their own neighbourhood group', async () => {
+      groupRepo.findOne.mockResolvedValue(
         makeNeighbourhoodGroup({ id: 'g1', neighbourhoodId: 'nb1' }),
-        makeNeighbourhoodGroup({ id: 'g2', neighbourhoodId: 'nb2' }),
-      ]);
+      );
       uigRepo.findOne.mockResolvedValue(null);
 
       await service.resyncNeighbourhoodGroupMembershipForRoleChange(
         'u1',
-        'resident' as any,
         'moderator' as any,
         'nb1',
-      );
-
-      expect(uigRepo.save).toHaveBeenCalledTimes(2);
-      for (const call of uigRepo.save.mock.calls) {
-        expect(call[0].roleInGroup).toBe(GroupRoleEnum.ADMIN);
-      }
-    });
-
-    it('demote from staff, own neighbourhood: falls back to the resident/rep role there, revoked elsewhere', async () => {
-      groupRepo.find.mockResolvedValue([
-        makeNeighbourhoodGroup({ id: 'g1', neighbourhoodId: 'nb1' }),
-        makeNeighbourhoodGroup({ id: 'g2', neighbourhoodId: 'nb2' }),
-      ]);
-      uigRepo.findOne.mockResolvedValue(makeMembership({ userId: 'u1' }));
-
-      await service.resyncNeighbourhoodGroupMembershipForRoleChange(
-        'u1',
-        'admin' as any,
-        'resident' as any,
-        'nb1',
-      );
-
-      expect(uigRepo.save).toHaveBeenCalledTimes(2);
-      // One save should carry the WATCH role (own neighbourhood, nb1); the other the leftAt revoke (nb2).
-      const roles = uigRepo.save.mock.calls.map((c: any) => c[0].roleInGroup);
-      expect(roles).toContain(GroupRoleEnum.WATCH);
-    });
-
-    it('demote from staff, no residency at all: revoked from every neighbourhood group', async () => {
-      groupRepo.find.mockResolvedValue([
-        makeNeighbourhoodGroup({ id: 'g1', neighbourhoodId: 'nb1' }),
-      ]);
-      uigRepo.findOne.mockResolvedValue(makeMembership({ userId: 'u1' }));
-
-      await service.resyncNeighbourhoodGroupMembershipForRoleChange(
-        'u1',
-        'moderator' as any,
-        'resident' as any,
-        null,
       );
 
       expect(uigRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ leftAt: expect.any(Date) }),
+        expect.objectContaining({ roleInGroup: GroupRoleEnum.ADMIN }),
       );
     });
 
-    it('resident<->rep transition (same staff-tier): only updates their own neighbourhood group', async () => {
+    it('promoted to neighbourhood_rep: becomes ADMIN in their own neighbourhood group', async () => {
       groupRepo.findOne.mockResolvedValue(
         makeNeighbourhoodGroup({ id: 'g1', neighbourhoodId: 'nb1' }),
       );
@@ -868,27 +850,32 @@ describe('ChatService', () => {
 
       await service.resyncNeighbourhoodGroupMembershipForRoleChange(
         'u1',
-        'resident' as any,
         'neighbourhood_rep' as any,
         'nb1',
       );
 
-      expect(groupRepo.find).not.toHaveBeenCalled();
       expect(uigRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ roleInGroup: GroupRoleEnum.MESSAGE }),
+        expect.objectContaining({ roleInGroup: GroupRoleEnum.ADMIN }),
       );
     });
 
-    it('staff<->staff transition (moderator to admin): no-op', async () => {
-      await service.resyncNeighbourhoodGroupMembershipForRoleChange(
-        'u1',
-        'moderator' as any,
-        'admin' as any,
-        null,
+    it('demoted to resident: becomes WATCH in their own neighbourhood group', async () => {
+      groupRepo.findOne.mockResolvedValue(
+        makeNeighbourhoodGroup({ id: 'g1', neighbourhoodId: 'nb1' }),
+      );
+      uigRepo.findOne.mockResolvedValue(
+        makeMembership({ userId: 'u1', roleInGroup: GroupRoleEnum.ADMIN }),
       );
 
-      expect(groupRepo.find).not.toHaveBeenCalled();
-      expect(uigRepo.save).not.toHaveBeenCalled();
+      await service.resyncNeighbourhoodGroupMembershipForRoleChange(
+        'u1',
+        'resident' as any,
+        'nb1',
+      );
+
+      expect(uigRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ roleInGroup: GroupRoleEnum.WATCH }),
+      );
     });
   });
 });
