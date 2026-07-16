@@ -22,7 +22,6 @@ import { EventStateMachineService } from './modules/events/event-state-machine.s
 import { EventReportService } from './modules/events/event-report.service';
 import { Neo4jGeoService } from './modules/geo/neo4j-geo.service';
 import { Neo4jService } from './database/neo4j/neo4j.service';
-import { Neo4jSyncService } from './database/neo4j/neo4j-sync.service';
 
 // Enums
 import {
@@ -80,7 +79,6 @@ async function bootstrap() {
   try {
     const dataSource = app.get(DataSource);
     const neo4jService = app.get(Neo4jService);
-    const neo4jSyncService = app.get(Neo4jSyncService);
 
     // ==========================================
     // STEP 1: CLEANING DATABASES
@@ -190,14 +188,11 @@ async function bootstrap() {
 
       const dbUser = await userRepo.findOneOrFail({ where: { email: u.email } });
       await usersService.updateProfile(dbUser.id, { neighbourhoodId: u.nbId });
-      dbUser.role = u.role;
-      await userRepo.save(dbUser);
-      await neo4jSyncService.upsertUser({
-        pgId: dbUser.id, role: dbUser.role, visibility: dbUser.visibility, neighbourhoodId: u.nbId,
-      });
+      await usersService.updateRole(dbUser.id, u.role);
+      const seededUser = await userRepo.findOneOrFail({ where: { email: u.email } });
 
-      seededUsers.push(dbUser);
-      console.log(`  ${dbUser.firstName} (${u.role}) → ${u.nbId}`);
+      seededUsers.push(seededUser);
+      console.log(`  ${seededUser.firstName} (${u.role}) → ${u.nbId}`);
     }
 
     const [

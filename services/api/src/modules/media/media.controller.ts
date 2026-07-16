@@ -29,7 +29,7 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Response } from 'express';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -37,6 +37,9 @@ import { MediaService } from './services/media.service';
 import { GridFSService } from './services/gridfs.service';
 import { Listing } from '../listings/entities/listing.entity';
 import { User } from '../users/entities/user.entity';
+import { MessageMetadata } from '../messaging/entities/message-metadata.entity';
+import { UsersInGroup } from '../messaging/entities/users-in-group.entity';
+import { GroupRoleEnum } from '../../common/enums';
 import { ReorderPhotosDto } from './dto/reorder-photos.dto';
 import { UpdateCaptionDto } from './dto/update-caption.dto';
 
@@ -56,7 +59,19 @@ export class MediaController {
     private readonly listingRepository: Repository<Listing>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(MessageMetadata)
+    private readonly messageMetadataRepository: Repository<MessageMetadata>,
+    @InjectRepository(UsersInGroup)
+    private readonly usersInGroupRepository: Repository<UsersInGroup>,
   ) {}
+
+  /** Vérifie que `userId` est membre actif du groupe du message. */
+  private async isMessageGroupMember(groupId: string, userId: string): Promise<boolean> {
+    const membership = await this.usersInGroupRepository.findOne({
+      where: { groupId, userId, leftAt: IsNull(), kickedAt: IsNull() },
+    });
+    return membership !== null;
+  }
 
   // --- Streaming Endpoint ---
 
@@ -319,11 +334,21 @@ export class MediaController {
     description:
       'Fichier invalide, trop volumineux (max 5MB pour images, 50MB autres), format non supporté ou limite atteinte (max 3)',
   })
+  @ApiForbiddenResponse({ description: 'Non membre du groupe de ce message' })
+  @ApiNotFoundResponse({ description: 'Message introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async uploadMessageAttachment(
+    @Req() req: { user: JwtPayload },
     @Param('messageId') messageId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
+    const message = await this.messageMetadataRepository.findOne({ where: { id: messageId } });
+    if (!message) {
+      throw new NotFoundException('Message introuvable');
+    }
+    if (!(await this.isMessageGroupMember(message.groupId, req.user.sub))) {
+      throw new ForbiddenException('Action non autorisée');
+    }
     return this.mediaService.upload(file, 'message_attachment', messageId);
   }
 
@@ -384,6 +409,21 @@ export class MediaController {
         req.user.role !== 'moderator'
       ) {
         throw new ForbiddenException('Action non autorisée');
+      }
+    } else if (doc.owner_type === 'message_attachment') {
+      const message = await this.messageMetadataRepository.findOne({
+        where: { id: doc.owner_id },
+      });
+      if (!message) {
+        throw new NotFoundException('Message introuvable');
+      }
+      if (message.senderId !== req.user.sub) {
+        const membership = await this.usersInGroupRepository.findOne({
+          where: { groupId: message.groupId, userId: req.user.sub, leftAt: IsNull(), kickedAt: IsNull() },
+        });
+        if (!membership || membership.roleInGroup !== GroupRoleEnum.ADMIN) {
+          throw new ForbiddenException('Action non autorisée');
+        }
       }
     }
 

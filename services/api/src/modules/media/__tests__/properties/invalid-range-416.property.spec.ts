@@ -24,6 +24,8 @@ describe('Feature: gridfs-media-storage, Property 18: Invalid Range Returns 416'
       mockGridFSService,
       mockListingRepo,
       mockUserRepo,
+      {} as any,
+      {} as any,
     );
   });
 

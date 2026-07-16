@@ -59,6 +59,11 @@ describe('Polls Domain — TypeORM Metadata', () => {
       expect(neighbourhoodId!.type).toBe('text');
       expect(neighbourhoodId!.isNullable).toBe(true);
 
+      const groupId = findCol('group_id');
+      expect(groupId).toBeDefined();
+      expect(groupId!.type).toBe('uuid');
+      expect(groupId!.isNullable).toBe(true);
+
       const pollType = findCol('poll_type');
       expect(pollType).toBeDefined();
       expect(pollType!.type).toBe('enum');
@@ -81,6 +86,12 @@ describe('Polls Domain — TypeORM Metadata', () => {
       expect(isAnonymous!.type).toBe('boolean');
       expect(isAnonymous!.isNullable).toBe(false);
       expect(isAnonymous!.default).toBe(false);
+
+      const isWeighted = findCol('is_weighted');
+      expect(isWeighted).toBeDefined();
+      expect(isWeighted!.type).toBe('boolean');
+      expect(isWeighted!.isNullable).toBe(false);
+      expect(isWeighted!.default).toBe(false);
 
       const closedAt = findCol('closed_at');
       expect(closedAt).toBeDefined();
@@ -151,6 +162,14 @@ describe('Polls Domain — TypeORM Metadata', () => {
       expect(colNames).toContain('creator_id');
     });
 
+    it('should define index idx_polls_group on group_id', () => {
+      const metadata = dataSource.getMetadata(Poll);
+      const idx = metadata.indices.find((i) => i.name === 'idx_polls_group');
+      expect(idx).toBeDefined();
+      const colNames = idx!.columns.map((c) => c.databaseName);
+      expect(colNames).toContain('group_id');
+    });
+
     it('should have two ManyToOne relations to User (creator and closedBy)', () => {
       const metadata = dataSource.getMetadata(Poll);
       const userRelations = metadata.relations.filter(
@@ -200,6 +219,11 @@ describe('Polls Domain — TypeORM Metadata', () => {
       expect(label!.type).toBe('varchar');
       expect(label!.isNullable).toBe(false);
 
+      const weight = findCol('weight');
+      expect(weight).toBeDefined();
+      expect(weight!.type).toBe('numeric');
+      expect(weight!.isNullable).toBe(false);
+
       const createdAt = findCol('created_at');
       expect(createdAt).toBeDefined();
       expect(createdAt!.type).toBe('timestamptz');
@@ -247,7 +271,7 @@ describe('Polls Domain — TypeORM Metadata', () => {
 
       const weight = findCol('weight');
       expect(weight).toBeDefined();
-      expect(weight!.type).toBe('integer');
+      expect(weight!.type).toBe('numeric');
       expect(weight!.isNullable).toBe(false);
       expect(weight!.default).toBe(1);
 
@@ -267,7 +291,7 @@ describe('Polls Domain — TypeORM Metadata', () => {
       const checks = metadata.checks;
       const chk = checks.find((c) => c.name === 'chk_vote_weight');
       expect(chk).toBeDefined();
-      expect(chk!.expression).toContain('"weight" >= 1');
+      expect(chk!.expression).toContain('"weight" >= 0');
     });
 
     it('should have ManyToOne relations to User and PollOption', () => {

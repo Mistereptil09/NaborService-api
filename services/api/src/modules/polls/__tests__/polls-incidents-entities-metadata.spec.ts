@@ -155,14 +155,14 @@ describe('Polls & Incidents Entities — TypeORM Metadata', () => {
       const metadata = dataSource.getMetadata(Vote);
       const chk = metadata.checks.find((c) => c.name === 'chk_vote_weight');
       expect(chk).toBeDefined();
-      expect(chk!.expression).toBe('"weight" >= 1');
+      expect(chk!.expression).toBe('"weight" >= 0');
     });
 
-    it('should define weight as integer with default 1', () => {
+    it('should define weight as numeric with default 1 (copied from the option, never voter-supplied)', () => {
       const metadata = dataSource.getMetadata(Vote);
       const col = metadata.columns.find((c) => c.databaseName === 'weight');
       expect(col).toBeDefined();
-      expect(col!.type).toBe('integer');
+      expect(col!.type).toBe('numeric');
       expect(col!.default).toBe(1);
     });
 

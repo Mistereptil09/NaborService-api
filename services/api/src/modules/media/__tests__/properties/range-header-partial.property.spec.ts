@@ -26,6 +26,8 @@ describe('Feature: gridfs-media-storage, Property 7: Range Header Partial Conten
       mockGridFSService,
       mockListingRepo,
       mockUserRepo,
+      {} as any,
+      {} as any,
     );
   });
 

@@ -11,16 +11,19 @@ import {
   Inject,
   Injectable,
   Logger,
+  UseFilters,
   UseGuards,
 } from '@nestjs/common';
 import { Server } from 'socket.io';
 import { WsAuthService } from '../auth/ws-auth.service';
 import type { AuthenticatedSocket } from '../auth/ws-auth.service';
 import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
+import { WsHttpExceptionFilter } from '../auth/filters/ws-exception.filter';
 import { NotificationsService } from './notifications.service';
 
 @Injectable()
 @UseGuards(WsJwtGuard)
+@UseFilters(WsHttpExceptionFilter)
 @WebSocketGateway({ cors: true, namespace: 'notifications' })
 export class NotificationsGateway implements OnGatewayConnection {
   @WebSocketServer()

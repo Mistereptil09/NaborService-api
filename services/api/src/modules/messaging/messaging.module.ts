@@ -9,6 +9,8 @@ import {
   Message,
   MessageSchema,
 } from '../../database/mongo-schemas/schemas/message.schema';
+import { MediaFile, MediaFileSchema } from '../media/schemas/media-file.schema';
+import { MediaModule } from '../media/media.module';
 import { AuthModule } from '../auth/auth.module';
 import { ChatService } from './chat.service';
 import { ChatMessageService } from './chat-message.service';
@@ -32,8 +34,12 @@ import { NotificationsController } from './notifications.controller';
       Notification,
       User,
     ]),
-    MongooseModule.forFeature([{ name: Message.name, schema: MessageSchema }]),
+    MongooseModule.forFeature([
+      { name: Message.name, schema: MessageSchema },
+      { name: MediaFile.name, schema: MediaFileSchema },
+    ]),
     AuthModule,
+    MediaModule,
   ],
   controllers: [ChatController, ChatAdminController, NotificationsController],
   providers: [

@@ -1,18 +1,22 @@
 import {
-  Body, Controller, Delete, Get, HttpCode, HttpStatus,
+  Body, Controller, Delete, ForbiddenException, Get, HttpCode, HttpStatus,
   Param, Patch, Post, Put, Query, Req, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtPayload } from '../auth/interfaces/auth.interfaces';
+import { GroupRoleEnum } from '../../common/enums';
+import { ChatService } from '../messaging/chat.service';
+import { ChatMessageService } from '../messaging/chat-message.service';
+import { ChatGateway } from '../messaging/chat.gateway';
 import { PollsService } from './polls.service';
 import { PollsGateway } from './polls.gateway';
 import { CreatePollDto } from './dto/create-poll.dto';
 import { UpdatePollDto } from './dto/update-poll.dto';
 import { AddOptionDto } from './dto/add-option.dto';
 import { VoteDto } from './dto/vote.dto';
+
+const GLOBAL_POLL_CREATOR_ROLES = ['neighbourhood_rep', 'moderator', 'admin'];
 
 @ApiTags('Polls')
 @Controller('polls')
@@ -22,23 +26,52 @@ export class PollsController {
   constructor(
     private readonly pollsService: PollsService,
     private readonly pollsGateway: PollsGateway,
+    private readonly chatService: ChatService,
+    private readonly chatMessageService: ChatMessageService,
+    private readonly chatGateway: ChatGateway,
   ) {}
 
   // ── Polls ───────────────────────────────────────────────
 
   @Get()
-  @ApiOperation({ summary: 'Sondages actifs du quartier' })
+  @ApiOperation({ summary: 'Sondages d\'un quartier ou d\'un groupe (clôturés inclus, supprimés exclus)' })
   @ApiQuery({ name: 'neighbourhood_id', required: false })
-  async getPolls(@Query('neighbourhood_id') nbId?: string) {
-    return this.pollsService.getActivePolls(nbId);
+  @ApiQuery({ name: 'group_id', required: false })
+  async getPolls(
+    @Query('neighbourhood_id') nbId?: string,
+    @Query('group_id') groupId?: string,
+  ) {
+    return this.pollsService.listPolls(nbId, groupId);
   }
 
   @Post()
-  @Roles('neighbourhood_rep', 'moderator', 'admin')
-  @UseGuards(RolesGuard)
-  @ApiOperation({ summary: 'Créer un sondage (rôle ≥ neighbourhood_rep)' })
+  @ApiOperation({
+    summary:
+      'Créer un sondage — rôle plateforme ≥ neighbourhood_rep (sondage de quartier), ' +
+      'ou rôle groupe actions/admin quand group_id est fourni (sondage de conversation)',
+  })
   async createPoll(@Req() req: { user: JwtPayload }, @Body() dto: CreatePollDto) {
-    return this.pollsService.createPoll(req.user.sub, dto);
+    if (dto.group_id) {
+      await this.chatService.assertGroupRole(dto.group_id, req.user.sub, [
+        GroupRoleEnum.ACTIONS,
+        GroupRoleEnum.ADMIN,
+      ]);
+    } else if (!GLOBAL_POLL_CREATOR_ROLES.includes(req.user.role)) {
+      throw new ForbiddenException('Action réservée aux modérateurs');
+    }
+
+    const poll = await this.pollsService.createPoll(req.user.sub, dto);
+
+    if (dto.group_id) {
+      const message = await this.chatMessageService.sendMessage(
+        dto.group_id,
+        req.user.sub,
+        { content: poll.title, type: 'poll', poll_id: poll.id },
+      );
+      this.chatGateway.emitToGroup(dto.group_id, 'message:received', message);
+    }
+
+    return poll;
   }
 
   @Get(':poll_id')
@@ -82,8 +115,8 @@ export class PollsController {
     @Req() req: { user: JwtPayload },
     @Body() dto: AddOptionDto,
   ) {
-    const option = await this.pollsService.addOption(pollId, req.user.sub, dto.label);
-    this.pollsGateway.emitOptionAdded(pollId, { id: option.id, label: option.label });
+    const option = await this.pollsService.addOption(pollId, req.user.sub, dto.label, req.user.role, dto.weight);
+    this.pollsGateway.emitOptionAdded(pollId, { id: option.id, label: option.label, weight: option.weight });
     return option;
   }
 
@@ -95,7 +128,7 @@ export class PollsController {
     @Param('option_id') optionId: string,
     @Req() req: { user: JwtPayload },
   ) {
-    return this.pollsService.deleteOption(pollId, optionId, req.user.sub);
+    return this.pollsService.deleteOption(pollId, optionId, req.user.sub, req.user.role);
   }
 
   // ── Vote ────────────────────────────────────────────────
@@ -113,7 +146,7 @@ export class PollsController {
     @Req() req: { user: JwtPayload },
     @Body() dto: VoteDto,
   ) {
-    const result = await this.pollsService.vote(pollId, req.user.sub, dto.option_id, dto.weight);
+    const result = await this.pollsService.vote(pollId, req.user.sub, dto.option_id);
     const poll = await this.pollsService.getPoll(pollId);
     this.pollsGateway.emitPollUpdated(pollId, (poll as any).results);
     return result;
@@ -126,7 +159,7 @@ export class PollsController {
     @Req() req: { user: JwtPayload },
     @Body() dto: VoteDto,
   ) {
-    const result = await this.pollsService.updateVote(pollId, req.user.sub, dto.option_id, dto.weight);
+    const result = await this.pollsService.updateVote(pollId, req.user.sub, dto.option_id);
     const poll = await this.pollsService.getPoll(pollId);
     this.pollsGateway.emitPollUpdated(pollId, (poll as any).results);
     return result;

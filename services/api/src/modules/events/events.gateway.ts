@@ -10,7 +10,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { Inject, UseGuards } from '@nestjs/common';
+import { Inject, UseFilters, UseGuards } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -19,8 +19,10 @@ import { User } from '../users/entities/user.entity';
 import { WsAuthService } from '../auth/ws-auth.service';
 import type { AuthenticatedSocket } from '../auth/ws-auth.service';
 import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
+import { WsHttpExceptionFilter } from '../auth/filters/ws-exception.filter';
 
 @UseGuards(WsJwtGuard)
+@UseFilters(WsHttpExceptionFilter)
 @WebSocketGateway({ cors: true })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()

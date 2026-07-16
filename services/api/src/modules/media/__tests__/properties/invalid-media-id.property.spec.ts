@@ -20,6 +20,8 @@ describe('Feature: gridfs-media-storage, Property 8: Invalid Media ID Validation
       mockGridFSService,
       mockListingRepo,
       mockUserRepo,
+      {} as any,
+      {} as any,
     );
   });
 

@@ -43,7 +43,8 @@ interface CallMeta {
   startedAt: string;
 }
 
-export interface IceServers {
+/** Un RTCIceServer tel qu'attendu par le client (config RTCPeerConnection). */
+export interface IceServer {
   urls: string[];
   username?: string;
   credential?: string;
@@ -53,9 +54,11 @@ const LIVE_CALL_TTL_SECONDS = 6 * 60 * 60; // abandoned-call safety net
 const RINGING_TIMEOUT_MS = 45 * 1000;
 const TURN_CREDENTIAL_TTL_SECONDS = 23 * 60 * 60; // just under Cloudflare's 24h lifetime
 const TURN_CACHE_KEY = 'turn:credentials';
-const FALLBACK_ICE_SERVERS: IceServers = {
-  urls: ['stun:stun.l.google.com:19302'],
-};
+// Repli STUN-only quand Cloudflare TURN n'est pas configuré. Note : ne permet
+// PAS de traverser un NAT symétrique — un vrai serveur TURN reste nécessaire en prod.
+const FALLBACK_ICE_SERVERS: IceServer[] = [
+  { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] },
+];
 
 const RESOLVED_STATUSES = new Set([
   CallStatusEnum.ENDED,
@@ -135,7 +138,7 @@ export class CallsService {
 
   // ── ICE / TURN (Cloudflare Calls) ───────────────────────
 
-  async getIceServers(): Promise<IceServers> {
+  async getIceServers(): Promise<IceServer[]> {
     const cached = await this.redis.get(TURN_CACHE_KEY);
     if (cached) return JSON.parse(cached);
 
@@ -151,8 +154,11 @@ export class CallsService {
     }
 
     try {
+      // https://developers.cloudflare.com/realtime/turn/generate-credentials/
+      // POST .../credentials/generate-ice-servers → { iceServers: RTCIceServer[] }
+      // (une entrée STUN + une entrée TURN avec username/credential éphémères).
       const response = await this.httpRetryService.fetchWithRetry(
-        `https://rtc.live.cloudflare.com/v1/turn/keys/${keyId}/credentials/generate`,
+        `https://rtc.live.cloudflare.com/v1/turn/keys/${keyId}/credentials/generate-ice-servers`,
         {
           method: 'POST',
           headers: {
@@ -162,7 +168,7 @@ export class CallsService {
           body: JSON.stringify({ ttl: TURN_CREDENTIAL_TTL_SECONDS }),
         },
       );
-      const body = (await response.json()) as { iceServers: IceServers };
+      const body = (await response.json()) as { iceServers: IceServer[] };
       const iceServers = body.iceServers;
 
       await this.redis.set(

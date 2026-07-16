@@ -63,8 +63,12 @@ export class NeighbourhoodAdminController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Lister tous les quartiers (admin, GeoJSON complet)' })
-  @ApiOkResponse({ description: 'Liste complète des quartiers avec géométries' })
+  @ApiOperation({
+    summary: 'Lister tous les quartiers (admin, GeoJSON complet)',
+  })
+  @ApiOkResponse({
+    description: 'Liste complète des quartiers avec géométries',
+  })
   async listNeighbourhoods() {
     return this.neo4jGeoService.listNeighbourhoodPolygons();
   }
@@ -74,7 +78,8 @@ export class NeighbourhoodAdminController {
   @Post('overlap-check')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Vérifier les superpositions et adjacences pour une géométrie candidate',
+    summary:
+      'Vérifier les superpositions et adjacences pour une géométrie candidate',
   })
   @ApiOkResponse({ description: 'Résultat de la vérification' })
   @ApiBadRequestResponse({ description: 'Géométrie invalide' })
@@ -87,7 +92,9 @@ export class NeighbourhoodAdminController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Créer un quartier' })
-  @ApiCreatedResponse({ description: 'Quartier créé avec centroïde et adjacences calculés' })
+  @ApiCreatedResponse({
+    description: 'Quartier créé avec centroïde et adjacences calculés',
+  })
   @ApiBadRequestResponse({ description: 'Données ou géométrie invalides' })
   async createNeighbourhood(@Body() dto: CreateNeighbourhoodDto) {
     return this.neo4jGeoService.createNeighbourhood(dto.geometry, {
@@ -118,6 +125,22 @@ export class NeighbourhoodAdminController {
     return this.neo4jGeoService.updateNeighbourhood(pgId, dto);
   }
 
+  // ── Chat group sync (backfill / repair) ─────────────────
+
+  @Post(':neighbourhood_id/sync-chat-group')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Créer/réparer le groupe de discussion auto-géré du quartier (idempotent)',
+    description:
+      'Recrée le groupe si absent et resynchronise tous ses membres (résidents en lecture seule, staff en admin). Sert de backfill pour les quartiers créés avant cette fonctionnalité.',
+  })
+  @ApiOkResponse({ description: 'Groupe de discussion synchronisé' })
+  @ApiNotFoundResponse({ description: 'Quartier introuvable' })
+  async syncChatGroup(@Param('neighbourhood_id') pgId: string) {
+    return this.neo4jGeoService.syncNeighbourhoodChatGroup(pgId);
+  }
+
   // ── Delete ───────────────────────────────────────────────
 
   @Delete(':neighbourhood_id')
@@ -127,7 +150,9 @@ export class NeighbourhoodAdminController {
     description: '⚠️ Bloqué si des utilisateurs y résident (LIVES_IN Neo4j)',
   })
   @ApiOkResponse({ description: 'Quartier supprimé' })
-  @ApiConflictResponse({ description: 'Impossible : des résidents existent dans ce quartier' })
+  @ApiConflictResponse({
+    description: 'Impossible : des résidents existent dans ce quartier',
+  })
   @ApiNotFoundResponse({ description: 'Quartier introuvable' })
   async deleteNeighbourhood(@Param('neighbourhood_id') pgId: string) {
     await this.neo4jGeoService.deleteNeighbourhood(pgId);

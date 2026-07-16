@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { InjectModel } from '@nestjs/mongoose';
-import { Repository } from 'typeorm';
+import { In, MoreThan, Repository } from 'typeorm';
 import { Model } from 'mongoose';
 import * as crypto from 'crypto';
 import { REDIS_CLIENT } from '../../database/redis.module';
@@ -19,8 +19,34 @@ import {
   Message,
   MessageDocument,
 } from '../../database/mongo-schemas/schemas/message.schema';
+import { MediaFile, MediaFileDocument } from '../media/schemas/media-file.schema';
+import { MediaService } from '../media/services/media.service';
+import { User } from '../users/entities/user.entity';
+import { ChatGroupTypeEnum, GroupRoleEnum } from '../../common/enums';
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/send-message.dto';
+
+export interface AttachmentDto {
+  media_id: string;
+  filename: string;
+  mimetype: string;
+  size_bytes: number;
+}
+
+export interface SenderDto {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  profile_picture_mongo_id: string | null;
+}
+
+export interface ParentMessagePreviewDto {
+  id: string;
+  sender_id: string;
+  sender: SenderDto | null;
+  content: string | null;
+  is_deleted: boolean;
+}
 
 const AES_ALGO = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96 bits
@@ -39,9 +65,14 @@ export class ChatMessageService {
     private readonly groupRepo: Repository<ChatGroup>,
     @InjectModel(Message.name)
     private readonly messageModel: Model<MessageDocument>,
+    @InjectModel(MediaFile.name)
+    private readonly mediaFileModel: Model<MediaFileDocument>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly chatService: ChatService,
     private readonly configService: ConfigService,
+    private readonly mediaService: MediaService,
   ) {}
 
   // ── Send ────────────────────────────────────────────────
@@ -51,11 +82,17 @@ export class ChatMessageService {
     senderId: string,
     dto: SendMessageDto,
   ) {
-    if (!(await this.chatService.isMember(groupId, senderId))) {
-      throw new ForbiddenException('Vous n\'êtes pas membre de ce groupe');
-    }
-    if (await this.chatService.isMuted(groupId, senderId)) {
-      throw new ForbiddenException('Vous êtes en sourdine dans ce groupe');
+    // Note : la sourdine (mute) ne fait que masquer les notifications côté
+    // destinataire, elle n'empêche jamais l'expéditeur d'envoyer/réagir dans
+    // ses propres groupes — un utilisateur en sourdine dans un groupe doit
+    // pouvoir continuer à y participer normalement.
+    await this.chatService.assertCanParticipate(groupId, senderId);
+    let parent: MessageMetadata | null = null;
+    if (dto.parent_message_id) {
+      parent = await this.msgRepo.findOne({ where: { id: dto.parent_message_id } });
+      if (!parent || parent.groupId !== groupId) {
+        throw new NotFoundException('Message parent introuvable dans ce groupe');
+      }
     }
 
     const groupKey = await this.getOrCreateGroupKey(groupId);
@@ -67,15 +104,18 @@ export class ChatMessageService {
     ]);
     const authTag = cipher.getAuthTag();
 
+    const messageId = crypto.randomUUID();
+
     // MongoDB: encrypted content
     const mongoMsg = await this.messageModel.create({
-      pg_message_id: '', // placeholder, filled after PG insert
+      pg_message_id: messageId,
       pg_group_id: groupId,
       pg_sender_id: senderId,
       content_encrypted: encrypted.toString('base64'),
       iv: iv.toString('base64'),
       auth_tag: authTag.toString('base64'),
       type: dto.type,
+      poll_id: dto.poll_id ?? null,
       attachments: [],
       reactions: [],
       sent_at: new Date(),
@@ -83,19 +123,46 @@ export class ChatMessageService {
 
     // PostgreSQL: metadata
     const metadata = this.msgRepo.create({
-      id: mongoMsg._id.toString(),
-      mongoMessageId: mongoMsg._id.toString(),
+      id: messageId,
+      mongoMessageId: messageId,
       groupId,
       senderId,
       sentAt: new Date(),
+      parentMessageId: dto.parent_message_id ?? null,
+      pollId: dto.poll_id ?? null,
     });
     await this.msgRepo.save(metadata);
 
-    // Update MongoDB with the PG ID
-    mongoMsg.pg_message_id = metadata.id;
-    await mongoMsg.save();
+    const sender = await this.buildSenderDto(senderId);
+    const parentMessage = parent
+      ? await this.buildParentPreview(parent, groupKey)
+      : null;
 
-    return this.toPlainMessage(mongoMsg, metadata, groupKey);
+    return this.toPlainMessage(mongoMsg, metadata, groupKey, {
+      sender,
+      parentMessage,
+    });
+  }
+
+  /** Récupère les pièces jointes (module media, GridFS) pour un lot de messages, sans N+1. */
+  private async getAttachmentsMap(messageIds: string[]): Promise<Map<string, AttachmentDto[]>> {
+    const map = new Map<string, AttachmentDto[]>();
+    if (messageIds.length === 0) return map;
+
+    const docs = await this.mediaFileModel
+      .find({ owner_type: 'message_attachment', owner_id: { $in: messageIds } })
+      .lean();
+    for (const doc of docs) {
+      const list = map.get(doc.owner_id) ?? [];
+      list.push({
+        media_id: doc._id.toString(),
+        filename: doc.original_filename,
+        mimetype: doc.mimetype,
+        size_bytes: doc.size_bytes,
+      });
+      map.set(doc.owner_id, list);
+    }
+    return map;
   }
 
   // ── Get history ─────────────────────────────────────────
@@ -105,26 +172,57 @@ export class ChatMessageService {
     userId: string,
     cursor?: string,
     limit = MESSAGES_PER_PAGE,
+    aroundMessageId?: string,
+    direction: 'older' | 'newer' = 'older',
   ) {
     if (!(await this.chatService.isMember(groupId, userId))) {
       throw new ForbiddenException('Vous n\'êtes pas membre de ce groupe');
     }
 
+    // Jump-to-message (ex. depuis un message épinglé plus chargé dans le fil) :
+    // résolu avant de construire la requête, pour 404 proprement si la cible
+    // n'existe pas/plus, sans construire un query builder pour rien.
+    let aroundTimestamp: Date | null = null;
+    if (aroundMessageId) {
+      const target = await this.msgRepo.findOne({ where: { id: aroundMessageId, groupId } });
+      if (!target) throw new NotFoundException('Message introuvable');
+      aroundTimestamp = target.sentAt;
+    }
+
+    // "newer" ne s'applique qu'à une pagination par curseur (jamais à `around`,
+    // qui définit déjà son propre point de départ) — comble le trou laissé
+    // entre une fenêtre de contexte (jump-to-message) et le fil "en direct",
+    // en repartant vers le présent au lieu de rester coincé dans le passé.
+    const fetchingNewer = direction === 'newer' && !aroundTimestamp && Boolean(cursor);
+
     const qb = this.msgRepo
       .createQueryBuilder('m')
       .where('m.groupId = :groupId', { groupId })
       .andWhere('m.isDeleted = false')
-      .orderBy('m.sentAt', 'DESC')
       .take(limit + 1);
 
-    if (cursor) {
-      const cursorDate = new Date(Buffer.from(cursor, 'base64').toString('utf-8'));
-      qb.andWhere('m.sentAt < :cursor', { cursor: cursorDate });
+    if (aroundTimestamp) {
+      // `<=` (pas `<`) pour inclure le message cible lui-même — avec le tri
+      // DESC il apparaît donc en tête de la page renvoyée.
+      qb.orderBy('m.sentAt', 'DESC').andWhere('m.sentAt <= :around', { around: aroundTimestamp });
+    } else if (fetchingNewer) {
+      const cursorDate = new Date(Buffer.from(cursor!, 'base64').toString('utf-8'));
+      qb.orderBy('m.sentAt', 'ASC').andWhere('m.sentAt > :cursor', { cursor: cursorDate });
+    } else {
+      qb.orderBy('m.sentAt', 'DESC');
+      if (cursor) {
+        const cursorDate = new Date(Buffer.from(cursor, 'base64').toString('utf-8'));
+        qb.andWhere('m.sentAt < :cursor', { cursor: cursorDate });
+      }
     }
 
-    const metadata = await qb.getMany();
-    const hasMore = metadata.length > limit;
-    if (hasMore) metadata.pop();
+    let metadata = await qb.getMany();
+    const hasExtra = metadata.length > limit;
+    if (hasExtra) metadata.pop();
+    // Requêté en ASC pour rester "le plus proche du curseur d'abord" ; remis en
+    // DESC pour que la forme de la page (plus récent en tête) reste la même
+    // quelle que soit la direction — le reste de la méthode ne voit pas la différence.
+    if (fetchingNewer) metadata.reverse();
 
     // Fetch encrypted content from MongoDB
     const mongoIds = metadata.map((m) => m.mongoMessageId);
@@ -133,19 +231,142 @@ export class ChatMessageService {
       .lean();
 
     const groupKey = await this.getGroupKey(groupId);
+    const attachmentsMap = await this.getAttachmentsMap(metadata.map((m) => m.id));
+    const { usersMap, parentsById, parentMongoById } =
+      await this.buildListEnrichment(metadata);
     const messages = metadata.map((pg) => {
       const mongo = mongoDocs.find(
         (d) => d.pg_message_id === pg.id,
       );
-      return this.toPlainMessage(mongo ?? null, pg, groupKey);
+      return this.toPlainMessage(mongo ?? null, pg, groupKey, {
+        attachments: attachmentsMap.get(pg.id) ?? [],
+        sender: usersMap.get(pg.senderId) ?? null,
+        parentMessage: pg.parentMessageId
+          ? this.buildParentPreviewFromMaps(
+              pg.parentMessageId,
+              groupKey,
+              parentsById,
+              parentMongoById,
+              usersMap,
+            )
+          : null,
+      });
     });
 
-    const nextCursor =
-      hasMore && metadata.length > 0
-        ? Buffer.from(metadata[metadata.length - 1].sentAt.toISOString()).toString('base64')
-        : undefined;
+    const encode = (d: Date) => Buffer.from(d.toISOString()).toString('base64');
+    const oldestInBatch = metadata[metadata.length - 1]?.sentAt;
+    const newestInBatch = metadata[0]?.sentAt;
 
-    return { messages, has_more: hasMore, cursor: nextCursor };
+    // Curseur "plus ancien" (pagination historique, ex. "charger plus ancien") :
+    // une page issue de `fetchingNewer` n'est jamais consultée dans ce sens —
+    // elle ne fait que combler le trou entre une fenêtre `around` et le direct,
+    // donc pas besoin de faire une requête supplémentaire pour ce cas.
+    const hasMoreOlder = fetchingNewer ? false : hasExtra;
+    const cursorOut = hasMoreOlder && oldestInBatch ? encode(oldestInBatch) : undefined;
+
+    // Curseur "plus récent" (comble le trou laissé par un jump-to-message) :
+    // seulement calculé — pour ne pas alourdir le chemin normal (chargement
+    // initial / "charger plus ancien" simple, tous deux déjà reliés au direct
+    // sans trou) — pour une page `around` ou une page déjà en pagination "newer".
+    const needsNewerInfo = Boolean(aroundTimestamp) || fetchingNewer;
+    const hasMoreNewer =
+      needsNewerInfo && newestInBatch
+        ? fetchingNewer
+          ? hasExtra
+          : await this.msgRepo.exists({ where: { groupId, isDeleted: false, sentAt: MoreThan(newestInBatch) } })
+        : false;
+    const newerCursorOut = hasMoreNewer && newestInBatch ? encode(newestInBatch) : undefined;
+
+    return {
+      messages,
+      has_more: hasMoreOlder,
+      cursor: cursorOut,
+      has_more_newer: hasMoreNewer,
+      newer_cursor: newerCursorOut,
+    };
+  }
+
+  /**
+   * Liste complète des messages épinglés d'un groupe, indépendamment de ce qui
+   * est déjà chargé côté client (les pins pointent souvent vers des messages
+   * anciens, hors de la première page paginée) — alimente le panneau
+   * "messages épinglés" du fil.
+   */
+  async getPinnedMessages(groupId: string, userId: string) {
+    if (!(await this.chatService.isMember(groupId, userId))) {
+      throw new ForbiddenException('Vous n\'êtes pas membre de ce groupe');
+    }
+
+    const metadata = await this.msgRepo.find({
+      where: { groupId, isDeleted: false, pinned: true },
+      order: { pinnedAt: 'DESC' },
+    });
+    if (metadata.length === 0) return { messages: [] };
+
+    const mongoIds = metadata.map((m) => m.mongoMessageId);
+    const mongoDocs = await this.messageModel
+      .find({ pg_message_id: { $in: mongoIds } })
+      .lean();
+
+    const groupKey = await this.getGroupKey(groupId);
+    const attachmentsMap = await this.getAttachmentsMap(metadata.map((m) => m.id));
+    const usersMap = await this.getUsersMap(metadata.map((m) => m.senderId));
+    const messages = metadata.map((pg) => {
+      const mongo = mongoDocs.find((d) => d.pg_message_id === pg.id);
+      return this.toPlainMessage(mongo ?? null, pg, groupKey, {
+        attachments: attachmentsMap.get(pg.id) ?? [],
+        sender: usersMap.get(pg.senderId) ?? null,
+      });
+    });
+
+    return { messages };
+  }
+
+  /**
+   * Toutes les pièces jointes d'un groupe (fichiers partagés dans des messages
+   * non supprimés), indépendamment de la pagination du fil. Le panneau
+   * "fichiers partagés" doit lister l'historique complet — pas seulement les
+   * messages déjà chargés/scrollés à l'écran, comme le faisait une dérivation
+   * côté client sur la première page paginée.
+   */
+  async getGroupAttachments(groupId: string, userId: string) {
+    if (!(await this.chatService.isMember(groupId, userId))) {
+      throw new ForbiddenException('Vous n\'êtes pas membre de ce groupe');
+    }
+
+    // Les media_files ne référencent pas le groupe (owner_id = id de message) :
+    // on résout d'abord les messages non supprimés du groupe (id-only, léger),
+    // puis on récupère leurs pièces jointes en un seul $in.
+    const metadata = await this.msgRepo.find({
+      where: { groupId, isDeleted: false },
+      select: ['id', 'senderId', 'sentAt'],
+    });
+    if (metadata.length === 0) return { attachments: [] };
+
+    const messageById = new Map(metadata.map((m) => [m.id, m]));
+    const docs = await this.mediaFileModel
+      .find({
+        owner_type: 'message_attachment',
+        owner_id: { $in: metadata.map((m) => m.id) },
+      })
+      .sort({ uploaded_at: -1 })
+      .lean();
+
+    const attachments = docs.map((doc) => {
+      const msg = messageById.get(doc.owner_id);
+      return {
+        message_id: doc.owner_id,
+        sender_id: msg?.senderId ?? null,
+        sent_at: msg?.sentAt ?? null,
+        media_id: doc._id.toString(),
+        filename: doc.original_filename,
+        mimetype: doc.mimetype,
+        size_bytes: doc.size_bytes,
+        uploaded_at: doc.uploaded_at,
+      };
+    });
+
+    return { attachments };
   }
 
   async getMessage(messageId: string, userId: string) {
@@ -160,8 +381,18 @@ export class ChatMessageService {
       .findOne({ pg_message_id: messageId })
       .lean();
     const groupKey = await this.getGroupKey(metadata.groupId);
+    const attachments = (await this.getAttachmentsMap([messageId])).get(messageId) ?? [];
+    const sender = await this.buildSenderDto(metadata.senderId);
+    const parentMessage = await this.getSingleParentPreview(
+      metadata.parentMessageId,
+      groupKey,
+    );
 
-    return this.toPlainMessage(mongo, metadata, groupKey);
+    return this.toPlainMessage(mongo, metadata, groupKey, {
+      attachments,
+      sender,
+      parentMessage,
+    });
   }
 
   // ── Edit ────────────────────────────────────────────────
@@ -197,7 +428,104 @@ export class ChatMessageService {
     metadata.editedAt = new Date();
     await this.msgRepo.save(metadata);
 
-    return this.toPlainMessage(mongo, metadata, groupKey);
+    const attachments = (await this.getAttachmentsMap([messageId])).get(messageId) ?? [];
+    const sender = await this.buildSenderDto(metadata.senderId);
+    const parentMessage = await this.getSingleParentPreview(
+      metadata.parentMessageId,
+      groupKey,
+    );
+    return this.toPlainMessage(mongo, metadata, groupKey, {
+      attachments,
+      sender,
+      parentMessage,
+    });
+  }
+
+  // ── Reactions ───────────────────────────────────────────
+
+  /** Remplace la réaction active de l'utilisateur (une seule réaction par utilisateur et par message). */
+  async setReaction(messageId: string, userId: string, emoji: string) {
+    const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
+    if (!metadata || metadata.isDeleted) throw new NotFoundException('Message introuvable');
+    await this.chatService.assertCanParticipate(metadata.groupId, userId);
+
+    // $pull puis $push séparément : MongoDB refuse de modifier le même chemin
+    // de tableau deux fois dans une seule opération update.
+    await this.messageModel.updateOne(
+      { pg_message_id: messageId },
+      { $pull: { reactions: { pg_user_id: userId } } },
+    );
+    await this.messageModel.updateOne(
+      { pg_message_id: messageId },
+      { $push: { reactions: { pg_user_id: userId, emoji, reacted_at: new Date() } } },
+    );
+
+    const mongo = await this.messageModel.findOne({ pg_message_id: messageId }).lean();
+    return { group_id: metadata.groupId, message_id: messageId, reactions: mongo?.reactions ?? [] };
+  }
+
+  /** Retire la réaction active de l'utilisateur, quel que soit l'emoji. */
+  async removeReaction(messageId: string, userId: string) {
+    const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
+    if (!metadata || metadata.isDeleted) throw new NotFoundException('Message introuvable');
+    await this.chatService.assertCanParticipate(metadata.groupId, userId);
+
+    await this.messageModel.updateOne(
+      { pg_message_id: messageId },
+      { $pull: { reactions: { pg_user_id: userId } } },
+    );
+
+    const mongo = await this.messageModel.findOne({ pg_message_id: messageId }).lean();
+    return { group_id: metadata.groupId, message_id: messageId, reactions: mongo?.reactions ?? [] };
+  }
+
+  // ── Pin ─────────────────────────────────────────────────
+
+  async pinMessage(messageId: string, userId: string) {
+    const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
+    if (!metadata || metadata.isDeleted) throw new NotFoundException('Message introuvable');
+    await this.assertCanPin(metadata.groupId, userId);
+
+    metadata.pinned = true;
+    metadata.pinnedAt = new Date();
+    metadata.pinnedById = userId;
+    await this.msgRepo.save(metadata);
+
+    return this.getMessage(messageId, userId);
+  }
+
+  async unpinMessage(messageId: string, userId: string) {
+    const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
+    if (!metadata || metadata.isDeleted) throw new NotFoundException('Message introuvable');
+    await this.assertCanPin(metadata.groupId, userId);
+
+    metadata.pinned = false;
+    metadata.pinnedAt = null;
+    metadata.pinnedById = null;
+    await this.msgRepo.save(metadata);
+
+    return this.getMessage(messageId, userId);
+  }
+
+  /**
+   * Un message privé (DM) n'a pas de rôle "actions"/"admin" — les deux
+   * participants y sont toujours "message" (voir user-social.service.ts, qui
+   * provisionne la conversation) — donc exiger ces rôles y rendrait
+   * l'épinglage définitivement impossible. Là, simple appartenance suffit ;
+   * pour un groupe/quartier, le contrôle de rôle habituel reste inchangé.
+   */
+  private async assertCanPin(groupId: string, userId: string): Promise<void> {
+    const group = await this.groupRepo.findOne({ where: { id: groupId } });
+    if (group?.type === ChatGroupTypeEnum.DIRECT_MESSAGE) {
+      if (!(await this.chatService.isMember(groupId, userId))) {
+        throw new ForbiddenException('Vous n\'êtes pas membre de cette conversation');
+      }
+      return;
+    }
+    await this.chatService.assertGroupRole(groupId, userId, [
+      GroupRoleEnum.ACTIONS,
+      GroupRoleEnum.ADMIN,
+    ]);
   }
 
   // ── Soft delete ─────────────────────────────────────────
@@ -227,7 +555,25 @@ export class ChatMessageService {
       await mongo.save();
     }
 
+    await this.deleteAttachments(messageId);
+
     return { deleted: true, message_id: messageId };
+  }
+
+  /**
+   * Cascade-deletes any GridFS attachments left on a message once it's soft-
+   * deleted — otherwise the file stays fetchable forever via the public
+   * `/media/:id/stream` endpoint even though the message itself now reads
+   * as "deleted". Best-effort: one failing attachment shouldn't roll back
+   * the message deletion that already succeeded.
+   */
+  private async deleteAttachments(messageId: string): Promise<void> {
+    const attachments = (await this.getAttachmentsMap([messageId])).get(messageId) ?? [];
+    await Promise.all(
+      attachments.map((att) =>
+        this.mediaService.delete(att.media_id).catch(() => undefined),
+      ),
+    );
   }
 
   /**
@@ -248,6 +594,8 @@ export class ChatMessageService {
       mongo.deleted_at = new Date();
       await mongo.save();
     }
+
+    await this.deleteAttachments(messageId);
 
     return { deleted: true, message_id: messageId, by: 'moderator' };
   }
@@ -287,9 +635,25 @@ export class ChatMessageService {
       .lean();
 
     const groupKey = await this.getGroupKey(groupId);
+    const attachmentsMap = await this.getAttachmentsMap(metadata.map((m) => m.id));
+    const { usersMap, parentsById, parentMongoById } =
+      await this.buildListEnrichment(metadata);
     const messages = metadata.map((pg) => {
       const mongo = mongoDocs.find((d) => d.pg_message_id === pg.id);
-      return this.toPlainMessage(mongo ?? null, pg, groupKey, true);
+      return this.toPlainMessage(mongo ?? null, pg, groupKey, {
+        asAdmin: true,
+        attachments: attachmentsMap.get(pg.id) ?? [],
+        sender: usersMap.get(pg.senderId) ?? null,
+        parentMessage: pg.parentMessageId
+          ? this.buildParentPreviewFromMaps(
+              pg.parentMessageId,
+              groupKey,
+              parentsById,
+              parentMongoById,
+              usersMap,
+            )
+          : null,
+      });
     });
 
     const nextCursor =
@@ -316,7 +680,150 @@ export class ChatMessageService {
     const groupKey = await this.getGroupKey(metadata.groupId);
     if (!groupKey) throw new NotFoundException('Clé de chiffrement introuvable');
 
-    return this.toPlainMessage(mongo, metadata, groupKey, true);
+    const attachments = (await this.getAttachmentsMap([messageId])).get(messageId) ?? [];
+    const sender = await this.buildSenderDto(metadata.senderId);
+    const parentMessage = await this.getSingleParentPreview(
+      metadata.parentMessageId,
+      groupKey,
+    );
+    return this.toPlainMessage(mongo, metadata, groupKey, {
+      asAdmin: true,
+      attachments,
+      sender,
+      parentMessage,
+    });
+  }
+
+  /**
+   * Admin/moderator files list — mêmes pièces jointes que getGroupAttachments
+   * mais sans contrôle d'appartenance (aperçu « fichiers » de la modération).
+   */
+  async getGroupAttachmentsAsAdmin(groupId: string) {
+    const group = await this.groupRepo.findOne({ where: { id: groupId } });
+    if (!group || group.deletedAt) throw new NotFoundException('Groupe introuvable');
+
+    const metadata = await this.msgRepo.find({
+      where: { groupId, isDeleted: false },
+      select: ['id', 'senderId', 'sentAt'],
+    });
+    if (metadata.length === 0) return { attachments: [] };
+
+    const messageById = new Map(metadata.map((m) => [m.id, m]));
+    const docs = await this.mediaFileModel
+      .find({
+        owner_type: 'message_attachment',
+        owner_id: { $in: metadata.map((m) => m.id) },
+      })
+      .sort({ uploaded_at: -1 })
+      .lean();
+
+    const attachments = docs.map((doc) => {
+      const msg = messageById.get(doc.owner_id);
+      return {
+        message_id: doc.owner_id,
+        sender_id: msg?.senderId ?? null,
+        sent_at: msg?.sentAt ?? null,
+        media_id: doc._id.toString(),
+        filename: doc.original_filename,
+        mimetype: doc.mimetype,
+        size_bytes: doc.size_bytes,
+        uploaded_at: doc.uploaded_at,
+      };
+    });
+
+    return { attachments };
+  }
+
+  /**
+   * Admin/moderator pinned list — même contenu que getPinnedMessages mais sans
+   * contrôle d'appartenance (le modérateur n'est pas membre du groupe).
+   */
+  async getPinnedMessagesAsAdmin(groupId: string) {
+    const group = await this.groupRepo.findOne({ where: { id: groupId } });
+    if (!group || group.deletedAt) throw new NotFoundException('Groupe introuvable');
+
+    const metadata = await this.msgRepo.find({
+      where: { groupId, isDeleted: false, pinned: true },
+      order: { pinnedAt: 'DESC' },
+    });
+    if (metadata.length === 0) return { messages: [] };
+
+    const mongoIds = metadata.map((m) => m.mongoMessageId);
+    const mongoDocs = await this.messageModel
+      .find({ pg_message_id: { $in: mongoIds } })
+      .lean();
+
+    const groupKey = await this.getGroupKey(groupId);
+    const attachmentsMap = await this.getAttachmentsMap(metadata.map((m) => m.id));
+    const usersMap = await this.getUsersMap(metadata.map((m) => m.senderId));
+    const messages = metadata.map((pg) => {
+      const mongo = mongoDocs.find((d) => d.pg_message_id === pg.id);
+      return this.toPlainMessage(mongo ?? null, pg, groupKey, {
+        asAdmin: true,
+        attachments: attachmentsMap.get(pg.id) ?? [],
+        sender: usersMap.get(pg.senderId) ?? null,
+      });
+    });
+    return { messages };
+  }
+
+  /**
+   * Admin/moderator edit — contourne le contrôle « seul l'expéditeur » de
+   * editMessage. Re-chiffre le nouveau contenu sous la clé du groupe et
+   * horodate editedAt (les deux côtés d'une conversation restent modifiables).
+   */
+  async editMessageAsModerator(messageId: string, newContent: string) {
+    const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
+    if (!metadata || metadata.isDeleted)
+      throw new NotFoundException('Message introuvable');
+
+    const mongo = await this.messageModel.findOne({ pg_message_id: messageId });
+    if (!mongo) throw new NotFoundException('Contenu introuvable');
+
+    const groupKey = await this.getGroupKey(metadata.groupId);
+    if (!groupKey) throw new NotFoundException('Clé de chiffrement introuvable');
+
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const cipher = crypto.createCipheriv(AES_ALGO, groupKey, iv);
+    const encrypted = Buffer.concat([
+      cipher.update(newContent, 'utf-8'),
+      cipher.final(),
+    ]);
+    const authTag = cipher.getAuthTag();
+
+    mongo.content_encrypted = encrypted.toString('base64');
+    mongo.iv = iv.toString('base64');
+    mongo.auth_tag = authTag.toString('base64');
+    mongo.edited_at = new Date();
+    await mongo.save();
+
+    metadata.editedAt = new Date();
+    await this.msgRepo.save(metadata);
+
+    return this.getMessageAsAdmin(messageId);
+  }
+
+  /** Admin/moderator pin — contourne le contrôle de rôle de groupe de pinMessage. */
+  async pinMessageAsModerator(messageId: string, moderatorId: string) {
+    const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
+    if (!metadata || metadata.isDeleted)
+      throw new NotFoundException('Message introuvable');
+    metadata.pinned = true;
+    metadata.pinnedAt = new Date();
+    metadata.pinnedById = moderatorId;
+    await this.msgRepo.save(metadata);
+    return this.getMessageAsAdmin(messageId);
+  }
+
+  async unpinMessageAsModerator(messageId: string) {
+    const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
+    if (!metadata || metadata.isDeleted)
+      throw new NotFoundException('Message introuvable');
+    metadata.pinned = false;
+    metadata.pinnedAt = null;
+    metadata.pinnedById = null;
+    await this.msgRepo.save(metadata);
+    return this.getMessageAsAdmin(messageId);
   }
 
   // ── Read receipts ───────────────────────────────────────
@@ -450,8 +957,19 @@ export class ChatMessageService {
     mongo: any,
     pg: MessageMetadata,
     key: Buffer | null | undefined,
-    asAdmin = false,
+    opts: {
+      asAdmin?: boolean;
+      attachments?: AttachmentDto[];
+      sender?: SenderDto | null;
+      parentMessage?: ParentMessagePreviewDto | null;
+    } = {},
   ) {
+    const {
+      asAdmin = false,
+      attachments = [],
+      sender = null,
+      parentMessage = null,
+    } = opts;
     const decrypted =
       key && mongo && mongo.content_encrypted
         ? this.decryptContent(
@@ -466,15 +984,141 @@ export class ChatMessageService {
       id: pg.id,
       group_id: pg.groupId,
       sender_id: pg.senderId,
+      sender,
       content: decrypted,
       type: mongo?.type ?? 'text',
       sent_at: pg.sentAt,
       edited_at: mongo?.edited_at ?? null,
       is_deleted: pg.isDeleted,
       deleted_at: pg.deletedAt ?? null,
+      parent_message_id: pg.parentMessageId ?? null,
+      parent_message: parentMessage,
       ...(asAdmin && { deleted_by_moderator_id: pg.deletedByModeratorId }),
       reactions: mongo?.reactions ?? [],
-      attachments: mongo?.attachments ?? [],
+      attachments,
+      poll_id: pg.pollId ?? null,
+      pinned: pg.pinned,
+      pinned_at: pg.pinnedAt ?? null,
+      pinned_by: pg.pinnedById ?? null,
+    };
+  }
+
+  // ── Sender / reply enrichment ───────────────────────────
+
+  private async buildSenderDto(userId: string): Promise<SenderDto | null> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) return null;
+    return {
+      id: user.id,
+      first_name: user.firstName,
+      last_name: user.lastName,
+      profile_picture_mongo_id: user.profilePictureMongoId,
+    };
+  }
+
+  /** Batch user lookup (avoids N+1 when enriching a page of messages). */
+  private async getUsersMap(userIds: string[]): Promise<Map<string, SenderDto>> {
+    const map = new Map<string, SenderDto>();
+    const unique = [...new Set(userIds)];
+    if (unique.length === 0) return map;
+    const users = await this.userRepo.find({ where: { id: In(unique) } });
+    for (const u of users) {
+      map.set(u.id, {
+        id: u.id,
+        first_name: u.firstName,
+        last_name: u.lastName,
+        profile_picture_mongo_id: u.profilePictureMongoId,
+      });
+    }
+    return map;
+  }
+
+  /** Single-message reply preview (fetches parent content/sender on demand). */
+  private async getSingleParentPreview(
+    parentMessageId: string | null,
+    groupKey: Buffer | null,
+  ): Promise<ParentMessagePreviewDto | null> {
+    if (!parentMessageId) return null;
+    const parent = await this.msgRepo.findOne({ where: { id: parentMessageId } });
+    if (!parent) return null;
+    return this.buildParentPreview(parent, groupKey);
+  }
+
+  private async buildParentPreview(
+    parent: MessageMetadata,
+    groupKey: Buffer | null,
+  ): Promise<ParentMessagePreviewDto> {
+    const mongo = await this.messageModel.findOne({ pg_message_id: parent.id }).lean();
+    const sender = await this.buildSenderDto(parent.senderId);
+    const content =
+      !parent.isDeleted && groupKey && mongo?.content_encrypted
+        ? this.decryptContent(mongo.content_encrypted, mongo.iv, mongo.auth_tag, groupKey)
+        : null;
+    return {
+      id: parent.id,
+      sender_id: parent.senderId,
+      sender,
+      content,
+      is_deleted: parent.isDeleted,
+    };
+  }
+
+  /**
+   * Batched sender + parent-message lookups for a page of messages — 2 extra
+   * queries total regardless of page size, instead of N+1 per message.
+   */
+  private async buildListEnrichment(metadata: MessageMetadata[]): Promise<{
+    usersMap: Map<string, SenderDto>;
+    parentsById: Map<string, MessageMetadata>;
+    parentMongoById: Map<string, any>;
+  }> {
+    const parentIds = [
+      ...new Set(
+        metadata
+          .filter((m): m is MessageMetadata & { parentMessageId: string } => !!m.parentMessageId)
+          .map((m) => m.parentMessageId),
+      ),
+    ];
+    const parents = parentIds.length
+      ? await this.msgRepo.find({ where: { id: In(parentIds) } })
+      : [];
+    const parentMongoDocs = parentIds.length
+      ? await this.messageModel.find({ pg_message_id: { $in: parentIds } }).lean()
+      : [];
+
+    const senderIds = [
+      ...metadata.map((m) => m.senderId),
+      ...parents.map((p) => p.senderId),
+    ];
+    const usersMap = await this.getUsersMap(senderIds);
+
+    return {
+      usersMap,
+      parentsById: new Map(parents.map((p) => [p.id, p])),
+      parentMongoById: new Map(parentMongoDocs.map((d: any) => [d.pg_message_id, d])),
+    };
+  }
+
+  private buildParentPreviewFromMaps(
+    parentId: string,
+    groupKey: Buffer | null,
+    parentsById: Map<string, MessageMetadata>,
+    parentMongoById: Map<string, any>,
+    usersMap: Map<string, SenderDto>,
+  ): ParentMessagePreviewDto | null {
+    const parent = parentsById.get(parentId);
+    if (!parent) return null;
+    const mongo = parentMongoById.get(parent.id);
+    const content =
+      !parent.isDeleted && groupKey && mongo?.content_encrypted
+        ? this.decryptContent(mongo.content_encrypted, mongo.iv, mongo.auth_tag, groupKey)
+        : null;
+    return {
+      id: parent.id,
+      sender_id: parent.senderId,
+      sender: usersMap.get(parent.senderId) ?? null,
+      content,
+      is_deleted: parent.isDeleted,
     };
   }
 }
