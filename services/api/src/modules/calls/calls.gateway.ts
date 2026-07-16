@@ -6,11 +6,12 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { forwardRef, Inject, Injectable, UseGuards } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, UseFilters, UseGuards } from '@nestjs/common';
 import { Server } from 'socket.io';
 import { WsAuthService } from '../auth/ws-auth.service';
 import type { AuthenticatedSocket } from '../auth/ws-auth.service';
 import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
+import { WsHttpExceptionFilter } from '../auth/filters/ws-exception.filter';
 import { CallsService } from './calls.service';
 
 interface CallSignalPayload {
@@ -21,6 +22,7 @@ interface CallSignalPayload {
 
 @Injectable()
 @UseGuards(WsJwtGuard)
+@UseFilters(WsHttpExceptionFilter)
 @WebSocketGateway({ cors: true, namespace: 'calls' })
 export class CallsGateway implements OnGatewayConnection {
   @WebSocketServer()

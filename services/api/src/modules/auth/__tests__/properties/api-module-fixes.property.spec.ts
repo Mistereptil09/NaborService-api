@@ -165,6 +165,7 @@ describe('API Module Fixes Spec Verification', () => {
         null as any,
         null as any,
         null as any,
+        null as any,
       );
 
       usersService.getProfile = jest.fn().mockResolvedValue({ id: 'u1' });

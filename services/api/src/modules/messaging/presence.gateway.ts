@@ -7,16 +7,18 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Inject, Injectable, Logger, UseGuards } from '@nestjs/common';
+import { Inject, Injectable, Logger, UseFilters, UseGuards } from '@nestjs/common';
 import { Server } from 'socket.io';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import Redis from 'ioredis';
 import { WsAuthService } from '../auth/ws-auth.service';
 import type { AuthenticatedSocket } from '../auth/ws-auth.service';
 import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
+import { WsHttpExceptionFilter } from '../auth/filters/ws-exception.filter';
 
 @Injectable()
 @UseGuards(WsJwtGuard)
+@UseFilters(WsHttpExceptionFilter)
 @WebSocketGateway({ cors: true })
 export class PresenceGateway
   implements OnGatewayConnection, OnGatewayDisconnect
