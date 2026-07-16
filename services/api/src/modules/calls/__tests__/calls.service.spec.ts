@@ -279,11 +279,11 @@ describe('CallsService', () => {
   describe('getIceServers', () => {
     it('falls back to STUN-only when Cloudflare credentials are not configured', async () => {
       const result = await service.getIceServers();
-      expect(result.urls).toContain('stun:stun.l.google.com:19302');
+      expect(result.flatMap((s) => s.urls)).toContain('stun:stun.l.google.com:19302');
       expect(httpRetryService.fetchWithRetry).not.toHaveBeenCalled();
     });
 
-    it('fetches and caches Cloudflare TURN credentials when configured', async () => {
+    it('fetches and caches Cloudflare TURN credentials (generate-ice-servers) when configured', async () => {
       configService.get.mockImplementation((key: string) =>
         key === 'CLOUDFLARE_TURN_KEY_ID'
           ? 'key-id'
@@ -292,17 +292,23 @@ describe('CallsService', () => {
             : undefined,
       );
       httpRetryService.fetchWithRetry.mockResolvedValue({
+        // Forme actuelle de l'API Cloudflare : `iceServers` est un tableau
+        // (une entrée STUN, une entrée TURN avec identifiants).
         json: async () => ({
-          iceServers: {
-            urls: ['turn:cf.example.com'],
-            username: 'u',
-            credential: 'c',
-          },
+          iceServers: [
+            { urls: ['stun:stun.cloudflare.com:3478'] },
+            { urls: ['turn:turn.cloudflare.com:3478?transport=udp'], username: 'u', credential: 'c' },
+          ],
         }),
       });
 
       const result = await service.getIceServers();
-      expect(result.urls).toEqual(['turn:cf.example.com']);
+      expect(httpRetryService.fetchWithRetry).toHaveBeenCalledWith(
+        expect.stringContaining('/credentials/generate-ice-servers'),
+        expect.objectContaining({ method: 'POST' }),
+      );
+      expect(result).toHaveLength(2);
+      expect(result[1]).toMatchObject({ username: 'u', credential: 'c' });
 
       // Second call should hit the Redis cache, not Cloudflare again.
       httpRetryService.fetchWithRetry.mockClear();
