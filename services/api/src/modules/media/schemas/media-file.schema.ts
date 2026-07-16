@@ -45,6 +45,12 @@ export class MediaFile {
   @Prop({ type: Number, default: null, min: 1 })
   height_px: number | null;
 
+  // Audio-specific field (present when mimetype starts with "audio/") — Ogg
+  // has no header-level duration, so this is probed server-side at transcode
+  // time rather than left to the browser to figure out from the stream.
+  @Prop({ type: Number, default: null, min: 0 })
+  duration_seconds: number | null;
+
   // Listing photo-specific fields
   @Prop({ type: Number, default: null, min: 0 })
   order: number | null;

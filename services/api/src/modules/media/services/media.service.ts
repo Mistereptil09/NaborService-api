@@ -211,6 +211,7 @@ export class MediaService {
       uploaded_at: new Date(),
       width_px: processed.widthPx || null,
       height_px: processed.heightPx || null,
+      duration_seconds: processed.durationSeconds ?? null,
     });
 
     // Handle context-specific additional fields

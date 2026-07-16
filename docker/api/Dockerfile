@@ -1,4 +1,5 @@
 FROM node:20-alpine AS base
+RUN apk add --no-cache ffmpeg
 WORKDIR /app
 COPY package*.json ./
 
@@ -16,6 +17,7 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 FROM node:20-alpine AS prod
+RUN apk add --no-cache ffmpeg
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/package*.json ./
