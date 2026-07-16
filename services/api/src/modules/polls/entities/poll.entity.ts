@@ -18,6 +18,7 @@ import { PollOption } from './poll-option.entity';
 @Check('chk_poll_dates', '"ends_at" IS NULL OR "ends_at" > "starts_at"')
 @Index('idx_polls_active', ['neighbourhoodId', 'endsAt'])
 @Index('idx_polls_creator', ['creatorId'])
+@Index('idx_polls_group', ['groupId'])
 export class Poll {
   @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   id: string;
@@ -33,6 +34,10 @@ export class Poll {
 
   @Column({ name: 'neighbourhood_id', type: 'text', nullable: true })
   neighbourhoodId: string | null;
+
+  /** Sondage rattaché à une conversation de groupe plutôt qu'à un quartier (mutuellement exclusif avec `neighbourhoodId`). */
+  @Column({ name: 'group_id', type: 'uuid', nullable: true })
+  groupId: string | null;
 
   @Column({
     name: 'poll_type',
@@ -56,6 +61,20 @@ export class Poll {
     default: false,
   })
   isAnonymous: boolean;
+
+  /**
+   * Indépendant de `pollType` : un sondage "multiple" peut aussi être pondéré
+   * (chaque option choisie compte pour son propre poids). `pollType` ne régit
+   * plus que le mode de sélection (unique/multiple) ; `PollTypeEnum.WEIGHTED`
+   * n'est conservé que pour les sondages existants créés avant ce champ.
+   */
+  @Column({
+    name: 'is_weighted',
+    type: 'boolean',
+    nullable: false,
+    default: false,
+  })
+  isWeighted: boolean;
 
   @Column({ name: 'closed_at', type: 'timestamptz', nullable: true })
   closedAt: Date | null;

@@ -10,7 +10,7 @@ import { User } from '../../users/entities/user.entity';
 import { PollOption } from './poll-option.entity';
 
 @Entity('votes')
-@Check('chk_vote_weight', '"weight" >= 1')
+@Check('chk_vote_weight', '"weight" >= 0')
 export class Vote {
   @PrimaryColumn({ name: 'user_id', type: 'uuid' })
   userId: string;
@@ -18,7 +18,8 @@ export class Vote {
   @PrimaryColumn({ name: 'option_id', type: 'uuid' })
   optionId: string;
 
-  @Column({ type: 'integer', nullable: false, default: 1 })
+  /** Copié depuis `PollOption.weight` au moment du vote — jamais choisi par le votant. */
+  @Column({ type: 'numeric', precision: 10, scale: 2, nullable: false, default: 1 })
   weight: number;
 
   @Column({

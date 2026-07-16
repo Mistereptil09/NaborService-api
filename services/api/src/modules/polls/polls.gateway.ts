@@ -5,15 +5,17 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Injectable, Logger, UseGuards } from '@nestjs/common';
+import { Injectable, Logger, UseFilters, UseGuards } from '@nestjs/common';
 import { Server } from 'socket.io';
 import { WsAuthService } from '../auth/ws-auth.service';
 import type { AuthenticatedSocket } from '../auth/ws-auth.service';
 import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
+import { WsHttpExceptionFilter } from '../auth/filters/ws-exception.filter';
 import { PollsService } from './polls.service';
 
 @Injectable()
 @UseGuards(WsJwtGuard)
+@UseFilters(WsHttpExceptionFilter)
 @WebSocketGateway({ cors: true, namespace: 'polls' })
 export class PollsGateway {
   @WebSocketServer()
@@ -69,7 +71,7 @@ export class PollsGateway {
       .emit('poll:closed', { poll_id: pollId, final_results: finalResults });
   }
 
-  emitOptionAdded(pollId: string, option: { id: string; label: string }) {
+  emitOptionAdded(pollId: string, option: { id: string; label: string; weight?: number }) {
     this.server
       .to(`polls:poll:${pollId}`)
       .emit('poll:option_added', { poll_id: pollId, option });
