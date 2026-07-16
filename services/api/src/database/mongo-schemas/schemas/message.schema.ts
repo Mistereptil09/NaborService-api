@@ -65,8 +65,11 @@ export class Message {
   @Prop({ required: true })
   auth_tag: string;
 
-  @Prop({ required: true, enum: ['text', 'image', 'file', 'voice'] })
+  @Prop({ required: true, enum: ['text', 'image', 'file', 'voice', 'poll'] })
   type: string;
+
+  @Prop({ type: String, default: null })
+  poll_id: string | null;
 
   @Prop({
     type: [AttachmentSchema],

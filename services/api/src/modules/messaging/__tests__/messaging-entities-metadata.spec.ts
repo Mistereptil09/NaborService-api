@@ -56,11 +56,16 @@ describe('Messaging Entities — TypeORM Metadata', () => {
 
       const createdByCol = meta.findColumnWithDatabaseName('created_by')!;
       expect(createdByCol.type).toBe('uuid');
-      expect(createdByCol.isNullable).toBe(false);
+      expect(createdByCol.isNullable).toBe(true);
 
       const listingIdCol = meta.findColumnWithDatabaseName('listing_id')!;
       expect(listingIdCol.type).toBe('uuid');
       expect(listingIdCol.isNullable).toBe(true);
+
+      const neighbourhoodIdCol =
+        meta.findColumnWithDatabaseName('neighbourhood_id')!;
+      expect(neighbourhoodIdCol.type).toBe('text');
+      expect(neighbourhoodIdCol.isNullable).toBe(true);
 
       const createdAtCol = meta.findColumnWithDatabaseName('created_at')!;
       expect(createdAtCol.type).toBe('timestamptz');
@@ -80,11 +85,12 @@ describe('Messaging Entities — TypeORM Metadata', () => {
       expect(typeCol.enumName).toBe('chat_group_type_enum');
     });
 
-    it('should have indexes on "type" and "listing_id"', () => {
+    it('should have indexes on "type", "listing_id" and "neighbourhood_id"', () => {
       const meta = dataSource.getMetadata(ChatGroup);
       const indexNames = meta.indices.map((i) => i.name);
       expect(indexNames).toContain('idx_chat_groups_type');
       expect(indexNames).toContain('idx_chat_groups_listing');
+      expect(indexNames).toContain('idx_chat_groups_neighbourhood');
     });
 
     it('should support soft delete via deleted_at', () => {

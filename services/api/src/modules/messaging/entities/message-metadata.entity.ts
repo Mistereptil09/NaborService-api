@@ -53,6 +53,19 @@ export class MessageMetadata {
   @Column({ name: 'parent_message_id', type: 'uuid', nullable: true })
   parentMessageId: string | null;
 
+  /** Renseigné quand type === 'poll' — référence le sondage affiché dans ce message. */
+  @Column({ name: 'poll_id', type: 'uuid', nullable: true })
+  pollId: string | null;
+
+  @Column({ type: 'boolean', nullable: false, default: false })
+  pinned: boolean;
+
+  @Column({ name: 'pinned_at', type: 'timestamptz', nullable: true })
+  pinnedAt: Date | null;
+
+  @Column({ name: 'pinned_by_id', type: 'uuid', nullable: true })
+  pinnedById: string | null;
+
   @ManyToOne(() => ChatGroup)
   @JoinColumn({ name: 'group_id' })
   group: ChatGroup;

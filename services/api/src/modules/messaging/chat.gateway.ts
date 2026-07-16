@@ -7,19 +7,21 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Inject, Injectable, UseGuards } from '@nestjs/common';
+import { Inject, Injectable, UseFilters, UseGuards } from '@nestjs/common';
 import { Server } from 'socket.io';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import Redis from 'ioredis';
 import { WsAuthService } from '../auth/ws-auth.service';
 import type { AuthenticatedSocket } from '../auth/ws-auth.service';
 import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
+import { WsHttpExceptionFilter } from '../auth/filters/ws-exception.filter';
 import { ChatMessageService } from './chat-message.service';
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/send-message.dto';
 
 @Injectable()
 @UseGuards(WsJwtGuard)
+@UseFilters(WsHttpExceptionFilter)
 @WebSocketGateway({
   cors: true,
   namespace: 'chat',
@@ -59,10 +61,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const msg = await this.chatMessageService.sendMessage(
       data.group_id,
       client.userId!,
-      { content: data.content, type: data.type },
+      { content: data.content, type: data.type, parent_message_id: data.parent_message_id },
     );
     this.server.to(`chat:group:${data.group_id}`).emit('message:received', msg);
-    return { event: 'sent', message: msg };
+    return { status: 'sent', message: msg };
   }
 
   @SubscribeMessage('message:read')
@@ -93,7 +95,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       new_content: data.new_content,
       edited_at: new Date().toISOString(),
     });
-    return { event: 'edited', message_id: data.message_id };
+    return { status: 'edited', message_id: data.message_id };
   }
 
   @SubscribeMessage('message:delete')
@@ -110,6 +112,68 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       deleted_at: new Date().toISOString(),
     });
     return result;
+  }
+
+  @SubscribeMessage('message:react')
+  async handleReact(
+    @MessageBody() data: { message_id: string; emoji: string },
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
+    const result = await this.chatMessageService.setReaction(
+      data.message_id,
+      client.userId!,
+      data.emoji,
+    );
+    this.server.to(`chat:group:${result.group_id}`).emit('message:reaction_updated', {
+      message_id: result.message_id,
+      reactions: result.reactions,
+    });
+    return { status: 'reacted', message_id: data.message_id, reactions: result.reactions };
+  }
+
+  @SubscribeMessage('message:unreact')
+  async handleUnreact(
+    @MessageBody() data: { message_id: string },
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
+    const result = await this.chatMessageService.removeReaction(
+      data.message_id,
+      client.userId!,
+    );
+    this.server.to(`chat:group:${result.group_id}`).emit('message:reaction_updated', {
+      message_id: result.message_id,
+      reactions: result.reactions,
+    });
+    return { status: 'unreacted', message_id: data.message_id, reactions: result.reactions };
+  }
+
+  @SubscribeMessage('message:pin')
+  async handlePin(
+    @MessageBody() data: { message_id: string },
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
+    const msg = await this.chatMessageService.pinMessage(data.message_id, client.userId!);
+    this.server.to(`chat:group:${msg.group_id}`).emit('message:pinned', msg);
+    return { status: 'pinned', message: msg };
+  }
+
+  @SubscribeMessage('message:unpin')
+  async handleUnpin(
+    @MessageBody() data: { message_id: string },
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
+    const msg = await this.chatMessageService.unpinMessage(data.message_id, client.userId!);
+    this.server.to(`chat:group:${msg.group_id}`).emit('message:unpinned', msg);
+    return { status: 'unpinned', message: msg };
+  }
+
+  @SubscribeMessage('group:read')
+  async handleGroupRead(
+    @MessageBody() data: { group_id: string },
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
+    await this.chatService.markGroupRead(data.group_id, client.userId!);
+    return { status: 'read', group_id: data.group_id };
   }
 
   // ── Typing events ───────────────────────────────────────
@@ -154,9 +218,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
     if (isMember) {
       client.join(`chat:group:${data.group_id}`);
-      return { event: 'joined', group_id: data.group_id };
+      return { status: 'joined', group_id: data.group_id };
     }
-    return { event: 'forbidden', group_id: data.group_id };
+    return { status: 'forbidden', group_id: data.group_id };
   }
 
   @SubscribeMessage('leave_group')
@@ -165,6 +229,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     client.leave(`chat:group:${data.group_id}`);
-    return { event: 'left', group_id: data.group_id };
+    return { status: 'left', group_id: data.group_id };
+  }
+
+  /** Émission depuis un autre module (ex. PollsController après création d'un sondage de groupe) sans dupliquer la convention de nommage des rooms. */
+  emitToGroup(groupId: string, event: string, payload: unknown) {
+    this.server.to(`chat:group:${groupId}`).emit(event, payload);
   }
 }

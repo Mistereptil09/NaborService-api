@@ -56,6 +56,10 @@ export class UsersInGroup {
   @Column({ name: 'muted_until', type: 'timestamptz', nullable: true })
   mutedUntil: Date | null;
 
+  /** Horodatage de la dernière lecture de la conversation par ce membre — sert au calcul du badge non-lus. */
+  @Column({ name: 'last_read_at', type: 'timestamptz', nullable: true })
+  lastReadAt: Date | null;
+
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
