@@ -6,8 +6,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-nabor}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nabor_secret}
       POSTGRES_DB: ${POSTGRES_DB:-nabor_db}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init-extensions.sql:/docker-entrypoint-initdb.d/init-extensions.sql
@@ -24,8 +22,6 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-nabor}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-nabor_secret}
-    ports:
-      - "27017:27017"
     volumes:
       - mongo_data:/data/db
     healthcheck:
@@ -40,9 +36,6 @@ services:
     container_name: nabor_neo4j
     environment:
       NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-nabor_secret}
-    ports:
-      - "7474:7474"
-      - "7687:7687"
     volumes:
       - neo4j_data:/data
     healthcheck:
@@ -60,8 +53,6 @@ services:
       --appendonly yes
       --appendfsync everysec
       --requirepass ${REDIS_PASSWORD:-nabor_redis_secret}
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -70,18 +61,10 @@ services:
       timeout: 5s
       retries: 5
 
-  mailpit:
-    image: axllent/mailpit
-    container_name: nabor_mailpit
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-
   ban:
     image: etalab/addok
     container_name: nabor_ban
-    ports:
-      - "7878:7878"
+
     environment:
       - ADDOK_CONFIG_MODULE=/etc/addok/addok.conf
       - REDIS_PASSWORD=${REDIS_PASSWORD:-nabor_redis_secret}
@@ -124,8 +107,6 @@ services:
     container_name: nabor_dsl_service
     environment:
       DSL_SERVICE_URL: http://dsl-service:8000
-    ports:
-      - "8000:8000"
 
 volumes:
   postgres_data:
