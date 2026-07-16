@@ -86,4 +86,14 @@ export const NOTIFICATION_ROUTING: Record<NotificationType, NotificationRoute> =
     subject: 'Votre paiement a été confirmé',
     templateName: 'notification',
   },
+  missed_call: {
+    essential: true,
+    subject: 'Appel manqué',
+    templateName: 'notification',
+  },
+  call_summary: {
+    essential: true,
+    subject: 'Appel terminé',
+    templateName: 'notification',
+  },
 };

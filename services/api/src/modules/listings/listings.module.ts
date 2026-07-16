@@ -41,6 +41,7 @@ import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
 import { AdminModule } from '../admin/admin.module';
 import { MessagingModule } from '../messaging/messaging.module';
+import { PointsModule } from '../points/points.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { MessagingModule } from '../messaging/messaging.module';
     MediaModule,
     AdminModule,
     MessagingModule,
+    PointsModule,
   ],
   controllers: [ListingsController],
   providers: [

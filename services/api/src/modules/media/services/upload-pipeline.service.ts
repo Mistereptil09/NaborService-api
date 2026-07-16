@@ -1,11 +1,13 @@
 import {
   Injectable,
   BadRequestException,
+  Logger,
   PayloadTooLargeException,
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import { tmpdir } from 'os';
 import sharp from 'sharp';
 import ffmpeg from 'fluent-ffmpeg';
 import { GridFSService } from './gridfs.service';
@@ -13,6 +15,8 @@ import { UploadContext, ProcessedFile } from '../interfaces';
 
 @Injectable()
 export class UploadPipeline {
+  private readonly logger = new Logger(UploadPipeline.name);
+
   constructor(private readonly gridfsService: GridFSService) {}
 
   /**
@@ -23,12 +27,21 @@ export class UploadPipeline {
     file: Express.Multer.File,
     context: UploadContext,
   ): Promise<ProcessedFile> {
+    // multer/busboy decode multipart filename headers as latin1 regardless of
+    // the browser's actual UTF-8 encoding, corrupting accented filenames (e.g.
+    // "DÃ©claration...2Ã¨me..." instead of "Déclaration...2ème..."). Re-decoding
+    // here fixes it for every upload path; a no-op for pure-ASCII filenames.
+    file.originalname = Buffer.from(file.originalname, 'latin1').toString(
+      'utf8',
+    );
+
     this.validateFile(file, context);
 
     let processedBuffer = file.buffer;
     let finalMimetype = file.mimetype;
     let widthPx: number | undefined;
     let heightPx: number | undefined;
+    let durationSeconds: number | undefined;
 
     const isImage = file.mimetype.startsWith('image/');
     const isVideo = file.mimetype.startsWith('video/');
@@ -53,19 +66,36 @@ export class UploadPipeline {
         processedBuffer = await this.compressVideo(file.buffer);
         finalMimetype = 'video/mp4';
       } else if (isAudio) {
-        processedBuffer = await this.transcodeAudio(file.buffer);
-        finalMimetype = 'audio/opus';
+        const transcoded = await this.transcodeAudio(file.buffer);
+        processedBuffer = transcoded.buffer;
+        durationSeconds = transcoded.durationSeconds;
+        // The transcoded file is an Ogg container carrying Opus audio.
+        // 'audio/opus' names the raw RTP payload type (RFC 7587), not a file
+        // format — browsers don't map it to any demuxer for a plain <audio
+        // src>, so playback fails outright. 'audio/ogg' is the correct type
+        // for this exact container+codec (also what Firefox's own recorder
+        // produces, per useVoiceRecorder.ts's pickFormat()).
+        finalMimetype = 'audio/ogg';
       }
     } catch (error) {
       if (isImage) {
+        this.logger.error(
+          `Image processing failed: ${(error as Error).message}`,
+        );
         throw new BadRequestException(
           'Image processing error: unable to convert to WebP',
         );
       } else if (isVideo) {
+        this.logger.error(
+          `Video processing failed: ${(error as Error).message}`,
+        );
         throw new BadRequestException(
           'Video processing error: unable to compress video',
         );
       } else if (isAudio) {
+        this.logger.error(
+          `Audio processing failed: ${(error as Error).message}`,
+        );
         throw new BadRequestException(
           'Audio processing error: unable to transcode audio',
         );
@@ -87,6 +117,7 @@ export class UploadPipeline {
       sizeBytes: processedBuffer.length,
       widthPx,
       heightPx,
+      durationSeconds,
       originalFilename: file.originalname,
     };
   }
@@ -124,7 +155,12 @@ export class UploadPipeline {
    * Compress video to max 1080p using ffmpeg.
    */
   private async compressVideo(buffer: Buffer): Promise<Buffer> {
-    const tempDir = join(process.cwd(), 'tmp-media');
+    // NOT join(process.cwd(), ...): in dev, process.cwd() is /app, which is
+    // bind-mounted from the host (compose.dev.yml) — every read/write here
+    // would go through Docker Desktop's slow virtualized file sharing instead
+    // of the container's own filesystem, making transcoding look catastrophically
+    // slow even though ffmpeg itself runs in ~1-2s (see os.tmpdir(), unaffected).
+    const tempDir = join(tmpdir(), 'nabor-media');
     await fs.mkdir(tempDir, { recursive: true });
 
     const inputPath = join(
@@ -151,6 +187,22 @@ export class UploadPipeline {
           .videoCodec('libx264')
           .videoFilters(scaleFilter)
           .audioCodec('aac')
+          .outputOptions([
+            // Without this, ffmpeg's mp4 muxer writes the moov atom (index)
+            // at the END of the file — a full download still works (all bytes
+            // arrive eventually), but a browser trying to preview/stream it
+            // has to buffer the entire file first, since it can't find the
+            // index until it reaches the end. This is why playback looked
+            // stuck/never-loading regardless of file size.
+            '-movflags', '+faststart',
+            // Without this, libx264 preserves the source's chroma subsampling
+            // (e.g. yuv422p/yuv444p, common from some phones/screen recorders)
+            // instead of the yuv420p browsers require to decode H.264 at all —
+            // that's the "no video with a supported format/MIME type was found"
+            // error, distinct from the faststart issue above (a plain byte
+            // download still "works" either way since it never decodes anything).
+            '-pix_fmt', 'yuv420p',
+          ])
           .on('end', () => resolve())
           .on('error', (err) => reject(err))
           .run();
@@ -164,10 +216,21 @@ export class UploadPipeline {
   }
 
   /**
-   * Transcode audio to Opus at 128kbps using ffmpeg.
+   * Transcode audio to Opus at 128kbps using ffmpeg. Ogg has no header-level
+   * duration (unlike MP4's moov atom), so browsers playing it back over HTTP
+   * range requests can't reliably determine it themselves — probing the
+   * transcoded output here and storing it lets the UI show a correct duration
+   * immediately instead of "0:00" until playback/seeking resolves it.
    */
-  private async transcodeAudio(buffer: Buffer): Promise<Buffer> {
-    const tempDir = join(process.cwd(), 'tmp-media');
+  private async transcodeAudio(
+    buffer: Buffer,
+  ): Promise<{ buffer: Buffer; durationSeconds: number }> {
+    // NOT join(process.cwd(), ...): in dev, process.cwd() is /app, which is
+    // bind-mounted from the host (compose.dev.yml) — every read/write here
+    // would go through Docker Desktop's slow virtualized file sharing instead
+    // of the container's own filesystem, making transcoding look catastrophically
+    // slow even though ffmpeg itself runs in ~1-2s (see os.tmpdir(), unaffected).
+    const tempDir = join(tmpdir(), 'nabor-media');
     await fs.mkdir(tempDir, { recursive: true });
 
     const inputPath = join(
@@ -192,11 +255,25 @@ export class UploadPipeline {
           .run();
       });
 
-      return await fs.readFile(outputPath);
+      const durationSeconds = await this.getAudioDuration(outputPath);
+      const outBuffer = await fs.readFile(outputPath);
+      return { buffer: outBuffer, durationSeconds };
     } finally {
       await fs.unlink(inputPath).catch(() => {});
       await fs.unlink(outputPath).catch(() => {});
     }
+  }
+
+  private async getAudioDuration(filePath: string): Promise<number> {
+    return new Promise((resolve, reject) => {
+      ffmpeg.ffprobe(filePath, (err, metadata) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(Math.round(metadata.format.duration ?? 0));
+      });
+    });
   }
 
   private async getVideoDimensions(

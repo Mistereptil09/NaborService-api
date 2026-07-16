@@ -207,42 +207,14 @@ describe('Listings & Payments Entities Metadata', () => {
       const meta = ds.getMetadata(ListingTransaction);
       const check = meta.checks.find((c) => c.name === 'chk_ltx_amount');
       expect(check).toBeDefined();
-      expect(check!.expression).toContain('"amount_cents" >= 0');
+      expect(check!.expression).toContain('"amount_points" >= 0');
     });
 
     it('should have CHECK constraint "chk_ltx_commission"', () => {
       const meta = ds.getMetadata(ListingTransaction);
       const check = meta.checks.find((c) => c.name === 'chk_ltx_commission');
       expect(check).toBeDefined();
-      expect(check!.expression).toContain('"commission_cents" >= 0');
-    });
-
-    it('should have UNIQUE constraint on "stripe_session_id"', () => {
-      const meta = ds.getMetadata(ListingTransaction);
-      const col = meta.columns.find(
-        (c) => c.databaseName === 'stripe_session_id',
-      );
-      expect(col).toBeDefined();
-      expect(col!.isNullable).toBe(true);
-      const hasUnique =
-        meta.uniques.some((u) =>
-          u.columns.some((c) => c.databaseName === 'stripe_session_id'),
-        ) || (col as { isUnique?: boolean }).isUnique === true;
-      expect(hasUnique).toBe(true);
-    });
-
-    it('should have UNIQUE constraint on "stripe_payment_intent"', () => {
-      const meta = ds.getMetadata(ListingTransaction);
-      const col = meta.columns.find(
-        (c) => c.databaseName === 'stripe_payment_intent',
-      );
-      expect(col).toBeDefined();
-      expect(col!.isNullable).toBe(true);
-      const hasUnique =
-        meta.uniques.some((u) =>
-          u.columns.some((c) => c.databaseName === 'stripe_payment_intent'),
-        ) || (col as { isUnique?: boolean }).isUnique === true;
-      expect(hasUnique).toBe(true);
+      expect(check!.expression).toContain('"commission_points" >= 0');
     });
 
     it('should have index on (listing_id, status)', () => {

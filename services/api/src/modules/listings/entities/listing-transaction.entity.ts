@@ -14,8 +14,8 @@ import { Listing } from './listing.entity';
 
 @Entity('listing_transactions')
 @Check('chk_ltx_parties', '"provider_id" != "requester_id"')
-@Check('chk_ltx_amount', '"amount_cents" >= 0')
-@Check('chk_ltx_commission', '"commission_cents" >= 0')
+@Check('chk_ltx_amount', '"amount_points" >= 0')
+@Check('chk_ltx_commission', '"commission_points" >= 0')
 @Index('idx_ltx_listing_status', ['listingId', 'status'])
 @Index('idx_ltx_provider', ['providerId'])
 @Index('idx_ltx_requester', ['requesterId'])
@@ -32,32 +32,16 @@ export class ListingTransaction {
   @Column({ name: 'requester_id', type: 'uuid', nullable: false })
   requesterId: string;
 
-  @Column({ name: 'amount_cents', type: 'int', nullable: false, default: 0 })
-  amountCents: number;
+  @Column({ name: 'amount_points', type: 'int', nullable: false, default: 0 })
+  amountPoints: number;
 
   @Column({
-    name: 'commission_cents',
+    name: 'commission_points',
     type: 'int',
     nullable: false,
     default: 0,
   })
-  commissionCents: number;
-
-  @Column({
-    name: 'stripe_session_id',
-    type: 'varchar',
-    nullable: true,
-    unique: true,
-  })
-  stripeSessionId: string | null;
-
-  @Column({
-    name: 'stripe_payment_intent',
-    type: 'varchar',
-    nullable: true,
-    unique: true,
-  })
-  stripePaymentIntent: string | null;
+  commissionPoints: number;
 
   @Column({ name: 'contract_mongo_id', type: 'text', nullable: true })
   contractMongoId: string | null;

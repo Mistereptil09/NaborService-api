@@ -43,6 +43,8 @@ describe('PollsController', () => {
 
     chatService = {
       assertGroupRole: jest.fn().mockResolvedValue(undefined),
+      getNeighbourhoodGroup: jest.fn().mockResolvedValue(null),
+      isMember: jest.fn().mockResolvedValue(false),
     };
     chatMessageService = {
       sendMessage: jest.fn().mockResolvedValue({ id: 'm1', type: 'poll', poll_id: 'p1' }),
@@ -89,6 +91,43 @@ describe('PollsController', () => {
         controller.createPoll(residentUser as any, { title: 'Test' } as any),
       ).rejects.toThrow(ForbiddenException);
       expect(service.createPoll).not.toHaveBeenCalled();
+    });
+
+    it('bridges into the neighbourhood\'s own conversation when the group exists and the creator is a member', async () => {
+      chatService.getNeighbourhoodGroup.mockResolvedValue({ id: 'nb-g1' });
+      chatService.isMember.mockResolvedValue(true);
+
+      await controller.createPoll(repUser as any, { title: 'Test', neighbourhood_id: 'nb1' } as any);
+
+      expect(chatService.getNeighbourhoodGroup).toHaveBeenCalledWith('nb1');
+      expect(chatService.isMember).toHaveBeenCalledWith('nb-g1', 'u1');
+      expect(chatMessageService.sendMessage).toHaveBeenCalledWith('nb-g1', 'u1', {
+        content: 'Test',
+        type: 'poll',
+        poll_id: 'p1',
+      });
+      expect(chatGateway.emitToGroup).toHaveBeenCalledWith('nb-g1', 'message:received', {
+        id: 'm1',
+        type: 'poll',
+        poll_id: 'p1',
+      });
+    });
+
+    it('skips the bridge when the neighbourhood has no auto-managed group yet', async () => {
+      chatService.getNeighbourhoodGroup.mockResolvedValue(null);
+
+      await controller.createPoll(repUser as any, { title: 'Test', neighbourhood_id: 'nb1' } as any);
+
+      expect(chatMessageService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it("skips the bridge when the creator isn't a member of the neighbourhood's group", async () => {
+      chatService.getNeighbourhoodGroup.mockResolvedValue({ id: 'nb-g1' });
+      chatService.isMember.mockResolvedValue(false);
+
+      await controller.createPoll(repUser as any, { title: 'Test', neighbourhood_id: 'nb1' } as any);
+
+      expect(chatMessageService.sendMessage).not.toHaveBeenCalled();
     });
   });
 

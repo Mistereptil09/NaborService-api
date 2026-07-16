@@ -1,4 +1,5 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   DeleteDateColumn,
@@ -13,6 +14,7 @@ import {
 } from '../../../common/enums';
 
 @Entity('users')
+@Check('chk_users_points_balance', '"points_balance" >= 0')
 @Index('idx_users_neighbourhood', ['neighbourhoodId'])
 @Index('idx_users_role', ['role'])
 @Index('idx_users_deleted_at', ['deletedAt'])
@@ -42,6 +44,9 @@ export class User {
     nullable: true,
   })
   stripeAccountId: string | null;
+
+  @Column({ name: 'points_balance', type: 'int', nullable: false, default: 0 })
+  pointsBalance: number;
 
   @Column({ name: 'neighbourhood_id', type: 'text', nullable: true })
   neighbourhoodId: string | null;

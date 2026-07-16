@@ -6,5 +6,6 @@ export interface ProcessedFile {
   sizeBytes: number;
   widthPx?: number;
   heightPx?: number;
+  durationSeconds?: number;
   originalFilename: string;
 }

@@ -104,7 +104,7 @@ export class SsoService {
       await this.redis.expire(activeKeysSetKey, 130);
 
       const qrcodeurl =
-        process.env.qrcodeurl ??
+        process.env.FRONTEND_URL ??
         process.env.APP_BASE_URL ??
         'http://localhost:3000/v1';
 

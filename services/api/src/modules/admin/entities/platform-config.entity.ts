@@ -17,6 +17,9 @@ export class PlatformConfig {
   @Column({ name: 'waitlist_confirm_hours', type: 'integer', default: 24 })
   waitlistConfirmHours!: number;
 
+  @Column({ name: 'cents_per_point', type: 'integer', default: 1 })
+  centsPerPoint!: number;
+
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 }

@@ -4,6 +4,8 @@ import { UnrecoverableError } from 'bullmq';
 import { EventRegisterWorker } from '../event-register.worker';
 import { EventsGateway } from '../../../modules/events/events.gateway';
 import { EventStatusEnum, ParticipantStatusEnum } from '../../../common/enums';
+import { PointsService } from '../../../modules/points/points.service';
+import { AdminConfigService } from '../../../modules/admin/admin-config.service';
 
 describe('EventRegisterWorker', () => {
   let worker: EventRegisterWorker;
@@ -20,6 +22,12 @@ describe('EventRegisterWorker', () => {
     emitParticipantAdded: jest.fn(),
     emitRegistrationFailed: jest.fn(),
   };
+  const mockPointsService = {
+    debit: jest.fn().mockResolvedValue({}),
+  };
+  const mockAdminConfigService = {
+    getConfig: jest.fn().mockResolvedValue({ centsPerPoint: 1 }),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -27,6 +35,8 @@ describe('EventRegisterWorker', () => {
         EventRegisterWorker,
         { provide: DataSource, useValue: mockDataSource },
         { provide: EventsGateway, useValue: mockEventsGateway },
+        { provide: PointsService, useValue: mockPointsService },
+        { provide: AdminConfigService, useValue: mockAdminConfigService },
       ],
     }).compile();
 

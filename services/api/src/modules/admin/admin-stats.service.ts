@@ -40,7 +40,7 @@ export class AdminStatsService {
 
     const paymentSum = await this.transactionRepository
       .createQueryBuilder('tx')
-      .select('SUM(tx.amount_cents)', 'total')
+      .select('SUM(tx.amount_points)', 'total')
       .where('tx.status = :status', { status: TransactionStatusEnum.COMPLETED })
       .getRawOne();
 
@@ -49,7 +49,7 @@ export class AdminStatsService {
       totalListings,
       totalEvents,
       activeIncidents,
-      totalPaymentsCents: parseInt(paymentSum?.total || '0', 10),
+      totalPaymentsPoints: parseInt(paymentSum?.total || '0', 10),
     };
   }
 
@@ -116,8 +116,8 @@ export class AdminStatsService {
   async getPaymentsStats() {
     const sums = await this.transactionRepository
       .createQueryBuilder('tx')
-      .select('SUM(tx.amount_cents)', 'totalAmount')
-      .addSelect('SUM(tx.commission_cents)', 'totalCommission')
+      .select('SUM(tx.amount_points)', 'totalAmount')
+      .addSelect('SUM(tx.commission_points)', 'totalCommission')
       .where('tx.status = :status', { status: TransactionStatusEnum.COMPLETED })
       .getRawOne();
 
@@ -129,8 +129,8 @@ export class AdminStatsService {
       .getRawMany();
 
     return {
-      totalAmountCents: parseInt(sums?.totalAmount || '0', 10),
-      totalCommissionCents: parseInt(sums?.totalCommission || '0', 10),
+      totalAmountPoints: parseInt(sums?.totalAmount || '0', 10),
+      totalCommissionPoints: parseInt(sums?.totalCommission || '0', 10),
       statusBreakdown: statusBreakdown.map(withNumericCount),
     };
   }

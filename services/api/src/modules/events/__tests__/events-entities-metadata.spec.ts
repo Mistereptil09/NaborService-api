@@ -337,42 +337,10 @@ describe('Events Entities — TypeORM Metadata', () => {
       expect(col!.default).toBe('free');
     });
 
-    it('should define stripe_session_id as varchar nullable UNIQUE', () => {
+    it('should define amount_points as int NOT NULL with default 0', () => {
       const metadata = dataSource.getMetadata(EventParticipant);
       const col = metadata.columns.find(
-        (c) => c.databaseName === 'stripe_session_id',
-      );
-      expect(col).toBeDefined();
-      expect(col!.type).toBe('varchar');
-      expect(col!.isNullable).toBe(true);
-      const hasUnique =
-        (col as { isUnique?: boolean }).isUnique === true ||
-        metadata.uniques.some((u) =>
-          u.columns.some((c) => c.databaseName === 'stripe_session_id'),
-        );
-      expect(hasUnique).toBe(true);
-    });
-
-    it('should define stripe_payment_intent as varchar nullable UNIQUE', () => {
-      const metadata = dataSource.getMetadata(EventParticipant);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'stripe_payment_intent',
-      );
-      expect(col).toBeDefined();
-      expect(col!.type).toBe('varchar');
-      expect(col!.isNullable).toBe(true);
-      const hasUnique =
-        (col as { isUnique?: boolean }).isUnique === true ||
-        metadata.uniques.some((u) =>
-          u.columns.some((c) => c.databaseName === 'stripe_payment_intent'),
-        );
-      expect(hasUnique).toBe(true);
-    });
-
-    it('should define amount_cents as int NOT NULL with default 0', () => {
-      const metadata = dataSource.getMetadata(EventParticipant);
-      const col = metadata.columns.find(
-        (c) => c.databaseName === 'amount_cents',
+        (c) => c.databaseName === 'amount_points',
       );
       expect(col).toBeDefined();
       expect(col!.type).toBe('int');

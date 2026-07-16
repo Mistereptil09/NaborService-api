@@ -20,6 +20,7 @@ export class AdminConfigService {
         refundDeadlineHours: 48,
         contractExpirationHours: 24,
         waitlistConfirmHours: 24,
+        centsPerPoint: 1,
       });
       await this.configRepository.save(config);
     }
@@ -39,6 +40,9 @@ export class AdminConfigService {
     }
     if (dto.waitlistConfirmHours !== undefined) {
       config.waitlistConfirmHours = dto.waitlistConfirmHours;
+    }
+    if (dto.centsPerPoint !== undefined) {
+      config.centsPerPoint = dto.centsPerPoint;
     }
     return this.configRepository.save(config);
   }

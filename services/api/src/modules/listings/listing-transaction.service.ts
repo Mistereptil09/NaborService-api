@@ -21,8 +21,8 @@ export class ListingTransactionService {
     listingId: string,
     providerId: string,
     requesterId: string,
-    amountCents: number = 0,
-    commissionCents: number = 0,
+    amountPoints: number = 0,
+    commissionPoints: number = 0,
   ): Promise<ListingTransaction> {
     if (providerId === requesterId) {
       throw new BadRequestException(
@@ -34,8 +34,8 @@ export class ListingTransactionService {
       listingId,
       providerId,
       requesterId,
-      amountCents,
-      commissionCents,
+      amountPoints,
+      commissionPoints,
       status: TransactionStatusEnum.PENDING,
     });
 
@@ -86,33 +86,5 @@ export class ListingTransactionService {
 
   async save(transaction: ListingTransaction): Promise<ListingTransaction> {
     return this.transactionRepository.save(transaction);
-  }
-
-  async markPaid(
-    transactionId: string,
-    paymentIntentId: string,
-  ): Promise<void> {
-    const transaction = await this.transactionRepository.findOne({
-      where: { id: transactionId },
-    });
-    if (!transaction || transaction.paidAt) return;
-
-    transaction.stripePaymentIntent = paymentIntentId;
-    transaction.paidAt = new Date();
-    await this.transactionRepository.save(transaction);
-  }
-
-  async markPaymentFailed(
-    transactionId: string,
-    reason: string,
-  ): Promise<void> {
-    const transaction = await this.transactionRepository.findOne({
-      where: { id: transactionId },
-    });
-    if (!transaction) return;
-
-    transaction.status = TransactionStatusEnum.PAYMENT_FAILED;
-    transaction.paymentFailedReason = reason;
-    await this.transactionRepository.save(transaction);
   }
 }

@@ -2,6 +2,28 @@ services:
   postgres:
     build:
       context: ./docker/postgres
+    ports:
+      - "5432:5432"
+
+  mongo:
+    ports:
+      - "27017:27017"
+
+  neo4j:
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  mailpit:
+    image: axllent/mailpit
+    container_name: nabor_mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
   api:
     build:
@@ -14,7 +36,13 @@ services:
       NODE_ENV: development
       SMTP_HOST: mailpit
 
+  ban:
+    ports:
+      - "7878:7878"
+
   dsl-service:
+    ports:
+      - "8000:8000"
     build:
       target: dev
     volumes:

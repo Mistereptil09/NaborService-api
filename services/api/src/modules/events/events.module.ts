@@ -29,11 +29,12 @@ import { EventReportService } from './event-report.service';
 import { EventModerationService } from './event-moderation.service';
 import { EventsGateway } from './events.gateway';
 import { EventsController } from './events.controller';
-import { EventsStripeController } from './events-stripe.controller';
 
 import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
 import { MessagingModule } from '../messaging/messaging.module';
+import { PointsModule } from '../points/points.module';
+import { AdminModule } from '../admin/admin.module';
 import { BullModule } from '@nestjs/bullmq';
 
 @Module({
@@ -63,8 +64,10 @@ import { BullModule } from '@nestjs/bullmq';
     AuthModule,
     MediaModule,
     MessagingModule,
+    PointsModule,
+    AdminModule,
   ],
-  controllers: [EventsController, EventsStripeController],
+  controllers: [EventsController],
   providers: [
     EventsService,
     EventContentService,

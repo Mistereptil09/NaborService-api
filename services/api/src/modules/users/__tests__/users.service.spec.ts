@@ -89,12 +89,7 @@ describe('UsersService — neighbourhood chat group sync hooks', () => {
 
       expect(
         chatService.resyncNeighbourhoodGroupMembershipForRoleChange,
-      ).toHaveBeenCalledWith(
-        'u1',
-        UserRoleEnum.RESIDENT,
-        UserRoleEnum.MODERATOR,
-        'nb-old',
-      );
+      ).toHaveBeenCalledWith('u1', UserRoleEnum.MODERATOR, 'nb-old');
     });
 
     it('should not resync when the role is unchanged', async () => {

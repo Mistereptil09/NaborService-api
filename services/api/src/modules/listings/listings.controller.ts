@@ -338,6 +338,21 @@ export class ListingsController {
     return this.stateMachineService.acceptInterest(id, req.user.sub);
   }
 
+  @Post(':listing_id/pay')
+  @ApiOperation({ summary: 'Payer la transaction en points' })
+  @ApiOkResponse({
+    description: 'Transaction payée avec succès, points débités',
+  })
+  @ApiBadRequestResponse({ description: 'Solde de points insuffisant' })
+  @ApiForbiddenResponse({
+    description: "Action interdite (l'utilisateur n'est pas le demandeur)",
+  })
+  @ApiNotFoundResponse({ description: 'Annonce introuvable' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
+  async payListing(@Param('listing_id') id: string, @Req() req: any) {
+    return this.stateMachineService.pay(id, req.user.sub);
+  }
+
   @Post(':listing_id/confirm')
   @ApiOperation({ summary: 'Confirmer la bonne exécution du service/échange' })
   @ApiOkResponse({

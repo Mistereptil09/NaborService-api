@@ -8,7 +8,14 @@ import { getBackoffDelay } from '../utils/backoff-strategy';
 import { Evenement } from '../../modules/events/entities/evenement.entity';
 import { EventParticipant } from '../../modules/events/entities/event-participant.entity';
 import { EventsGateway } from '../../modules/events/events.gateway';
-import { EventStatusEnum, ParticipantStatusEnum } from '../../common/enums';
+import {
+  EventStatusEnum,
+  ParticipantStatusEnum,
+  PaymentStatusEnum,
+  PointsLedgerEntryTypeEnum,
+} from '../../common/enums';
+import { PointsService } from '../../modules/points/points.service';
+import { AdminConfigService } from '../../modules/admin/admin-config.service';
 
 @Processor('event-register', {
   concurrency: 10,
@@ -26,6 +33,8 @@ export class EventRegisterWorker extends WorkerHost {
   constructor(
     private readonly dataSource: DataSource,
     private readonly eventsGateway: EventsGateway,
+    private readonly pointsService: PointsService,
+    private readonly adminConfigService: AdminConfigService,
   ) {
     super();
   }
@@ -33,6 +42,14 @@ export class EventRegisterWorker extends WorkerHost {
   async process(job: Job<EventRegisterJobPayload>): Promise<any> {
     try {
       const { eventId, userId } = job.data;
+
+      let centsPerPoint = 1;
+      try {
+        const config = await this.adminConfigService.getConfig();
+        centsPerPoint = config.centsPerPoint;
+      } catch (e) {
+        // Fallback
+      }
 
       await this.dataSource.transaction(async (manager) => {
         const event = await manager.findOne(Evenement, {
@@ -66,27 +83,54 @@ export class EventRegisterWorker extends WorkerHost {
           throw new UnrecoverableError(`Event ${eventId} is full`);
         }
 
-        const existing = await manager.findOne(EventParticipant, {
+        let participant = await manager.findOne(EventParticipant, {
           where: { eventId, userId },
         });
 
-        if (existing) {
-          if (existing.status === ParticipantStatusEnum.REGISTERED) {
-            throw new UnrecoverableError(
-              `User ${userId} already registered for event ${eventId}`,
-            );
-          } else {
-            existing.status = ParticipantStatusEnum.REGISTERED;
-            await manager.save(existing);
-          }
-        } else {
-          const participant = manager.create(EventParticipant, {
-            eventId,
-            userId,
-            status: ParticipantStatusEnum.REGISTERED,
-          });
-          await manager.save(participant);
+        if (
+          participant &&
+          participant.status === ParticipantStatusEnum.REGISTERED
+        ) {
+          throw new UnrecoverableError(
+            `User ${userId} already registered for event ${eventId}`,
+          );
         }
+
+        if (!participant) {
+          participant = manager.create(EventParticipant, { eventId, userId });
+        }
+
+        if (event.costCents > 0) {
+          const costPoints = Math.floor(event.costCents / centsPerPoint);
+          try {
+            await this.pointsService.debit(
+              {
+                userId,
+                amountPoints: costPoints,
+                type: PointsLedgerEntryTypeEnum.EVENT_HOLD,
+                referenceType: 'evenement',
+                referenceId: eventId,
+              },
+              manager,
+            );
+          } catch {
+            this.eventsGateway.emitRegistrationFailed(
+              eventId,
+              userId,
+              'INSUFFICIENT_POINTS',
+            );
+            throw new UnrecoverableError(
+              `User ${userId} has insufficient points for event ${eventId}`,
+            );
+          }
+
+          participant.paymentStatus = PaymentStatusEnum.COMPLETED;
+          participant.amountPoints = costPoints;
+          participant.paidAt = new Date();
+        }
+
+        participant.status = ParticipantStatusEnum.REGISTERED;
+        await manager.save(participant);
       });
 
       this.eventsGateway.emitParticipantAdded(

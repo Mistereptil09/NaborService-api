@@ -9,16 +9,21 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { DataSource, Repository, IsNull } from 'typeorm';
 import { Listing } from './entities/listing.entity';
 import { ListingTransaction } from './entities/listing-transaction.entity';
 import { ListingsService } from './listings.service';
 import { ListingTransactionService } from './listing-transaction.service';
 import { ListingsGateway } from './listings.gateway';
-import { ListingStatusEnum, TransactionStatusEnum } from '../../common/enums';
+import {
+  ListingStatusEnum,
+  TransactionStatusEnum,
+  PointsLedgerEntryTypeEnum,
+} from '../../common/enums';
 import { isModeratorOrAdmin } from '../../common/ownership';
 import { AdminConfigService } from '../admin/admin-config.service';
 import { NotificationsService } from '../messaging/notifications.service';
+import { PointsService } from '../points/points.service';
 
 @Injectable()
 export class ListingStateMachineService {
@@ -45,6 +50,8 @@ export class ListingStateMachineService {
     },
     private readonly configService: AdminConfigService,
     private readonly notificationsService: NotificationsService,
+    private readonly pointsService: PointsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async expressInterest(
@@ -80,7 +87,7 @@ export class ListingStateMachineService {
       // Fallback
     }
 
-    const commissionCents = Math.round(
+    const commissionPoints = Math.round(
       (listing.priceCents * commissionPercent) / 100,
     );
 
@@ -90,7 +97,7 @@ export class ListingStateMachineService {
       listing.creatorId,
       requesterId,
       listing.priceCents,
-      commissionCents,
+      commissionPoints,
     );
 
     // Update listing status
@@ -233,6 +240,42 @@ export class ListingStateMachineService {
     return updatedListing;
   }
 
+  async pay(
+    listingId: string,
+    requesterId: string,
+  ): Promise<ListingTransaction> {
+    const transaction =
+      await this.transactionService.findByListingId(listingId);
+
+    if (transaction.requesterId !== requesterId) {
+      throw new ForbiddenException('Action non autorisée');
+    }
+
+    if (
+      transaction.listing.status !== ListingStatusEnum.IN_PROGRESS ||
+      transaction.status !== TransactionStatusEnum.PENDING ||
+      transaction.paidAt
+    ) {
+      throw new ConflictException('Cette transaction ne peut pas être payée');
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      await this.pointsService.debit(
+        {
+          userId: requesterId,
+          amountPoints: transaction.amountPoints,
+          type: PointsLedgerEntryTypeEnum.LISTING_HOLD,
+          referenceType: 'listing_transaction',
+          referenceId: transaction.id,
+        },
+        manager,
+      );
+
+      transaction.paidAt = new Date();
+      return manager.save(transaction);
+    });
+  }
+
   async confirmExecution(
     listingId: string,
     userId: string,
@@ -260,27 +303,57 @@ export class ListingStateMachineService {
 
     let savedTransaction = await this.transactionService.save(transaction);
 
-    // If both confirmed, close listing
+    // If both confirmed, close listing and release payment to the provider
     if (
       savedTransaction.providerConfirmedAt &&
       savedTransaction.requesterConfirmedAt
     ) {
-      const result = await this.listingRepository.update(
-        { id: listingId, status: ListingStatusEnum.IN_PROGRESS },
-        {
-          status: ListingStatusEnum.CLOSED,
-          closedAt: new Date(),
-          updatedAt: new Date(),
-        },
-      );
+      savedTransaction = await this.dataSource.transaction(async (manager) => {
+        const result = await manager.update(
+          Listing,
+          { id: listingId, status: ListingStatusEnum.IN_PROGRESS },
+          {
+            status: ListingStatusEnum.CLOSED,
+            closedAt: new Date(),
+            updatedAt: new Date(),
+          },
+        );
 
-      if (result.affected === 0) {
-        throw new ConflictException("L'annonce n'est plus en cours");
-      }
+        if (result.affected === 0) {
+          throw new ConflictException("L'annonce n'est plus en cours");
+        }
 
-      savedTransaction.status = TransactionStatusEnum.COMPLETED;
-      savedTransaction.completedAt = new Date();
-      savedTransaction = await this.transactionService.save(savedTransaction);
+        savedTransaction.status = TransactionStatusEnum.COMPLETED;
+        savedTransaction.completedAt = new Date();
+        const completed = await manager.save(savedTransaction);
+
+        const payoutPoints = completed.amountPoints - completed.commissionPoints;
+        if (payoutPoints > 0) {
+          await this.pointsService.credit(
+            {
+              userId: completed.providerId,
+              amountPoints: payoutPoints,
+              type: PointsLedgerEntryTypeEnum.LISTING_PAYOUT,
+              referenceType: 'listing_transaction',
+              referenceId: completed.id,
+            },
+            manager,
+          );
+        }
+        if (completed.commissionPoints > 0) {
+          await this.pointsService.recordCommission(
+            {
+              amountPoints: completed.commissionPoints,
+              type: PointsLedgerEntryTypeEnum.LISTING_COMMISSION,
+              referenceType: 'listing_transaction',
+              referenceId: completed.id,
+            },
+            manager,
+          );
+        }
+
+        return completed;
+      });
 
       const updatedListing = await this.listingsService.findOne(listingId);
 
@@ -349,22 +422,38 @@ export class ListingStateMachineService {
       throw new ForbiddenException('Action non autorisée');
     }
 
-    const result = await this.listingRepository.update(
-      { id: listingId, status: listing.status },
-      { status: ListingStatusEnum.CANCELLED, updatedAt: new Date() },
-    );
+    await this.dataSource.transaction(async (manager) => {
+      const result = await manager.update(
+        Listing,
+        { id: listingId, status: listing.status },
+        { status: ListingStatusEnum.CANCELLED, updatedAt: new Date() },
+      );
 
-    if (result.affected === 0) {
-      throw new ConflictException('Action impossible');
-    }
+      if (result.affected === 0) {
+        throw new ConflictException('Action impossible');
+      }
+
+      if (transaction) {
+        transaction.status = TransactionStatusEnum.CANCELLED;
+        transaction.cancelledAt = new Date();
+        await manager.save(transaction);
+
+        if (transaction.paidAt) {
+          await this.pointsService.credit(
+            {
+              userId: transaction.requesterId,
+              amountPoints: transaction.amountPoints,
+              type: PointsLedgerEntryTypeEnum.LISTING_REFUND,
+              referenceType: 'listing_transaction',
+              referenceId: transaction.id,
+            },
+            manager,
+          );
+        }
+      }
+    });
 
     const updatedListing = await this.listingsService.findOne(listingId);
-
-    if (transaction) {
-      transaction.status = TransactionStatusEnum.CANCELLED;
-      transaction.cancelledAt = new Date();
-      await this.transactionService.save(transaction);
-    }
 
     // Neo4j Sync
     await this.neo4jSyncQueue.add('upsert-listing', {

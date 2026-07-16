@@ -18,7 +18,9 @@ export type NotificationType =
   | 'new_follower'
   | 'new_poll'
   | 'incident_resolved'
-  | 'event_cancelled';
+  | 'event_cancelled'
+  | 'missed_call'
+  | 'call_summary';
 
 @Entity('notifications')
 export class Notification {

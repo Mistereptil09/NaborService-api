@@ -18,7 +18,6 @@ import {
 } from '../../common/enums';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
-import { isModeratorOrAdmin } from '../../common/ownership';
 import { neighbourhoodGroupRoleFor } from '../../common/group-role.util';
 
 @Injectable()
@@ -316,45 +315,20 @@ export class ChatService {
     }
   }
 
-  /** Resynchronise l'adhésion aux groupes de quartier suite à un changement de rôle global. */
+  /** Resynchronise l'adhésion au groupe de quartier courant suite à un changement de rôle global. */
   async resyncNeighbourhoodGroupMembershipForRoleChange(
     userId: string,
-    oldRole: UserRoleEnum,
     newRole: UserRoleEnum,
     currentNeighbourhoodId: string | null,
   ): Promise<void> {
-    const wasStaff = isModeratorOrAdmin(oldRole);
-    const isStaff = isModeratorOrAdmin(newRole);
-
-    if (wasStaff !== isStaff) {
-      const groups = await this.groupRepo.find({
-        where: { type: ChatGroupTypeEnum.NEIGHBOURHOOD, deletedAt: IsNull() },
-      });
-      for (const group of groups) {
-        if (isStaff) {
-          await this.upsertMembership(group.id, userId, GroupRoleEnum.ADMIN);
-        } else if (group.neighbourhoodId === currentNeighbourhoodId) {
-          await this.upsertMembership(
-            group.id,
-            userId,
-            neighbourhoodGroupRoleFor(newRole),
-          );
-        } else {
-          await this.revokeMembership(group.id, userId);
-        }
-      }
-      return;
-    }
-
-    if (!isStaff && currentNeighbourhoodId) {
-      const group = await this.getNeighbourhoodGroup(currentNeighbourhoodId);
-      if (group)
-        await this.upsertMembership(
-          group.id,
-          userId,
-          neighbourhoodGroupRoleFor(newRole),
-        );
-    }
+    if (!currentNeighbourhoodId) return;
+    const group = await this.getNeighbourhoodGroup(currentNeighbourhoodId);
+    if (!group) return;
+    await this.upsertMembership(
+      group.id,
+      userId,
+      neighbourhoodGroupRoleFor(newRole),
+    );
   }
 
   async createGroup(creatorId: string, dto: CreateGroupDto) {
