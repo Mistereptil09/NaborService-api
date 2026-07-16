@@ -12,6 +12,7 @@ services:
     command: npm run start:dev
     environment:
       NODE_ENV: development
+      SMTP_HOST: mailpit
 
   dsl-service:
     build:
