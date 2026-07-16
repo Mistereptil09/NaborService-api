@@ -29,8 +29,8 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
-import { Response } from 'express';
+import { IsNull, Not, Repository } from 'typeorm';
+import type { Request, Response } from 'express';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MediaService } from './services/media.service';
@@ -39,7 +39,12 @@ import { Listing } from '../listings/entities/listing.entity';
 import { User } from '../users/entities/user.entity';
 import { MessageMetadata } from '../messaging/entities/message-metadata.entity';
 import { UsersInGroup } from '../messaging/entities/users-in-group.entity';
-import { GroupRoleEnum } from '../../common/enums';
+import { ListingTransaction } from '../listings/entities/listing-transaction.entity';
+import { Incident } from '../incidents/entities/incident.entity';
+import { Evenement } from '../events/entities/evenement.entity';
+import { EventParticipant } from '../events/entities/event-participant.entity';
+import { GroupRoleEnum, ParticipantStatusEnum } from '../../common/enums';
+import { MediaFileDocument } from './schemas/media-file.schema';
 import { ReorderPhotosDto } from './dto/reorder-photos.dto';
 import { UpdateCaptionDto } from './dto/update-caption.dto';
 
@@ -63,6 +68,14 @@ export class MediaController {
     private readonly messageMetadataRepository: Repository<MessageMetadata>,
     @InjectRepository(UsersInGroup)
     private readonly usersInGroupRepository: Repository<UsersInGroup>,
+    @InjectRepository(ListingTransaction)
+    private readonly listingTransactionRepository: Repository<ListingTransaction>,
+    @InjectRepository(Incident)
+    private readonly incidentRepository: Repository<Incident>,
+    @InjectRepository(Evenement)
+    private readonly evenementRepository: Repository<Evenement>,
+    @InjectRepository(EventParticipant)
+    private readonly eventParticipantRepository: Repository<EventParticipant>,
   ) {}
 
   /** Vérifie que `userId` est membre actif du groupe du message. */
@@ -73,28 +86,125 @@ export class MediaController {
     return membership !== null;
   }
 
+  /** owner_type lisibles par tout utilisateur authentifié, sans vérification supplémentaire. */
+  private static readonly PUBLIC_TO_AUTHENTICATED = new Set([
+    'user_avatar',
+    'user_banner',
+    'listing_photo',
+    'event_cover',
+  ]);
+
+  private isPrivilegedRole(role: string): boolean {
+    return role === 'admin' || role === 'moderator';
+  }
+
+  /** Vérifie que l'utilisateur authentifié peut lire (streamer/télécharger) ce média. */
+  private async assertCanReadMedia(
+    doc: MediaFileDocument,
+    user: JwtPayload,
+  ): Promise<void> {
+    if (this.isPrivilegedRole(user.role)) {
+      return;
+    }
+
+    if (MediaController.PUBLIC_TO_AUTHENTICATED.has(doc.owner_type)) {
+      return;
+    }
+
+    switch (doc.owner_type) {
+      case 'event_attachment': {
+        const event = await this.evenementRepository.findOne({
+          where: { id: doc.owner_id },
+        });
+        if (!event) {
+          throw new NotFoundException('Événement introuvable');
+        }
+        if (event.creatorId === user.sub) {
+          return;
+        }
+        const participant = await this.eventParticipantRepository.findOne({
+          where: {
+            eventId: doc.owner_id,
+            userId: user.sub,
+            status: Not(ParticipantStatusEnum.CANCELLED),
+          },
+        });
+        if (participant) {
+          return;
+        }
+        throw new ForbiddenException('Action non autorisée');
+      }
+      case 'incident_photo': {
+        const incident = await this.incidentRepository.findOne({
+          where: { id: doc.owner_id },
+        });
+        if (!incident) {
+          throw new NotFoundException('Signalement introuvable');
+        }
+        if (incident.reporterId === user.sub || incident.assignedTo === user.sub) {
+          return;
+        }
+        throw new ForbiddenException('Action non autorisée');
+      }
+      case 'message_attachment': {
+        const message = await this.messageMetadataRepository.findOne({
+          where: { id: doc.owner_id },
+        });
+        if (!message) {
+          throw new NotFoundException('Message introuvable');
+        }
+        if (await this.isMessageGroupMember(message.groupId, user.sub)) {
+          return;
+        }
+        throw new ForbiddenException('Action non autorisée');
+      }
+      case 'contract': {
+        const transaction = await this.listingTransactionRepository.findOne({
+          where: { id: doc.owner_id },
+        });
+        if (!transaction) {
+          throw new NotFoundException('Transaction introuvable');
+        }
+        if (
+          transaction.providerId === user.sub ||
+          transaction.requesterId === user.sub
+        ) {
+          return;
+        }
+        throw new ForbiddenException('Action non autorisée');
+      }
+      default:
+        throw new ForbiddenException('Action non autorisée');
+    }
+  }
+
   // --- Streaming Endpoint ---
 
   @Get(':mediaId/stream')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Streamer ou télécharger un fichier média' })
   @ApiOkResponse({
     description:
       "Flux de données du média (supporte le streaming partiel via l'entête Range)",
   })
   @ApiBadRequestResponse({ description: "Format d'identifiant média invalide" })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
+  @ApiForbiddenResponse({ description: 'Accès non autorisé à ce média' })
   @ApiNotFoundResponse({
-    description: 'Média ou fichier de stockage introuvable',
+    description: 'Média, ressource associée ou fichier de stockage introuvable',
   })
   async streamMedia(
     @Param('mediaId') mediaId: string,
-    @Req() req: any,
-    @Res() res: any,
+    @Req() req: Request & { user: JwtPayload },
+    @Res() res: Response,
   ) {
     if (!/^[0-9a-fA-F]{24}$/.test(mediaId)) {
       throw new BadRequestException('Invalid media identifier format');
     }
 
     const metadata = await this.mediaService.findById(mediaId);
+    await this.assertCanReadMedia(metadata, req.user);
     const fileId = metadata.gridfs_file_id;
 
     let fileInfo;
@@ -116,7 +226,7 @@ export class MediaController {
       );
     }
 
-    const rangeHeader = req.headers.range;
+    const rangeHeader = req.headers.range as string | undefined;
 
     if (!rangeHeader) {
       res.setHeader('Content-Length', totalSize.toString());
@@ -146,9 +256,13 @@ export class MediaController {
     res.setHeader('Content-Length', chunkSize.toString());
     res.status(206);
 
+    // HTTP Range `end` is inclusive, but GridFSBucket.openDownloadStream's
+    // `end` option is an EXCLUSIVE byte offset — passing it through unshifted
+    // streams one byte fewer than the Content-Length promised above, so the
+    // response never completes and the client hangs until its own timeout.
     const downloadStream = this.gridfsService.openDownloadStream(fileId, {
       start,
-      end,
+      end: end + 1,
     });
     downloadStream.pipe(res);
   }

@@ -27,6 +27,10 @@ describe('MediaController — message_attachment authorization', () => {
       mockUserRepo,
       mockMessageMetadataRepo,
       mockUsersInGroupRepo,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
     );
   });
 

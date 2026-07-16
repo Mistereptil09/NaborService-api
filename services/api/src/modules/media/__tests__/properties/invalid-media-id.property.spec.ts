@@ -22,6 +22,10 @@ describe('Feature: gridfs-media-storage, Property 8: Invalid Media ID Validation
       mockUserRepo,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
     );
   });
 
@@ -36,7 +40,7 @@ describe('Feature: gridfs-media-storage, Property 8: Invalid Media ID Validation
         const res: any = {};
 
         await expect(
-          mediaController.streamMedia(mediaId, req, res),
+          mediaController.streamMedia(mediaId, req as any, res as any),
         ).rejects.toThrow(BadRequestException);
       }),
       { numRuns: 100 },

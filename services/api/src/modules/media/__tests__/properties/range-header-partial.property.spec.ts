@@ -28,6 +28,10 @@ describe('Feature: gridfs-media-storage, Property 7: Range Header Partial Conten
       mockUserRepo,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
     );
   });
 
@@ -70,6 +74,7 @@ describe('Feature: gridfs-media-storage, Property 7: Range Header Partial Conten
             headers: {
               range: `bytes=${start}-${end}`,
             },
+            user: { sub: 'test-user', email: 'test@test.com', role: 'resident' },
           };
 
           const res: any = {
@@ -110,7 +115,7 @@ describe('Feature: gridfs-media-storage, Property 7: Range Header Partial Conten
             res.body = Buffer.concat([res.body]);
           });
 
-          await mediaController.streamMedia(mediaId, req, res);
+          await mediaController.streamMedia(mediaId, req as any, res);
 
           expect(res.statusCode).toBe(206);
           expect(res.headers['content-range']).toBe(
@@ -118,6 +123,14 @@ describe('Feature: gridfs-media-storage, Property 7: Range Header Partial Conten
           );
           expect(res.headers['content-length']).toBe(
             (end - start + 1).toString(),
+          );
+          // GridFS's `end` option is EXCLUSIVE, unlike the inclusive HTTP
+          // Range end — passing `end` unshifted streams one byte fewer than
+          // Content-Length promises, hanging every ranged client until its
+          // own timeout (media elements always use Range requests).
+          expect(mockGridFSService.openDownloadStream).toHaveBeenCalledWith(
+            gridfsFileId,
+            { start, end: end + 1 },
           );
         },
       ),

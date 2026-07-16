@@ -47,6 +47,12 @@ export class EventMediaService {
       throw new BadRequestException('No file provided');
     }
 
+    // multer/busboy decode multipart filename headers as latin1 regardless of
+    // the browser's actual UTF-8 encoding — re-decode to fix accented filenames.
+    file.originalname = Buffer.from(file.originalname, 'latin1').toString(
+      'utf8',
+    );
+
     if (!this.ALLOWED_MIMES.includes(file.mimetype)) {
       throw new BadRequestException('Invalid file format');
     }

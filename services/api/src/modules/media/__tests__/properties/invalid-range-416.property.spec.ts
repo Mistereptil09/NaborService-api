@@ -26,6 +26,10 @@ describe('Feature: gridfs-media-storage, Property 18: Invalid Range Returns 416'
       mockUserRepo,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
     );
   });
 
@@ -54,6 +58,7 @@ describe('Feature: gridfs-media-storage, Property 18: Invalid Range Returns 416'
             headers: {
               range: `bytes=${start}-${end}`,
             },
+            user: { sub: 'test-user', email: 'test@test.com', role: 'resident' },
           };
 
           const res: any = {
@@ -74,7 +79,7 @@ describe('Feature: gridfs-media-storage, Property 18: Invalid Range Returns 416'
             },
           };
 
-          await mediaController.streamMedia(mediaId, req, res);
+          await mediaController.streamMedia(mediaId, req as any, res);
 
           expect(res.statusCode).toBe(416);
           expect(res.headers['content-range']).toBe(`bytes */${totalSize}`);
