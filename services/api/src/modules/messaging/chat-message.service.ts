@@ -31,6 +31,8 @@ export interface AttachmentDto {
   filename: string;
   mimetype: string;
   size_bytes: number;
+  /** Renseigné pour les pièces jointes audio — probé côté back au transcodage (voir UploadPipeline). */
+  duration_seconds?: number | null;
 }
 
 export interface SenderDto {
@@ -144,6 +146,62 @@ export class ChatMessageService {
     });
   }
 
+  /**
+   * Insère un message système (non initié par une action utilisateur, ex. un
+   * appel manqué/terminé) dans le fil d'une conversation. Contourne
+   * `assertCanParticipate` — ce n'est pas un envoi utilisateur — et ne
+   * chiffre pas un contenu arbitraire : `content` reste un texte de repli
+   * non localisé, le rendu réel se fait côté front à partir de `event`/
+   * `payload`. `authoredBy` reste requis (sender_id est NOT NULL) mais le
+   * front distingue ces messages par `type === 'system'`, pas par l'auteur.
+   */
+  async postSystemMessage(
+    groupId: string,
+    authoredBy: string,
+    event: string,
+    payload: Record<string, any>,
+  ) {
+    const groupKey = await this.getOrCreateGroupKey(groupId);
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const cipher = crypto.createCipheriv(AES_ALGO, groupKey, iv);
+    const encrypted = Buffer.concat([
+      cipher.update(event, 'utf-8'),
+      cipher.final(),
+    ]);
+    const authTag = cipher.getAuthTag();
+
+    const messageId = crypto.randomUUID();
+
+    const mongoMsg = await this.messageModel.create({
+      pg_message_id: messageId,
+      pg_group_id: groupId,
+      pg_sender_id: authoredBy,
+      content_encrypted: encrypted.toString('base64'),
+      iv: iv.toString('base64'),
+      auth_tag: authTag.toString('base64'),
+      type: 'system',
+      system_event: event,
+      system_payload: payload,
+      poll_id: null,
+      attachments: [],
+      reactions: [],
+      sent_at: new Date(),
+    });
+
+    const metadata = this.msgRepo.create({
+      id: messageId,
+      mongoMessageId: messageId,
+      groupId,
+      senderId: authoredBy,
+      sentAt: new Date(),
+    });
+    await this.msgRepo.save(metadata);
+
+    const sender = await this.buildSenderDto(authoredBy);
+
+    return this.toPlainMessage(mongoMsg, metadata, groupKey, { sender });
+  }
+
   /** Récupère les pièces jointes (module media, GridFS) pour un lot de messages, sans N+1. */
   private async getAttachmentsMap(messageIds: string[]): Promise<Map<string, AttachmentDto[]>> {
     const map = new Map<string, AttachmentDto[]>();
@@ -159,6 +217,7 @@ export class ChatMessageService {
         filename: doc.original_filename,
         mimetype: doc.mimetype,
         size_bytes: doc.size_bytes,
+        duration_seconds: doc.duration_seconds ?? null,
       });
       map.set(doc.owner_id, list);
     }
@@ -997,6 +1056,8 @@ export class ChatMessageService {
       reactions: mongo?.reactions ?? [],
       attachments,
       poll_id: pg.pollId ?? null,
+      system_event: mongo?.system_event ?? null,
+      system_payload: mongo?.system_payload ?? null,
       pinned: pg.pinned,
       pinned_at: pg.pinnedAt ?? null,
       pinned_by: pg.pinnedById ?? null,

@@ -55,6 +55,10 @@ describe('CallsService', () => {
   let callLogParticipantRepo: any;
   let timeoutQueue: any;
   let chatService: any;
+  let chatMessageService: any;
+  let chatGateway: any;
+  let notificationsService: any;
+  let userRepository: any;
   let userSocialService: any;
   let callsGateway: any;
   let configService: any;
@@ -83,6 +87,22 @@ describe('CallsService', () => {
         .fn()
         .mockResolvedValue([{ userId: 'caller' }, { userId: 'callee' }]),
     };
+    chatMessageService = {
+      postSystemMessage: jest
+        .fn()
+        .mockResolvedValue({ id: 'm1', type: 'system' }),
+    };
+    chatGateway = {
+      emitToGroup: jest.fn(),
+    };
+    notificationsService = {
+      create: jest.fn().mockResolvedValue(undefined),
+    };
+    userRepository = {
+      findOne: jest
+        .fn()
+        .mockResolvedValue({ firstName: 'Caller', lastName: 'Name' }),
+    };
     userSocialService = {
       isBlocked: jest.fn().mockResolvedValue(false),
     };
@@ -105,6 +125,10 @@ describe('CallsService', () => {
       configService,
       httpRetryService,
       chatService,
+      chatMessageService,
+      chatGateway,
+      notificationsService,
+      userRepository,
       userSocialService,
       callsGateway,
     );
@@ -271,6 +295,86 @@ describe('CallsService', () => {
       await service.handleRingingTimeout(id);
 
       expect(callLogRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── call resolution: system message + notifications ─────
+
+  describe('call resolution — system message and notifications', () => {
+    it('missed call: posts a call_missed system message and notifies the missed participant', async () => {
+      const { id } = await service.initiateCall('caller', {
+        group_id: 'g1',
+        type: CallTypeEnum.VIDEO,
+      });
+
+      await service.handleRingingTimeout(id);
+
+      expect(chatMessageService.postSystemMessage).toHaveBeenCalledWith(
+        'g1',
+        'caller',
+        'call_missed',
+        expect.objectContaining({ callId: id, callType: CallTypeEnum.VIDEO }),
+      );
+      expect(chatGateway.emitToGroup).toHaveBeenCalledWith(
+        'g1',
+        'message:received',
+        expect.objectContaining({ id: 'm1', type: 'system' }),
+      );
+      expect(notificationsService.create).toHaveBeenCalledWith({
+        userId: 'callee',
+        type: 'missed_call',
+        payload: expect.objectContaining({
+          callId: id,
+          callerId: 'caller',
+          callType: CallTypeEnum.VIDEO,
+        }),
+      });
+    });
+
+    it('ended call: posts a call_ended system message with duration and notifies joined participants', async () => {
+      const { id } = await service.initiateCall('caller', {
+        group_id: 'g1',
+        type: CallTypeEnum.VIDEO,
+      });
+      await service.joinCall(id, 'callee');
+
+      await service.leaveCall(id, 'caller');
+      await service.leaveCall(id, 'callee');
+
+      expect(chatMessageService.postSystemMessage).toHaveBeenCalledWith(
+        'g1',
+        'caller',
+        'call_ended',
+        expect.objectContaining({
+          callId: id,
+          callType: CallTypeEnum.VIDEO,
+          durationSeconds: expect.any(Number),
+        }),
+      );
+      expect(notificationsService.create).toHaveBeenCalledWith({
+        userId: 'caller',
+        type: 'call_summary',
+        payload: expect.objectContaining({ callId: id }),
+      });
+      expect(notificationsService.create).toHaveBeenCalledWith({
+        userId: 'callee',
+        type: 'call_summary',
+        payload: expect.objectContaining({ callId: id }),
+      });
+    });
+
+    it('a notification/system-message failure does not throw out of call resolution', async () => {
+      chatMessageService.postSystemMessage.mockRejectedValueOnce(
+        new Error('mongo down'),
+      );
+      notificationsService.create.mockRejectedValueOnce(new Error('db down'));
+
+      const { id } = await service.initiateCall('caller', {
+        group_id: 'g1',
+        type: CallTypeEnum.VIDEO,
+      });
+
+      await expect(service.handleRingingTimeout(id)).resolves.toBeUndefined();
     });
   });
 

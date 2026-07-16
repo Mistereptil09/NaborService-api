@@ -65,11 +65,26 @@ export class Message {
   @Prop({ required: true })
   auth_tag: string;
 
-  @Prop({ required: true, enum: ['text', 'image', 'file', 'voice', 'poll'] })
+  @Prop({
+    required: true,
+    enum: ['text', 'image', 'file', 'voice', 'poll', 'system'],
+  })
   type: string;
 
   @Prop({ type: String, default: null })
   poll_id: string | null;
+
+  /**
+   * Only set when type === 'system' — a short event-name string (e.g.
+   * 'call_missed', 'call_ended') plus a free-form payload, so any future
+   * non-user-authored event can reuse this same message kind instead of
+   * each feature inventing its own.
+   */
+  @Prop({ type: String, default: null })
+  system_event: string | null;
+
+  @Prop({ type: Object, default: null })
+  system_payload: Record<string, any> | null;
 
   @Prop({
     type: [AttachmentSchema],

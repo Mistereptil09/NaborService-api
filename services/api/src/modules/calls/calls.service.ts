@@ -17,6 +17,10 @@ import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import { HttpRetryService } from '../../common/http-retry/http-retry.service';
 import { ChatService } from '../messaging/chat.service';
+import { ChatMessageService } from '../messaging/chat-message.service';
+import { ChatGateway } from '../messaging/chat.gateway';
+import { NotificationsService } from '../messaging/notifications.service';
+import { User } from '../users/entities/user.entity';
 import { UserSocialService } from '../users/user-social.service';
 import { CallLog } from './entities/call-log.entity';
 import { CallLogParticipant } from './entities/call-log-participant.entity';
@@ -80,6 +84,11 @@ export class CallsService {
     private readonly configService: ConfigService,
     private readonly httpRetryService: HttpRetryService,
     private readonly chatService: ChatService,
+    private readonly chatMessageService: ChatMessageService,
+    private readonly chatGateway: ChatGateway,
+    private readonly notificationsService: NotificationsService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly userSocialService: UserSocialService,
     @Inject(forwardRef(() => CallsGateway))
     private readonly callsGateway: CallsGateway,
@@ -518,5 +527,91 @@ export class CallsService {
       call_id: callId,
       reason,
     });
+
+    await this.notifyCallResolved(log, participantRows);
+  }
+
+  /**
+   * Best-effort: posts a system message into the call's group conversation
+   * and notifies affected participants. Never throws — a failure here must
+   * not undo the call-teardown work already committed above.
+   */
+  private async notifyCallResolved(
+    log: CallLog,
+    participantRows: CallLogParticipant[],
+  ): Promise<void> {
+    const durationSeconds =
+      log.status === CallStatusEnum.ENDED && log.startedAt && log.endedAt
+        ? Math.round(
+            (log.endedAt.getTime() - log.startedAt.getTime()) / 1000,
+          )
+        : undefined;
+
+    const event =
+      log.status === CallStatusEnum.MISSED
+        ? 'call_missed'
+        : log.status === CallStatusEnum.DECLINED
+          ? 'call_declined'
+          : 'call_ended';
+
+    try {
+      const message = await this.chatMessageService.postSystemMessage(
+        log.groupId,
+        log.initiatedBy,
+        event,
+        { callId: log.callId, callType: log.type, durationSeconds },
+      );
+      this.chatGateway.emitToGroup(log.groupId, 'message:received', message);
+    } catch (error: any) {
+      this.logger.warn(
+        `Failed to post call system message for call ${log.callId}: ${error?.message ?? error}`,
+      );
+    }
+
+    if (log.status === CallStatusEnum.MISSED) {
+      const callerName = await this.resolveDisplayName(log.initiatedBy);
+      for (const p of participantRows) {
+        if (p.status !== CallParticipantStatusEnum.MISSED) continue;
+        await this.safeNotify(p.userId, 'missed_call', {
+          callId: log.callId,
+          groupId: log.groupId,
+          callerId: log.initiatedBy,
+          callerName,
+          callType: log.type,
+        });
+      }
+    } else if (log.status === CallStatusEnum.ENDED) {
+      for (const p of participantRows) {
+        if (!p.joinedAt) continue;
+        await this.safeNotify(p.userId, 'call_summary', {
+          callId: log.callId,
+          groupId: log.groupId,
+          callType: log.type,
+          durationSeconds,
+        });
+      }
+    }
+  }
+
+  private async resolveDisplayName(userId: string): Promise<string | null> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['firstName', 'lastName'],
+    });
+    return user ? `${user.firstName} ${user.lastName}`.trim() : null;
+  }
+
+  private async safeNotify(
+    userId: string,
+    type: 'missed_call' | 'call_summary',
+    payload: Record<string, any>,
+  ): Promise<void> {
+    try {
+      await this.notificationsService.create({ userId, type, payload });
+    } catch (error: any) {
+      this.logger.warn(
+        `Failed to create "${type}" notification for ${userId}: ${error?.message ?? error}`,
+      );
+    }
   }
 }
