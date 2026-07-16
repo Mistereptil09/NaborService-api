@@ -302,6 +302,38 @@ export class UserDiscoveryService {
       swipedId: targetId,
       direction: dto.direction,
     });
+
+    if (dto.direction === SwipeDirectionEnum.LIKE) {
+      const reciprocal = await this.swipeRepository.findOne({
+        where: {
+          swiperId: targetId,
+          swipedId: userId,
+          direction: SwipeDirectionEnum.LIKE,
+        },
+      });
+
+      if (reciprocal) {
+        // Mutual like — follow each other, which also triggers the
+        // existing mutual-follow friendship (+ chat group) creation.
+        await this.autoFollow(userId, targetId);
+        await this.autoFollow(targetId, userId);
+      }
+    }
+  }
+
+  /** Follows on behalf of a match, ignoring an already-existing follow. */
+  private async autoFollow(
+    followerId: string,
+    followedId: string,
+  ): Promise<void> {
+    try {
+      await this.userSocialService.follow(followerId, followedId);
+    } catch (error: any) {
+      if (error instanceof ConflictException) {
+        return;
+      }
+      throw error;
+    }
   }
 
   async getSwipeHistory(

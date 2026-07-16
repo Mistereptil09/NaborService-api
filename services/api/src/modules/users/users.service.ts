@@ -21,6 +21,9 @@ import { SessionService } from '../auth/session.service';
 import { VisibilityEnum, UserRoleEnum } from '../../common/enums';
 import { Neo4jHealthService } from '../geo/neo4j-health.service';
 import { UserSocialService } from './user-social.service';
+import { ChatService } from '../messaging/chat.service';
+import { isModeratorOrAdmin } from '../../common/ownership';
+import { neighbourhoodGroupRoleFor } from '../../common/group-role.util';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { authenticator } = require('otplib');
@@ -37,6 +40,7 @@ export class UsersService {
     private readonly totpService: TotpService,
     private readonly sessionService: SessionService,
     private readonly userSocialService: UserSocialService,
+    private readonly chatService: ChatService,
     @Inject('BullQueue_neo4j-sync')
     private readonly neo4jSyncQueue: {
       add: (name: string, data: any) => Promise<any>;
@@ -167,6 +171,17 @@ export class UsersService {
           userId,
           neighbourhoodId: dto.neighbourhoodId,
         });
+
+        // Le staff (mod/admin) a déjà accès à tous les groupes de quartier —
+        // son adhésion ne dépend pas de sa résidence, donc on ne la touche pas ici.
+        if (!isModeratorOrAdmin(user.role)) {
+          await this.chatService.syncResidentNeighbourhoodMembership(
+            userId,
+            user.neighbourhoodId,
+            dto.neighbourhoodId ?? null,
+            neighbourhoodGroupRoleFor(user.role),
+          );
+        }
       }
     }
 
@@ -447,6 +462,7 @@ export class UsersService {
 
   async updateRole(userId: string, role: UserRoleEnum): Promise<User> {
     const user = await this.findOneAdmin(userId);
+    const oldRole = user.role;
     user.role = role;
     user.updatedAt = new Date();
     await this.userRepository.save(user);
@@ -458,6 +474,15 @@ export class UsersService {
       role: user.role,
       neighbourhoodId: user.neighbourhoodId,
     });
+
+    if (oldRole !== role) {
+      await this.chatService.resyncNeighbourhoodGroupMembershipForRoleChange(
+        userId,
+        oldRole,
+        role,
+        user.neighbourhoodId,
+      );
+    }
 
     return user;
   }

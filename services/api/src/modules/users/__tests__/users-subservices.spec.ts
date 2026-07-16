@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { Model } from 'mongoose';
 import Redis from 'ioredis';
@@ -254,7 +255,7 @@ describe('Users Module Services Unit Tests', () => {
     let mockUserRepo: jest.Mocked<Repository<User>>;
     let mockSwipeRepo: jest.Mocked<Repository<UserSwipe>>;
     let mockUserSocialService: jest.Mocked<
-      Pick<UserSocialService, 'getBlockedUserIds'>
+      Pick<UserSocialService, 'getBlockedUserIds' | 'follow'>
     >;
     let mockDataProcessingService: jest.Mocked<DataProcessingService>;
     let mockNeo4jService: jest.Mocked<Neo4jService>;
@@ -277,6 +278,7 @@ describe('Users Module Services Unit Tests', () => {
 
       mockUserSocialService = {
         getBlockedUserIds: jest.fn().mockResolvedValue([]),
+        follow: jest.fn().mockResolvedValue(undefined),
       };
 
       mockDataProcessingService = {
@@ -326,6 +328,58 @@ describe('Users Module Services Unit Tests', () => {
         direction: 'like',
       });
       expect(mockRedis.del).toHaveBeenCalledWith('discover:user-1');
+    });
+
+    it('should auto-follow both users when a mutual like occurs', async () => {
+      const mockUser = new User();
+      mockUser.id = 'target-user';
+      mockUserRepo.findOne.mockResolvedValue(mockUser);
+      // First call: "already swiped?" check → no. Second call: "did they
+      // like me back?" check → yes, target already liked user-1.
+      mockSwipeRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          swiperId: 'target-user',
+          swipedId: 'user-1',
+          direction: 'like',
+        } as any);
+      mockSwipeRepo.create.mockReturnValue({} as any);
+
+      await discoveryService.swipe('user-1', 'target-user', {
+        direction: 'like',
+      });
+
+      expect(mockUserSocialService.follow).toHaveBeenCalledWith(
+        'user-1',
+        'target-user',
+      );
+      expect(mockUserSocialService.follow).toHaveBeenCalledWith(
+        'target-user',
+        'user-1',
+      );
+    });
+
+    it('should not blow up a mutual-like match when a follow already exists', async () => {
+      const mockUser = new User();
+      mockUser.id = 'target-user';
+      mockUserRepo.findOne.mockResolvedValue(mockUser);
+      mockSwipeRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          swiperId: 'target-user',
+          swipedId: 'user-1',
+          direction: 'like',
+        } as any);
+      mockSwipeRepo.create.mockReturnValue({} as any);
+      (mockUserSocialService.follow as jest.Mock).mockRejectedValueOnce(
+        new ConflictException('Vous suivez déjà cet utilisateur'),
+      );
+
+      await expect(
+        discoveryService.swipe('user-1', 'target-user', {
+          direction: 'like',
+        }),
+      ).resolves.toBeUndefined();
     });
 
     describe('getDiscoverFeed', () => {
