@@ -37,4 +37,13 @@ export class UpdateConfigDto {
   @IsInt()
   @Min(0)
   waitlistConfirmHours?: number;
+
+  @ApiPropertyOptional({
+    description: "Taux de conversion pour l'achat de points (centimes par point)",
+    example: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  centsPerPoint?: number;
 }

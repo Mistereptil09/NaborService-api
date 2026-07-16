@@ -5,7 +5,7 @@ export class AdminOverviewStatsDto {
   @ApiProperty() totalListings: number;
   @ApiProperty() totalEvents: number;
   @ApiProperty() activeIncidents: number;
-  @ApiProperty() totalPaymentsCents: number;
+  @ApiProperty() totalPaymentsPoints: number;
 }
 
 export class ListingTypeBreakdownItemDto {
@@ -57,8 +57,8 @@ export class TransactionStatusBreakdownItemDto {
 }
 
 export class AdminPaymentsStatsDto {
-  @ApiProperty() totalAmountCents: number;
-  @ApiProperty() totalCommissionCents: number;
+  @ApiProperty() totalAmountPoints: number;
+  @ApiProperty() totalCommissionPoints: number;
   @ApiProperty({ type: [TransactionStatusBreakdownItemDto] })
   statusBreakdown: TransactionStatusBreakdownItemDto[];
 }

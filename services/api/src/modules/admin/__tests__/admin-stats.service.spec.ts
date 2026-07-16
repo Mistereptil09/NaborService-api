@@ -58,7 +58,7 @@ describe('AdminStatsService', () => {
       expect(overview.totalListings).toBe(5);
       expect(overview.totalEvents).toBe(3);
       expect(overview.activeIncidents).toBe(2);
-      expect(overview.totalPaymentsCents).toBe(1500);
+      expect(overview.totalPaymentsPoints).toBe(1500);
     });
   });
 });

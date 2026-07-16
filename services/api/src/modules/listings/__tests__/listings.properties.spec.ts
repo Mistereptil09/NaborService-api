@@ -49,6 +49,31 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
     create: jest.fn().mockResolvedValue({}),
   };
 
+  // Simple PointsService mock — points side-effects aren't the focus of
+  // these state-machine transition tests.
+  const mockPointsService = {
+    debit: jest.fn().mockResolvedValue({}),
+    credit: jest.fn().mockResolvedValue({}),
+    recordCommission: jest.fn().mockResolvedValue({}),
+  };
+
+  // Simple DataSource mock: runs the callback with a manager that mutates
+  // `target` (if given) on update() and passes entities through on save(),
+  // mirroring how the real EntityManager mutates the underlying row.
+  function makeMockDataSource(target?: any) {
+    return {
+      transaction: jest.fn(async (cb: any) =>
+        cb({
+          update: jest.fn((_entity: any, _criteria: any, values: any) => {
+            if (target) Object.assign(target, values);
+            return Promise.resolve({ affected: 1 });
+          }),
+          save: jest.fn((entity: any) => Promise.resolve(entity)),
+        }),
+      ),
+    };
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -337,6 +362,8 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             mockQueue,
             mockConfigService as any,
             mockNotificationsService as any,
+            mockPointsService as any,
+            makeMockDataSource(listing) as any,
           );
 
           if (transition === 'expressInterest') {
@@ -539,6 +566,8 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             mockQueue,
             mockConfigService as any,
             mockNotificationsService as any,
+            mockPointsService as any,
+            makeMockDataSource(listing) as any,
           );
 
           await smService.cancel('l1', 'c1', 'Cancelled by creator');
@@ -761,6 +790,8 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             mockQueue,
             mockConfigService as any,
             mockNotificationsService as any,
+            mockPointsService as any,
+            makeMockDataSource(listing) as any,
           );
 
           try {

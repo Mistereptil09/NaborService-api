@@ -3,10 +3,11 @@ import Stripe from 'stripe';
 import { ConfigService } from '@nestjs/config';
 
 interface CreateCheckoutSessionParams {
-  transactionId: string;
-  listingId: string;
   amountCents: number;
   productName: string;
+  successUrl: string;
+  cancelUrl: string;
+  metadata: Record<string, string>;
 }
 
 // Stripe's default export only re-exposes the `Stripe` class type, not its
@@ -38,16 +39,12 @@ export class StripeService {
   }
 
   async createCheckoutSession({
-    transactionId,
-    listingId,
     amountCents,
     productName,
+    successUrl,
+    cancelUrl,
+    metadata,
   }: CreateCheckoutSessionParams): Promise<StripeCheckoutSession> {
-    const frontendUrl = this.configService.get<string>(
-      'CORS_ORIGIN',
-      'http://localhost:5173',
-    );
-
     return this.stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -63,18 +60,9 @@ export class StripeService {
         },
       ],
       mode: 'payment',
-      metadata: {
-        transactionId,
-      },
-      // payment_intent.succeeded/payment_intent.payment_failed webhooks only see
-      // the PaymentIntent's own metadata, not the Checkout Session's.
-      payment_intent_data: {
-        metadata: {
-          transactionId,
-        },
-      },
-      success_url: `${frontendUrl}/listings/${listingId}?payment=success`,
-      cancel_url: `${frontendUrl}/listings/${listingId}?payment=cancel`,
+      metadata,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
     });
   }
 

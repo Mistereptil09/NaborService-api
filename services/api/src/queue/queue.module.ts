@@ -13,7 +13,8 @@ import { EventsModule } from '../modules/events/events.module';
 import { UsersModule } from '../modules/users/users.module';
 import { MongoSchemasModule } from '../database/mongo-schemas/mongo-schemas.module';
 import { GeoModule } from '../modules/geo/geo.module';
-import { ListingsModule } from '../modules/listings/listings.module';
+import { PointsModule } from '../modules/points/points.module';
+import { AdminModule } from '../modules/admin/admin.module';
 import { QueueHealthService } from './queue-health.service';
 import { QueueHealthController } from './queue-health.controller';
 import { QueueFailureListener } from './listeners/queue-failure.listener';
@@ -46,7 +47,8 @@ const queues = [
     UsersModule,
     MongoSchemasModule,
     GeoModule,
-    ListingsModule,
+    PointsModule,
+    AdminModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

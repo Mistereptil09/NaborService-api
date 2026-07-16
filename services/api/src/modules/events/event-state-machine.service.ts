@@ -7,7 +7,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Evenement } from './entities/evenement.entity';
 import { EventParticipant } from './entities/event-participant.entity';
 import { ChatGroup } from '../messaging/entities/chat-group.entity';
@@ -16,10 +16,13 @@ import {
   ChatGroupTypeEnum,
   ParticipantStatusEnum,
   PaymentStatusEnum,
+  PointsLedgerEntryTypeEnum,
 } from '../../common/enums';
 import { isModeratorOrAdmin } from '../../common/ownership';
 import { EventsGateway } from './events.gateway';
 import { NotificationsService } from '../messaging/notifications.service';
+import { PointsService } from '../points/points.service';
+import { AdminConfigService } from '../admin/admin-config.service';
 
 @Injectable()
 export class EventStateMachineService {
@@ -34,6 +37,9 @@ export class EventStateMachineService {
     private readonly chatGroupRepo: Repository<ChatGroup>,
     private readonly eventsGateway: EventsGateway,
     private readonly notificationsService: NotificationsService,
+    private readonly pointsService: PointsService,
+    private readonly adminConfigService: AdminConfigService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async publish(eventId: string, organiserId: string, userRole?: string) {
@@ -80,9 +86,63 @@ export class EventStateMachineService {
       throw new ConflictException('Event must be open to be completed');
     }
 
-    event.status = EventStatusEnum.COMPLETED;
-    event.completedAt = new Date();
-    await this.eventRepo.save(event);
+    await this.dataSource.transaction(async (manager) => {
+      event.status = EventStatusEnum.COMPLETED;
+      event.completedAt = new Date();
+      await manager.save(event);
+
+      const paidParticipants = await manager.find(EventParticipant, {
+        where: {
+          eventId,
+          status: ParticipantStatusEnum.REGISTERED,
+          paymentStatus: PaymentStatusEnum.COMPLETED,
+        },
+      });
+
+      const totalPoints = paidParticipants.reduce(
+        (sum, p) => sum + p.amountPoints,
+        0,
+      );
+
+      if (totalPoints > 0) {
+        let commissionPercent = 5;
+        try {
+          const config = await this.adminConfigService.getConfig();
+          commissionPercent = config.commissionPercent;
+        } catch (e) {
+          // Fallback
+        }
+
+        const commissionPoints = Math.round(
+          (totalPoints * commissionPercent) / 100,
+        );
+        const payoutPoints = totalPoints - commissionPoints;
+
+        if (payoutPoints > 0) {
+          await this.pointsService.credit(
+            {
+              userId: event.creatorId,
+              amountPoints: payoutPoints,
+              type: PointsLedgerEntryTypeEnum.EVENT_PAYOUT,
+              referenceType: 'evenement',
+              referenceId: eventId,
+            },
+            manager,
+          );
+        }
+        if (commissionPoints > 0) {
+          await this.pointsService.recordCommission(
+            {
+              amountPoints: commissionPoints,
+              type: PointsLedgerEntryTypeEnum.EVENT_COMMISSION,
+              referenceType: 'evenement',
+              referenceId: eventId,
+            },
+            manager,
+          );
+        }
+      }
+    });
 
     return { success: true };
   }
@@ -116,18 +176,29 @@ export class EventStateMachineService {
       },
     });
 
-    for (const p of participants) {
-      const hoursSinceRegistration =
-        (event.cancelledAt.getTime() - p.registeredAt.getTime()) /
-        (1000 * 60 * 60);
-      if (hoursSinceRegistration <= event.refundDeadlineHours) {
-        // Trigger refund (Mock Stripe integration)
-        p.paymentStatus = PaymentStatusEnum.REFUNDED;
-        p.refundedAt = new Date();
-        p.refundStripeId = `re_mock_${p.userId}_${eventId}`;
-        await this.participantRepo.save(p);
+    await this.dataSource.transaction(async (manager) => {
+      for (const p of participants) {
+        const hoursSinceRegistration =
+          (event.cancelledAt!.getTime() - p.registeredAt.getTime()) /
+          (1000 * 60 * 60);
+        if (hoursSinceRegistration <= event.refundDeadlineHours) {
+          p.paymentStatus = PaymentStatusEnum.REFUNDED;
+          p.refundedAt = new Date();
+          await manager.save(p);
+
+          await this.pointsService.credit(
+            {
+              userId: p.userId,
+              amountPoints: p.amountPoints,
+              type: PointsLedgerEntryTypeEnum.EVENT_REFUND,
+              referenceType: 'evenement',
+              referenceId: eventId,
+            },
+            manager,
+          );
+        }
       }
-    }
+    });
 
     // Emit Socket.io event
     this.eventsGateway.emitEventCancelled(eventId, reason, event.cancelledAt);

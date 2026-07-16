@@ -51,12 +51,8 @@ export class EntityPatchHandler {
     listing: [],
     event: [],
     incident: [],
-    listing_transactions: [
-      'stripeSessionId', 'stripePaymentIntent', 'paymentFailedReason',
-    ],
-    event_participants: [
-      'stripeSessionId', 'stripePaymentIntent', 'refundStripeId',
-    ],
+    listing_transactions: ['paymentFailedReason'],
+    event_participants: [],
   };
 
   getWhitelists(): Record<string, string[]> {

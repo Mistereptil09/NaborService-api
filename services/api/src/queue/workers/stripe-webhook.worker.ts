@@ -4,7 +4,7 @@ import { Logger } from '@nestjs/common';
 import { StripeWebhookJobPayload } from '../interfaces/job-payloads';
 import { classifyAndThrow } from '../utils/error-classifier';
 import { getBackoffDelay } from '../utils/backoff-strategy';
-import { ListingTransactionService } from '../../modules/listings/listing-transaction.service';
+import { PointsTopupService } from '../../modules/points/points-topup.service';
 
 /**
  * Processes Stripe webhooks.
@@ -25,7 +25,7 @@ import { ListingTransactionService } from '../../modules/listings/listing-transa
 export class StripeWebhookWorker extends WorkerHost {
   private readonly logger = new Logger(StripeWebhookWorker.name);
 
-  constructor(private readonly transactionService: ListingTransactionService) {
+  constructor(private readonly pointsTopupService: PointsTopupService) {
     super();
   }
 
@@ -44,22 +44,15 @@ export class StripeWebhookWorker extends WorkerHost {
       );
 
       switch (eventType) {
-        case 'payment_intent.succeeded': {
-          const transactionId = eventData.metadata?.transactionId;
-          if (transactionId) {
-            await this.transactionService.markPaid(transactionId, eventData.id);
-          }
+        case 'checkout.session.completed': {
+          await this.pointsTopupService.markCompleted(eventData);
           break;
         }
-        case 'payment_intent.payment_failed': {
-          const transactionId = eventData.metadata?.transactionId;
-          if (transactionId) {
-            await this.transactionService.markPaymentFailed(
-              transactionId,
-              eventData.last_payment_error?.message ??
-                'payment_intent.payment_failed',
-            );
-          }
+        case 'checkout.session.expired': {
+          await this.pointsTopupService.markFailed(
+            eventData,
+            'checkout_session_expired',
+          );
           break;
         }
         default:

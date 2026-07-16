@@ -125,3 +125,22 @@ export enum CallParticipantStatusEnum {
   LEFT = 'left',
   MISSED = 'missed',
 }
+
+export enum PointsLedgerEntryTypeEnum {
+  TOPUP = 'topup',
+  LISTING_HOLD = 'listing_hold',
+  LISTING_PAYOUT = 'listing_payout',
+  LISTING_REFUND = 'listing_refund',
+  LISTING_COMMISSION = 'listing_commission',
+  EVENT_HOLD = 'event_hold',
+  EVENT_PAYOUT = 'event_payout',
+  EVENT_REFUND = 'event_refund',
+  EVENT_COMMISSION = 'event_commission',
+  ADJUSTMENT = 'adjustment',
+}
+
+export enum PointsTopupStatusEnum {
+  PENDING = 'pending',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+}

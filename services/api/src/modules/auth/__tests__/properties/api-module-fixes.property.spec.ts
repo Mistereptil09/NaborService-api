@@ -103,6 +103,8 @@ describe('API Module Fixes Spec Verification', () => {
         null as any,
         null as any,
         null as any,
+        null as any,
+        null as any,
       );
 
       await expect(
@@ -270,6 +272,8 @@ describe('API Module Fixes Spec Verification', () => {
         mockQueue,
         mockConfigService as any,
         mockNotificationsService as any,
+        null as any,
+        null as any,
       );
 
       const result = await smService.expressInterest('l1', 'requester-1');

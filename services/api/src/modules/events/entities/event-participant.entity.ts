@@ -15,7 +15,7 @@ import { User } from '../../users/entities/user.entity';
 import { Evenement } from './evenement.entity';
 
 @Entity('event_participants')
-@Check('chk_ep_amount', '"amount_cents" >= 0')
+@Check('chk_ep_amount', '"amount_points" >= 0')
 @Index('idx_ep_event_status_fifo', ['eventId', 'status', 'registeredAt'])
 export class EventParticipant {
   @PrimaryColumn({ name: 'user_id', type: 'uuid' })
@@ -41,24 +41,8 @@ export class EventParticipant {
   })
   paymentStatus: PaymentStatusEnum;
 
-  @Column({
-    name: 'stripe_session_id',
-    type: 'varchar',
-    nullable: true,
-    unique: true,
-  })
-  stripeSessionId: string | null;
-
-  @Column({
-    name: 'stripe_payment_intent',
-    type: 'varchar',
-    nullable: true,
-    unique: true,
-  })
-  stripePaymentIntent: string | null;
-
-  @Column({ name: 'amount_cents', type: 'int', nullable: false, default: 0 })
-  amountCents: number;
+  @Column({ name: 'amount_points', type: 'int', nullable: false, default: 0 })
+  amountPoints: number;
 
   @Column({
     name: 'registered_at',
@@ -82,9 +66,6 @@ export class EventParticipant {
 
   @Column({ name: 'refunded_at', type: 'timestamptz', nullable: true })
   refundedAt: Date | null;
-
-  @Column({ name: 'refund_stripe_id', type: 'varchar', nullable: true })
-  refundStripeId: string | null;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

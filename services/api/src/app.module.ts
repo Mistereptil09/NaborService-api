@@ -31,6 +31,7 @@ import { DslModule } from './modules/dsl/dsl.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { StripeModule } from './modules/stripe/stripe.module';
+import { PointsModule } from './modules/points/points.module';
 import { CallsModule } from './modules/calls/calls.module';
 
 @Module({
@@ -65,6 +66,7 @@ import { CallsModule } from './modules/calls/calls.module';
     CategoriesModule,
     DocumentsModule,
     StripeModule,
+    PointsModule,
     CallsModule,
   ],
   controllers: [AppController],
