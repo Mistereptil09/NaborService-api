@@ -69,6 +69,24 @@ export class PollsController {
         { content: poll.title, type: 'poll', poll_id: poll.id },
       );
       this.chatGateway.emitToGroup(dto.group_id, 'message:received', message);
+    } else if (dto.neighbourhood_id) {
+      // Bridge into the neighbourhood's own auto-managed conversation, same as
+      // group-scoped polls above — otherwise it only ever shows in the Polls tab.
+      // Skipped when the group doesn't exist yet (not backfilled) or when the
+      // creator isn't a member of it (e.g. a global moderator/admin creating a
+      // poll for a neighbourhood they don't belong to) — the poll itself still
+      // succeeds either way, there's just no chat entry to post.
+      const group = await this.chatService.getNeighbourhoodGroup(
+        dto.neighbourhood_id,
+      );
+      if (group && (await this.chatService.isMember(group.id, req.user.sub))) {
+        const message = await this.chatMessageService.sendMessage(
+          group.id,
+          req.user.sub,
+          { content: poll.title, type: 'poll', poll_id: poll.id },
+        );
+        this.chatGateway.emitToGroup(group.id, 'message:received', message);
+      }
     }
 
     return poll;
