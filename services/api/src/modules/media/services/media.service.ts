@@ -48,7 +48,15 @@ export class MediaService {
       'image/gif',
     ];
     const standardVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
-    const standardAudioTypes = ['audio/mpeg', 'audio/ogg', 'audio/wav'];
+    // webm/opus (Chrome), ogg/opus (Firefox) et mp4/AAC (Safari) couvrent les
+    // sorties MediaRecorder des messages vocaux enregistrés dans le navigateur.
+    const standardAudioTypes = [
+      'audio/mpeg',
+      'audio/ogg',
+      'audio/wav',
+      'audio/webm',
+      'audio/mp4',
+    ];
     const standardDocTypes = ['application/pdf'];
 
     const messageAllTypes = [
