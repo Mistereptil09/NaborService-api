@@ -1,5 +1,18 @@
-import { Injectable, Logger, BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { Neo4jService } from '../../database/neo4j/neo4j.service';
+import { NeighbourhoodService } from '../../database/neo4j/neighbourhood.service';
+import { User } from '../users/entities/user.entity';
+import { ChatService } from '../messaging/chat.service';
+import { GroupRoleEnum, UserRoleEnum } from '../../common/enums';
+import { neighbourhoodGroupRoleFor } from '../../common/group-role.util';
 import * as turf from '@turf/turf';
 
 export interface NeighbourhoodAssignment {
@@ -45,11 +58,19 @@ export interface NeighbourhoodPolygon {
 export class Neo4jGeoService {
   private readonly logger = new Logger(Neo4jGeoService.name);
 
-  constructor(private readonly neo4jService: Neo4jService) {}
+  constructor(
+    private readonly neo4jService: Neo4jService,
+    private readonly neighbourhoodService: NeighbourhoodService,
+    private readonly chatService: ChatService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {}
 
   private toNumber(value: any): number | null {
     if (value === null || value === undefined) return null;
-    return typeof value.toNumber === 'function' ? value.toNumber() : Number(value);
+    return typeof value.toNumber === 'function'
+      ? value.toNumber()
+      : Number(value);
   }
 
   async assignNeighbourhood(
@@ -279,13 +300,62 @@ export class Neo4jGeoService {
       area: areaM2,
     });
 
-    return await this.updateAdjacencies(
+    const result = await this.updateAdjacencies(
       metadata.pg_id,
       polygon,
       lat,
       lng,
       areaM2,
     );
+
+    // Brand-new neighbourhood has no residents yet — seed the auto-managed
+    // group with current staff only; residents join as they set their
+    // neighbourhoodId (see UsersService.updateProfile).
+    const staff = await this.userRepository.find({
+      where: {
+        role: In([UserRoleEnum.MODERATOR, UserRoleEnum.ADMIN]),
+        deletedAt: IsNull(),
+      },
+      select: ['id'],
+    });
+    await this.chatService.ensureNeighbourhoodGroup(
+      metadata.pg_id,
+      metadata.name,
+      staff.map((u) => ({ userId: u.id, role: GroupRoleEnum.ADMIN })),
+    );
+
+    return result;
+  }
+
+  /** (Re)crée le groupe de discussion du quartier et resynchronise tous ses membres (résidents + staff). Idempotent — sert de backfill/réparation. */
+  async syncNeighbourhoodChatGroup(pgId: string) {
+    const nb = await this.neighbourhoodService.findByPgId(pgId);
+    if (!nb) throw new NotFoundException('Neighbourhood not found');
+
+    const [residents, staff] = await Promise.all([
+      this.userRepository.find({
+        where: { neighbourhoodId: pgId, deletedAt: IsNull() },
+      }),
+      this.userRepository.find({
+        where: {
+          role: In([UserRoleEnum.MODERATOR, UserRoleEnum.ADMIN]),
+          deletedAt: IsNull(),
+        },
+      }),
+    ]);
+
+    const residentIds = new Set(residents.map((u) => u.id));
+    const members = [
+      ...residents.map((u) => ({
+        userId: u.id,
+        role: neighbourhoodGroupRoleFor(u.role),
+      })),
+      ...staff
+        .filter((u) => !residentIds.has(u.id))
+        .map((u) => ({ userId: u.id, role: GroupRoleEnum.ADMIN })),
+    ];
+
+    return this.chatService.ensureNeighbourhoodGroup(pgId, nb.name, members);
   }
 
   async updateNeighbourhoodPolygon(
@@ -419,7 +489,10 @@ export class Neo4jGeoService {
       RETURN count(u) > 0 AS hasResidents
     `;
     const checkResult = await this.neo4jService.run(checkQuery, { pgId });
-    if (checkResult.records.length > 0 && checkResult.records[0].get('hasResidents')) {
+    if (
+      checkResult.records.length > 0 &&
+      checkResult.records[0].get('hasResidents')
+    ) {
       throw new ConflictException(
         'Cannot delete neighbourhood with active residents',
       );
@@ -459,13 +532,12 @@ export class Neo4jGeoService {
       if (!geomStr) continue;
 
       try {
-        const geom = typeof geomStr === 'string' ? JSON.parse(geomStr) : geomStr;
+        const geom =
+          typeof geomStr === 'string' ? JSON.parse(geomStr) : geomStr;
         if (geom.type !== 'Polygon' && geom.type !== 'MultiPolygon') continue;
 
         const existingFeature = turf.polygon(
-          geom.type === 'Polygon'
-            ? geom.coordinates
-            : geom.coordinates[0],
+          geom.type === 'Polygon' ? geom.coordinates : geom.coordinates[0],
         );
 
         // True overlap: area intersection > 0
@@ -584,12 +656,16 @@ export class Neo4jGeoService {
       RETURN collect(adj.pg_id) AS adjacentIds
     `;
     const adjResult = await this.neo4jService.run(adjQuery, { pgId });
-    const adjacentIds: string[] = adjResult.records[0]?.get('adjacentIds') ?? [];
+    const adjacentIds: string[] =
+      adjResult.records[0]?.get('adjacentIds') ?? [];
 
     return {
       pg_id: pgId,
       centroid: centroid
-        ? { latitude: centroid.y ?? centroid.latitude, longitude: centroid.x ?? centroid.longitude }
+        ? {
+            latitude: centroid.y ?? centroid.latitude,
+            longitude: centroid.x ?? centroid.longitude,
+          }
         : { latitude: 0, longitude: 0 },
       area_m2: area ?? 0,
       adjacent_pg_ids: adjacentIds,

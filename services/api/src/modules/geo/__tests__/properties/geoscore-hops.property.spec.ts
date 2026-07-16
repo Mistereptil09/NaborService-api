@@ -11,7 +11,12 @@ describe('Property 8: GeoScore by Hops', () => {
     const mockNeo4jService = {
       run: jest.fn(),
     } as unknown as Neo4jService;
-    neo4jGeoService = new Neo4jGeoService(mockNeo4jService);
+    neo4jGeoService = new Neo4jGeoService(
+      mockNeo4jService,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
   });
 
   it('should map hop distances to 3, 2, 1, 0 geoScores', async () => {

@@ -15,16 +15,29 @@ import { Evenement } from '../events/entities/evenement.entity';
 import { Follow } from '../social/entities/follow.entity';
 import { Friendship } from '../social/entities/friendship.entity';
 import { UserBlock } from '../social/entities/user-block.entity';
+import { MessagingModule } from '../messaging/messaging.module';
 
 import { HttpRetryModule } from '../../common/http-retry/http-retry.module';
 
 @Module({
   imports: [
     Neo4jModule,
-    TypeOrmModule.forFeature([User, Listing, Evenement, Follow, Friendship, UserBlock]),
+    TypeOrmModule.forFeature([
+      User,
+      Listing,
+      Evenement,
+      Follow,
+      Friendship,
+      UserBlock,
+    ]),
     HttpRetryModule,
+    MessagingModule,
   ],
-  controllers: [NeighbourhoodAdminController, NeighbourhoodController, GeoController],
+  controllers: [
+    NeighbourhoodAdminController,
+    NeighbourhoodController,
+    GeoController,
+  ],
   providers: [
     BanService,
     Neo4jGeoService,

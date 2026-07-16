@@ -7,7 +7,12 @@ describe('Property 13: Invalid Polygon Rejection', () => {
   let neo4jGeoService: Neo4jGeoService;
 
   beforeEach(() => {
-    neo4jGeoService = new Neo4jGeoService({} as Neo4jService);
+    neo4jGeoService = new Neo4jGeoService(
+      {} as Neo4jService,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
   });
 
   it('should reject invalid polygons', async () => {

@@ -19,6 +19,7 @@ describe('NeighbourhoodAdminController', () => {
             updateNeighbourhood: jest.fn(),
             deleteNeighbourhood: jest.fn(),
             checkOverlap: jest.fn(),
+            syncNeighbourhoodChatGroup: jest.fn(),
           },
         },
         {
@@ -93,6 +94,18 @@ describe('NeighbourhoodAdminController', () => {
     const result = await controller.deleteNeighbourhood('nb1');
     expect(result).toEqual({ success: true });
     expect(neo4jGeoService.deleteNeighbourhood).toHaveBeenCalledWith('nb1');
+  });
+
+  it('should call syncChatGroup', async () => {
+    (neo4jGeoService.syncNeighbourhoodChatGroup as jest.Mock).mockResolvedValue(
+      { id: 'g1' },
+    );
+
+    const result = await controller.syncChatGroup('nb1');
+    expect(result).toEqual({ id: 'g1' });
+    expect(neo4jGeoService.syncNeighbourhoodChatGroup).toHaveBeenCalledWith(
+      'nb1',
+    );
   });
 
   it('should call overlapCheck', async () => {
