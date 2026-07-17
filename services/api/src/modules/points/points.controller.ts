@@ -13,7 +13,13 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PointsService } from './points.service';
 import { PointsTopupService } from './points-topup.service';
-import { CreateTopupDto, ListLedgerDto } from './dto/points-routes.dtos';
+import { PointsConnectService } from './points-connect.service';
+import { PointsCashoutService } from './points-cashout.service';
+import {
+  CreateCashoutDto,
+  CreateTopupDto,
+  ListLedgerDto,
+} from './dto/points-routes.dtos';
 
 @ApiTags('points')
 @Controller('points')
@@ -23,6 +29,8 @@ export class PointsController {
   constructor(
     private readonly pointsService: PointsService,
     private readonly pointsTopupService: PointsTopupService,
+    private readonly pointsConnectService: PointsConnectService,
+    private readonly pointsCashoutService: PointsCashoutService,
   ) {}
 
   @Get('balance')
@@ -51,5 +59,23 @@ export class PointsController {
       req.user.sub,
       dto.amountCents,
     );
+  }
+
+  @Get('connect/status')
+  @ApiOperation({ summary: 'Consulter son éligibilité au retrait (Stripe Connect)' })
+  async getConnectStatus(@Req() req: any) {
+    return this.pointsConnectService.getStatus(req.user.sub);
+  }
+
+  @Post('connect/onboard')
+  @ApiOperation({ summary: "Démarrer l'onboarding Stripe Connect pour recevoir des virements" })
+  async createOnboardingLink(@Req() req: any) {
+    return this.pointsConnectService.createOnboardingLink(req.user.sub);
+  }
+
+  @Post('cashout')
+  @ApiOperation({ summary: 'Convertir des points en virement bancaire (Stripe Connect)' })
+  async createCashout(@Body() dto: CreateCashoutDto, @Req() req: any) {
+    return this.pointsCashoutService.createCashout(req.user.sub, dto.amountPoints);
   }
 }

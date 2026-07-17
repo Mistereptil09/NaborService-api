@@ -137,9 +137,17 @@ export enum PointsLedgerEntryTypeEnum {
   EVENT_REFUND = 'event_refund',
   EVENT_COMMISSION = 'event_commission',
   ADJUSTMENT = 'adjustment',
+  CASHOUT = 'cashout',
+  CASHOUT_REVERSED = 'cashout_reversed',
 }
 
 export enum PointsTopupStatusEnum {
+  PENDING = 'pending',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+}
+
+export enum PointsCashoutStatusEnum {
   PENDING = 'pending',
   COMPLETED = 'completed',
   FAILED = 'failed',

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StripeWebhookWorker } from '../stripe-webhook.worker';
 import { PointsTopupService } from '../../../modules/points/points-topup.service';
+import { PointsConnectService } from '../../../modules/points/points-connect.service';
 
 describe('StripeWebhookWorker', () => {
   let worker: StripeWebhookWorker;
@@ -8,6 +9,9 @@ describe('StripeWebhookWorker', () => {
   const mockPointsTopupService = {
     markCompleted: jest.fn(),
     markFailed: jest.fn(),
+  };
+  const mockPointsConnectService = {
+    handleAccountUpdated: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -19,6 +23,10 @@ describe('StripeWebhookWorker', () => {
         {
           provide: PointsTopupService,
           useValue: mockPointsTopupService,
+        },
+        {
+          provide: PointsConnectService,
+          useValue: mockPointsConnectService,
         },
       ],
     }).compile();
@@ -59,6 +67,27 @@ describe('StripeWebhookWorker', () => {
     );
   });
 
+  it("synchronise l'éligibilité au cashout sur account.updated", async () => {
+    const eventData = {
+      id: 'acct_123',
+      charges_enabled: true,
+      payouts_enabled: true,
+    };
+    const job = {
+      id: 'evt_acct_123',
+      data: {
+        eventType: 'account.updated',
+        eventId: 'evt_acct_123',
+        eventData,
+      },
+    } as any;
+
+    await expect(worker.process(job)).resolves.toBeUndefined();
+    expect(mockPointsConnectService.handleAccountUpdated).toHaveBeenCalledWith(
+      eventData,
+    );
+  });
+
   it('should process unhandled event types without error', async () => {
     const job = {
       id: 'evt_456',
@@ -68,5 +97,6 @@ describe('StripeWebhookWorker', () => {
     await expect(worker.process(job)).resolves.toBeUndefined();
     expect(mockPointsTopupService.markCompleted).not.toHaveBeenCalled();
     expect(mockPointsTopupService.markFailed).not.toHaveBeenCalled();
+    expect(mockPointsConnectService.handleAccountUpdated).not.toHaveBeenCalled();
   });
 });

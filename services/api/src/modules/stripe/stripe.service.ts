@@ -76,4 +76,44 @@ export class StripeService {
       this.webhookSecret,
     );
   }
+
+  /** Crée le compte connecté (Express) recevant les virements de cashout. */
+  async createConnectAccount(email: string): Promise<string> {
+    const account = await this.stripe.accounts.create({
+      type: 'express',
+      email,
+      capabilities: { transfers: { requested: true } },
+    });
+    return account.id;
+  }
+
+  /** Lien d'onboarding hébergé par Stripe (KYC + coordonnées bancaires). */
+  async createAccountLink(
+    accountId: string,
+    refreshUrl: string,
+    returnUrl: string,
+  ): Promise<string> {
+    const link = await this.stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
+      type: 'account_onboarding',
+    });
+    return link.url;
+  }
+
+  /** Virement du solde de la plateforme vers le compte connecté d'un utilisateur. */
+  async createTransfer(
+    amountCents: number,
+    destinationAccountId: string,
+    metadata: Record<string, string>,
+  ): Promise<{ id: string }> {
+    const transfer = await this.stripe.transfers.create({
+      amount: amountCents,
+      currency: 'eur',
+      destination: destinationAccountId,
+      metadata,
+    });
+    return { id: transfer.id };
+  }
 }

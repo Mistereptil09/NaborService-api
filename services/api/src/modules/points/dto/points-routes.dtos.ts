@@ -13,6 +13,16 @@ export class CreateTopupDto {
   amountCents: number;
 }
 
+export class CreateCashoutDto {
+  @ApiPropertyOptional({
+    description: 'Nombre de points à convertir en virement bancaire',
+    example: 500,
+  })
+  @IsInt()
+  @Min(1)
+  amountPoints: number;
+}
+
 export class ListLedgerDto {
   @ApiPropertyOptional({
     description: "Nombre d'éléments à sauter pour la pagination (offset)",

@@ -5,6 +5,7 @@ import { StripeWebhookJobPayload } from '../interfaces/job-payloads';
 import { classifyAndThrow } from '../utils/error-classifier';
 import { getBackoffDelay } from '../utils/backoff-strategy';
 import { PointsTopupService } from '../../modules/points/points-topup.service';
+import { PointsConnectService } from '../../modules/points/points-connect.service';
 
 /**
  * Processes Stripe webhooks.
@@ -25,7 +26,10 @@ import { PointsTopupService } from '../../modules/points/points-topup.service';
 export class StripeWebhookWorker extends WorkerHost {
   private readonly logger = new Logger(StripeWebhookWorker.name);
 
-  constructor(private readonly pointsTopupService: PointsTopupService) {
+  constructor(
+    private readonly pointsTopupService: PointsTopupService,
+    private readonly pointsConnectService: PointsConnectService,
+  ) {
     super();
   }
 
@@ -53,6 +57,10 @@ export class StripeWebhookWorker extends WorkerHost {
             eventData,
             'checkout_session_expired',
           );
+          break;
+        }
+        case 'account.updated': {
+          await this.pointsConnectService.handleAccountUpdated(eventData);
           break;
         }
         default:

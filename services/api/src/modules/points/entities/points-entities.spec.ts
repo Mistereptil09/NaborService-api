@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { PointsLedgerEntry } from './points-ledger-entry.entity';
 import { PointsTopup } from './points-topup.entity';
+import { PointsCashout } from './points-cashout.entity';
 import { User } from '../../users/entities/user.entity';
 
 describe('Points Entities Metadata', () => {
@@ -11,7 +12,7 @@ describe('Points Entities Metadata', () => {
       type: 'postgres',
       host: 'fake',
       database: 'fake',
-      entities: [PointsLedgerEntry, PointsTopup, User],
+      entities: [PointsLedgerEntry, PointsTopup, PointsCashout, User],
       synchronize: false,
     });
     (ds as unknown as { buildMetadatas(): void }).buildMetadatas();
@@ -169,6 +170,76 @@ describe('Points Entities Metadata', () => {
 
     it('should have a ManyToOne relation to User', () => {
       const meta = ds.getMetadata(PointsTopup);
+      const rel = meta.relations.find((r) => r.propertyName === 'user');
+      expect(rel).toBeDefined();
+      expect(rel!.relationType).toBe('many-to-one');
+      expect(rel!.type).toBe(User);
+    });
+  });
+
+  describe('PointsCashout', () => {
+    it('should map to table "points_cashouts"', () => {
+      const meta = ds.getMetadata(PointsCashout);
+      expect(meta.tableName).toBe('points_cashouts');
+    });
+
+    it('should have a UUID primary key with uuid_generate_v7() default', () => {
+      const meta = ds.getMetadata(PointsCashout);
+      const pkColumns = meta.primaryColumns;
+      expect(pkColumns).toHaveLength(1);
+      expect(pkColumns[0].databaseName).toBe('id');
+      expect(pkColumns[0].type).toBe('uuid');
+      expect(typeof pkColumns[0].default).toBe('function');
+      expect((pkColumns[0].default as () => string)()).toBe(
+        'uuid_generate_v7()',
+      );
+    });
+
+    it('should have CHECK constraint "chk_cashout_points"', () => {
+      const meta = ds.getMetadata(PointsCashout);
+      const check = meta.checks.find((c) => c.name === 'chk_cashout_points');
+      expect(check).toBeDefined();
+      expect(check!.expression).toContain('"amount_points" > 0');
+    });
+
+    it('should have CHECK constraint "chk_cashout_amount"', () => {
+      const meta = ds.getMetadata(PointsCashout);
+      const check = meta.checks.find((c) => c.name === 'chk_cashout_amount');
+      expect(check).toBeDefined();
+      expect(check!.expression).toContain('"amount_cents" > 0');
+    });
+
+    it('should have "status" enum column with enumName "points_cashout_status_enum"', () => {
+      const meta = ds.getMetadata(PointsCashout);
+      const col = meta.columns.find((c) => c.databaseName === 'status');
+      expect(col).toBeDefined();
+      expect(col!.type).toBe('enum');
+      expect(col!.enumName).toBe('points_cashout_status_enum');
+    });
+
+    it('should have UNIQUE constraint on "stripe_transfer_id"', () => {
+      const meta = ds.getMetadata(PointsCashout);
+      const col = meta.columns.find(
+        (c) => c.databaseName === 'stripe_transfer_id',
+      );
+      expect(col).toBeDefined();
+      expect(col!.isNullable).toBe(true);
+      const hasUnique =
+        meta.uniques.some((u) =>
+          u.columns.some((c) => c.databaseName === 'stripe_transfer_id'),
+        ) || (col as { isUnique?: boolean }).isUnique === true;
+      expect(hasUnique).toBe(true);
+    });
+
+    it('should have index on user_id', () => {
+      const meta = ds.getMetadata(PointsCashout);
+      const idx = meta.indices.find((i) => i.name === 'idx_cashout_user');
+      expect(idx).toBeDefined();
+      expect(idx!.columns.map((c) => c.databaseName)).toContain('user_id');
+    });
+
+    it('should have a ManyToOne relation to User', () => {
+      const meta = ds.getMetadata(PointsCashout);
       const rel = meta.relations.find((r) => r.propertyName === 'user');
       expect(rel).toBeDefined();
       expect(rel!.relationType).toBe('many-to-one');
