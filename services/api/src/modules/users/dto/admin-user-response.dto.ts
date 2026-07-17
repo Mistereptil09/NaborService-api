@@ -37,6 +37,9 @@ export class AdminUserDto {
   @ApiProperty() locale: string;
   @ApiProperty({ nullable: true }) neighbourhoodId: string | null;
   @ApiProperty({ nullable: true }) stripeAccountId: string | null;
+  @ApiProperty({ description: 'Solde de points actuel' }) pointsBalance: number;
+  @ApiProperty({ description: 'Éligible aux virements de cashout (onboarding Stripe Connect terminé)' })
+  payoutsEnabled: boolean;
   @ApiProperty({ nullable: true }) profilePictureMongoId: string | null;
   @ApiProperty({ nullable: true }) bannerMongoId: string | null;
   @ApiProperty({ description: 'Indique si la MFA TOTP est activée, sans exposer le secret' })
@@ -79,6 +82,8 @@ export function toAdminUserDto(user: User): AdminUserDto {
     locale: user.locale,
     neighbourhoodId: user.neighbourhoodId,
     stripeAccountId: user.stripeAccountId,
+    pointsBalance: user.pointsBalance,
+    payoutsEnabled: user.payoutsEnabled,
     profilePictureMongoId: user.profilePictureMongoId,
     bannerMongoId: user.bannerMongoId,
     mfaEnabled: !!user.totpSecret,
