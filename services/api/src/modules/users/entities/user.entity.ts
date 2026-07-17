@@ -45,6 +45,9 @@ export class User {
   })
   stripeAccountId: string | null;
 
+  @Column({ name: 'payouts_enabled', type: 'boolean', nullable: false, default: false })
+  payoutsEnabled: boolean;
+
   @Column({ name: 'points_balance', type: 'int', nullable: false, default: 0 })
   pointsBalance: number;
 
