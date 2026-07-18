@@ -1,7 +1,11 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { createTestingApp, clearDatabase, clearRedis } from './utils/e2e-setup';
-import { createTestUser, loginAndGetToken, createAdminUser } from './utils/test-factories';
+import {
+  createTestUser,
+  loginAndGetToken,
+  createAdminUser,
+} from './utils/test-factories';
 
 describe('Categories Module (e2e)', () => {
   let app: INestApplication;
@@ -253,7 +257,9 @@ describe('Categories Module (e2e)', () => {
       expect(rootNode).toBeDefined();
       expect(rootNode.children).toHaveLength(2);
 
-      const childNames = rootNode.children.map((c: any) => c.categoryName).sort();
+      const childNames = rootNode.children
+        .map((c: any) => c.categoryName)
+        .sort();
       expect(childNames).toEqual(['Football', 'Tennis']);
     });
   });

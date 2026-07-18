@@ -51,5 +51,6 @@ export class DslAuditPaginationMetaDto {
 
 export class ListDslAuditResponseDto {
   @ApiProperty({ type: [DslAuditItemDto] }) data: DslAuditItemDto[];
-  @ApiProperty({ type: DslAuditPaginationMetaDto }) meta: DslAuditPaginationMetaDto;
+  @ApiProperty({ type: DslAuditPaginationMetaDto })
+  meta: DslAuditPaginationMetaDto;
 }

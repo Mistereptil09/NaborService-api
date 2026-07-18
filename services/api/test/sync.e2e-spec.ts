@@ -1,10 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import {
-  createTestingApp,
-  clearDatabase,
-  clearRedis,
-} from './utils/e2e-setup';
+import { createTestingApp, clearDatabase, clearRedis } from './utils/e2e-setup';
 import {
   createTestUser,
   loginAndGetToken,
@@ -87,8 +83,7 @@ describe('Sync & Updates Modules (e2e)', () => {
 
   describe('Updates', () => {
     it('GET /v1/updates/latest should be public (no token required)', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/v1/updates/latest');
+      const res = await request(app.getHttpServer()).get('/v1/updates/latest');
 
       // 200 if manifest file exists, 404 if not configured
       expect([200, 404]).toContain(res.status);
@@ -112,8 +107,9 @@ describe('Sync & Updates Modules (e2e)', () => {
     });
 
     it('GET /v1/updates/download should be public', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/v1/updates/download');
+      const res = await request(app.getHttpServer()).get(
+        '/v1/updates/download',
+      );
 
       // 200 if JAR file exists, 404 if not configured
       expect([200, 404]).toContain(res.status);

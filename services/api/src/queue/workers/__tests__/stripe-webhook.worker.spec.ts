@@ -46,7 +46,9 @@ describe('StripeWebhookWorker', () => {
     } as any;
 
     await expect(worker.process(job)).resolves.toBeUndefined();
-    expect(mockPointsTopupService.markCompleted).toHaveBeenCalledWith(eventData);
+    expect(mockPointsTopupService.markCompleted).toHaveBeenCalledWith(
+      eventData,
+    );
   });
 
   it('marque le topup en échec sur checkout.session.expired', async () => {
@@ -97,6 +99,8 @@ describe('StripeWebhookWorker', () => {
     await expect(worker.process(job)).resolves.toBeUndefined();
     expect(mockPointsTopupService.markCompleted).not.toHaveBeenCalled();
     expect(mockPointsTopupService.markFailed).not.toHaveBeenCalled();
-    expect(mockPointsConnectService.handleAccountUpdated).not.toHaveBeenCalled();
+    expect(
+      mockPointsConnectService.handleAccountUpdated,
+    ).not.toHaveBeenCalled();
   });
 });

@@ -1,10 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import {
-  createTestingApp,
-  clearDatabase,
-  clearRedis,
-} from './utils/e2e-setup';
+import { createTestingApp, clearDatabase, clearRedis } from './utils/e2e-setup';
 import {
   createTestUser,
   loginAndGetToken,
@@ -85,7 +81,11 @@ describe('Media Module (e2e)', () => {
     it('should return 403 when uploading to another user avatar', async () => {
       const user1 = await createTestUser(app, 'owner');
       const user2 = await createTestUser(app, 'other');
-      const { token: token1 } = await loginAndGetToken(app, user1.email, user1.password);
+      const { token: token1 } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
 
       // User1 tries to upload avatar for User2
       await request(app.getHttpServer())
@@ -138,8 +138,16 @@ describe('Media Module (e2e)', () => {
     it('should return 403 when reordering photos on another user listing', async () => {
       const user1 = await createTestUser(app, 'owner');
       const user2 = await createTestUser(app, 'intruder');
-      const { token: token1 } = await loginAndGetToken(app, user1.email, user1.password);
-      const { token: token2 } = await loginAndGetToken(app, user2.email, user2.password);
+      const { token: token1 } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
+      const { token: token2 } = await loginAndGetToken(
+        app,
+        user2.email,
+        user2.password,
+      );
 
       const listing = await createListing(app, token1);
 

@@ -23,8 +23,11 @@ const mockDslService = {
 };
 
 function setupMockForQuery(query: string) {
-  const { BadRequestException, ForbiddenException, InternalServerErrorException } =
-    require('@nestjs/common');
+  const {
+    BadRequestException,
+    ForbiddenException,
+    InternalServerErrorException,
+  } = require('@nestjs/common');
 
   if (query.includes('INVALID_SYNTAX')) {
     throw new BadRequestException("Erreur de syntaxe near 'INVALID_SYNTAX'");
@@ -59,9 +62,14 @@ function setupMockForQuery(query: string) {
       : null,
     limit: limitMatch ? parseInt(limitMatch[1], 10) : 100,
     projection: {
-      content_encrypted: 0, iv: 0, auth_tag: 0, data: 0,
-      'pdf.data': 0, qr_png: 0,
-      'signature.canvas_b64': 0, 'signature.signed_ip': 0,
+      content_encrypted: 0,
+      iv: 0,
+      auth_tag: 0,
+      data: 0,
+      'pdf.data': 0,
+      qr_png: 0,
+      'signature.canvas_b64': 0,
+      'signature.signed_ip': 0,
     },
     resultCount: 3,
     results: [{ _id: 'mongo1', status: 'open' }],
@@ -75,13 +83,23 @@ describe('DSL Module (e2e)', () => {
     mockExecuteQuery.mockImplementation((q: string) => setupMockForQuery(q));
     mockLogQuery.mockResolvedValue(undefined);
     mockGetAuditHistory.mockResolvedValue({
-      entries: [{
-        id: 'audit-1', userId: 'admin-id', userRole: 'admin',
-        query: 'FIND contracts WHERE status = "open" LIMIT 20',
-        collection: 'contracts', filter: { status: 'open' }, order: null,
-        limit: 20, resultCount: 3, hasError: false, errorMessage: null,
-        ipAddress: '127.0.0.1', createdAt: new Date('2026-06-16T12:00:00Z'),
-      }],
+      entries: [
+        {
+          id: 'audit-1',
+          userId: 'admin-id',
+          userRole: 'admin',
+          query: 'FIND contracts WHERE status = "open" LIMIT 20',
+          collection: 'contracts',
+          filter: { status: 'open' },
+          order: null,
+          limit: 20,
+          resultCount: 3,
+          hasError: false,
+          errorMessage: null,
+          ipAddress: '127.0.0.1',
+          createdAt: new Date('2026-06-16T12:00:00Z'),
+        },
+      ],
       total: 1,
     });
 
@@ -96,7 +114,11 @@ describe('DSL Module (e2e)', () => {
     app.setGlobalPrefix('v1');
     app.use(cookieParser());
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
     );
     await app.init();
   }, 30000);
@@ -121,9 +143,7 @@ describe('DSL Module (e2e)', () => {
   });
 
   it('GET /v1/dsl/audit should return 401 without token', async () => {
-    await request(app.getHttpServer())
-      .get('/v1/dsl/audit')
-      .expect(401);
+    await request(app.getHttpServer()).get('/v1/dsl/audit').expect(401);
   });
 
   // ── Role guards ───────────────────────────────────────────
@@ -177,8 +197,12 @@ describe('DSL Module (e2e)', () => {
 
     it('should execute queries on all 6 authorized collections', async () => {
       const collections = [
-        'contracts', 'messages', 'event_tickets',
-        'listing_documents', 'event_documents', 'incident_documents',
+        'contracts',
+        'messages',
+        'event_tickets',
+        'listing_documents',
+        'event_documents',
+        'incident_documents',
       ];
       for (const col of collections) {
         const res = await request(app.getHttpServer())
@@ -196,7 +220,10 @@ describe('DSL Module (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/v1/dsl/query')
         .set('Authorization', `Bearer ${modToken}`)
-        .send({ query: 'GET event_tickets WHERE scanned_at IS NULL ORDER BY issued_at ASC LIMIT 100' })
+        .send({
+          query:
+            'GET event_tickets WHERE scanned_at IS NULL ORDER BY issued_at ASC LIMIT 100',
+        })
         .expect(200);
 
       expect(res.body.collection).toBe('event_tickets');

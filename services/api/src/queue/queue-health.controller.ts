@@ -1,5 +1,10 @@
 import { Controller, Get, HttpStatus, HttpException } from '@nestjs/common';
-import { ApiOperation, ApiTags, ApiOkResponse, ApiServiceUnavailableResponse } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiTags,
+  ApiOkResponse,
+  ApiServiceUnavailableResponse,
+} from '@nestjs/swagger';
 import { QueueHealthService } from './queue-health.service';
 
 @ApiTags('Health')
@@ -10,10 +15,13 @@ export class QueueHealthController {
   @Get()
   @ApiOperation({
     summary: 'Métriques des queues BullMQ',
-    description: 'État des files d\'attente (attente, actifs, complétés, échoués) pour chaque worker.',
+    description:
+      "État des files d'attente (attente, actifs, complétés, échoués) pour chaque worker.",
   })
   @ApiOkResponse({ description: 'Métriques récupérées' })
-  @ApiServiceUnavailableResponse({ description: 'Redis ou queues indisponibles' })
+  @ApiServiceUnavailableResponse({
+    description: 'Redis ou queues indisponibles',
+  })
   async checkHealth() {
     const health = await this.queueHealthService.getMetrics();
 

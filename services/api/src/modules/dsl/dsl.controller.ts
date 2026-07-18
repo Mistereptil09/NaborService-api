@@ -64,7 +64,7 @@ export class DslController {
   })
   @ApiForbiddenResponse({
     description:
-      "Collection non autorisée, ou rôle insuffisant (modérateur/admin requis)",
+      'Collection non autorisée, ou rôle insuffisant (modérateur/admin requis)',
   })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async executeQuery(
@@ -122,7 +122,7 @@ export class DslController {
     summary: 'Historique des requêtes DSL exécutées',
     description:
       'Retourne la liste paginée des requêtes DSL exécutées, ' +
-      'avec le filtre MongoDB généré, le statut et l\'utilisateur.',
+      "avec le filtre MongoDB généré, le statut et l'utilisateur.",
   })
   @ApiOkResponse({
     description: 'Historique paginé des requêtes DSL',

@@ -117,7 +117,13 @@ export async function createModeratorUser(
 
   const { token, secret } = await loginAndGetToken(app, email, password);
 
-  return { email, password, user: { ...user, role: 'moderator' }, token, secret };
+  return {
+    email,
+    password,
+    user: { ...user, role: 'moderator' },
+    token,
+    secret,
+  };
 }
 
 /**
@@ -178,7 +184,8 @@ export async function createEvent(
     max_participants: overrides?.max_participants ?? 50,
     neighbourhood_id: overrides?.neighbourhood_id,
     category_id: overrides?.category_id,
-    starts_at: overrides?.starts_at ?? new Date(Date.now() + 86400000).toISOString(),
+    starts_at:
+      overrides?.starts_at ?? new Date(Date.now() + 86400000).toISOString(),
   };
 
   const res = await request(app.getHttpServer())

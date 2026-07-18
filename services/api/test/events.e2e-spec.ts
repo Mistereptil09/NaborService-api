@@ -42,7 +42,12 @@ describe('Events Module (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/v1/events')
         .set('Authorization', `Bearer ${token}`)
-        .send({ title: 'Summer Party', description: 'A great event', cost_cents: 500, max_participants: 50 })
+        .send({
+          title: 'Summer Party',
+          description: 'A great event',
+          cost_cents: 500,
+          max_participants: 50,
+        })
         .expect(201);
 
       expect(res.body).toHaveProperty('id');
@@ -55,7 +60,9 @@ describe('Events Module (e2e)', () => {
       await createEvent(app, token);
 
       const res = await request(app.getHttpServer())
-        .get('/v1/events').set('Authorization', `Bearer ${token}`).expect(200);
+        .get('/v1/events')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
       expect(res.body).toHaveProperty('items');
     });
 
@@ -65,7 +72,9 @@ describe('Events Module (e2e)', () => {
       const created = await createEvent(app, token);
 
       const res = await request(app.getHttpServer())
-        .get(`/v1/events/${created.id}`).set('Authorization', `Bearer ${token}`).expect(200);
+        .get(`/v1/events/${created.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
       expect(res.body).toHaveProperty('id', created.id);
     });
 
@@ -74,7 +83,8 @@ describe('Events Module (e2e)', () => {
       const { token } = await loginAndGetToken(app, email, password);
       await request(app.getHttpServer())
         .get('/v1/events/00000000-0000-0000-0000-000000000000')
-        .set('Authorization', `Bearer ${token}`).expect(404);
+        .set('Authorization', `Bearer ${token}`)
+        .expect(404);
     });
 
     it('PATCH /v1/events/:id should update own event', async () => {
@@ -83,8 +93,10 @@ describe('Events Module (e2e)', () => {
       const created = await createEvent(app, token);
 
       const res = await request(app.getHttpServer())
-        .patch(`/v1/events/${created.id}`).set('Authorization', `Bearer ${token}`)
-        .send({ title: 'Updated Event' }).expect(200);
+        .patch(`/v1/events/${created.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ title: 'Updated Event' })
+        .expect(200);
       expect(res.body).toHaveProperty('title', 'Updated Event');
     });
 
@@ -96,8 +108,10 @@ describe('Events Module (e2e)', () => {
       const created = await createEvent(app, t1);
 
       await request(app.getHttpServer())
-        .patch(`/v1/events/${created.id}`).set('Authorization', `Bearer ${t2}`)
-        .send({ title: 'Hacked' }).expect(403);
+        .patch(`/v1/events/${created.id}`)
+        .set('Authorization', `Bearer ${t2}`)
+        .send({ title: 'Hacked' })
+        .expect(403);
     });
 
     it('DELETE /v1/events/:id should soft-delete own event', async () => {
@@ -105,7 +119,9 @@ describe('Events Module (e2e)', () => {
       const { token } = await loginAndGetToken(app, email, password);
       const created = await createEvent(app, token);
       await request(app.getHttpServer())
-        .delete(`/v1/events/${created.id}`).set('Authorization', `Bearer ${token}`).expect(200);
+        .delete(`/v1/events/${created.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
     });
   });
 
@@ -117,9 +133,18 @@ describe('Events Module (e2e)', () => {
       const { token } = await loginAndGetToken(app, email, password);
       const event = await createEvent(app, token);
 
-      await request(app.getHttpServer()).post(`/v1/events/${event.id}/publish`).set('Authorization', `Bearer ${token}`).expect(201);
-      await request(app.getHttpServer()).post(`/v1/events/${event.id}/open`).set('Authorization', `Bearer ${token}`).expect(201);
-      await request(app.getHttpServer()).post(`/v1/events/${event.id}/complete`).set('Authorization', `Bearer ${token}`).expect(201);
+      await request(app.getHttpServer())
+        .post(`/v1/events/${event.id}/publish`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/v1/events/${event.id}/open`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/v1/events/${event.id}/complete`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(201);
     });
 
     it('should cancel an event', async () => {
@@ -128,8 +153,10 @@ describe('Events Module (e2e)', () => {
       const event = await createEvent(app, token);
 
       await request(app.getHttpServer())
-        .post(`/v1/events/${event.id}/cancel`).set('Authorization', `Bearer ${token}`)
-        .send({ reason: 'Weather issues' }).expect(201);
+        .post(`/v1/events/${event.id}/cancel`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ reason: 'Weather issues' })
+        .expect(201);
     });
 
     it('should return 400 when cancelling without reason', async () => {
@@ -138,8 +165,10 @@ describe('Events Module (e2e)', () => {
       const event = await createEvent(app, token);
 
       await request(app.getHttpServer())
-        .post(`/v1/events/${event.id}/cancel`).set('Authorization', `Bearer ${token}`)
-        .send({ reason: '' }).expect(400);
+        .post(`/v1/events/${event.id}/cancel`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ reason: '' })
+        .expect(400);
     });
 
     it('should return 403 when non-owner tries to publish', async () => {
@@ -150,7 +179,9 @@ describe('Events Module (e2e)', () => {
       const event = await createEvent(app, t1);
 
       await request(app.getHttpServer())
-        .post(`/v1/events/${event.id}/publish`).set('Authorization', `Bearer ${t2}`).expect(403);
+        .post(`/v1/events/${event.id}/publish`)
+        .set('Authorization', `Bearer ${t2}`)
+        .expect(403);
     });
   });
 
@@ -163,11 +194,19 @@ describe('Events Module (e2e)', () => {
       const { token: t1 } = await loginAndGetToken(app, u1.email, u1.password);
       const { token: t2 } = await loginAndGetToken(app, u2.email, u2.password);
       const event = await createEvent(app, t1);
-      await request(app.getHttpServer()).post(`/v1/events/${event.id}/publish`).set('Authorization', `Bearer ${t1}`).expect(201);
-      await request(app.getHttpServer()).post(`/v1/events/${event.id}/open`).set('Authorization', `Bearer ${t1}`).expect(201);
+      await request(app.getHttpServer())
+        .post(`/v1/events/${event.id}/publish`)
+        .set('Authorization', `Bearer ${t1}`)
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/v1/events/${event.id}/open`)
+        .set('Authorization', `Bearer ${t1}`)
+        .expect(201);
 
       const res = await request(app.getHttpServer())
-        .post(`/v1/events/${event.id}/register`).set('Authorization', `Bearer ${t2}`).expect(202);
+        .post(`/v1/events/${event.id}/register`)
+        .set('Authorization', `Bearer ${t2}`)
+        .expect(202);
       expect(res.body).toHaveProperty('success', true);
     });
 
@@ -176,7 +215,9 @@ describe('Events Module (e2e)', () => {
       const { token } = await loginAndGetToken(app, email, password);
       const event = await createEvent(app, token);
       await request(app.getHttpServer())
-        .post(`/v1/events/${event.id}/register`).set('Authorization', `Bearer ${token}`).expect(409);
+        .post(`/v1/events/${event.id}/register`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(409);
     });
   });
 
@@ -186,14 +227,27 @@ describe('Events Module (e2e)', () => {
     it('POST /v1/events/:id/swipe should record a like', async () => {
       const creator = await createTestUser(app, 'creator');
       const swiper = await createTestUser(app, 'swiper');
-      const { token: ct } = await loginAndGetToken(app, creator.email, creator.password);
-      const { token: st } = await loginAndGetToken(app, swiper.email, swiper.password);
+      const { token: ct } = await loginAndGetToken(
+        app,
+        creator.email,
+        creator.password,
+      );
+      const { token: st } = await loginAndGetToken(
+        app,
+        swiper.email,
+        swiper.password,
+      );
       const event = await createEvent(app, ct);
-      await request(app.getHttpServer()).post(`/v1/events/${event.id}/publish`).set('Authorization', `Bearer ${ct}`).expect(201);
+      await request(app.getHttpServer())
+        .post(`/v1/events/${event.id}/publish`)
+        .set('Authorization', `Bearer ${ct}`)
+        .expect(201);
 
       const res = await request(app.getHttpServer())
-        .post(`/v1/events/${event.id}/swipe`).set('Authorization', `Bearer ${st}`)
-        .send({ direction: 'like' }).expect(201);
+        .post(`/v1/events/${event.id}/swipe`)
+        .set('Authorization', `Bearer ${st}`)
+        .send({ direction: 'like' })
+        .expect(201);
       expect(res.body).toHaveProperty('success', true);
     });
 
@@ -203,8 +257,10 @@ describe('Events Module (e2e)', () => {
       const event = await createEvent(app, token);
 
       await request(app.getHttpServer())
-        .post(`/v1/events/${event.id}/swipe`).set('Authorization', `Bearer ${token}`)
-        .send({ direction: 'invalid' }).expect(400);
+        .post(`/v1/events/${event.id}/swipe`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ direction: 'invalid' })
+        .expect(400);
     });
   });
 
@@ -214,26 +270,46 @@ describe('Events Module (e2e)', () => {
     it('POST /v1/events/:id/report should report an event', async () => {
       const owner = await createTestUser(app, 'owner');
       const reporter = await createTestUser(app, 'reporter');
-      const { token: ot } = await loginAndGetToken(app, owner.email, owner.password);
-      const { token: rt } = await loginAndGetToken(app, reporter.email, reporter.password);
+      const { token: ot } = await loginAndGetToken(
+        app,
+        owner.email,
+        owner.password,
+      );
+      const { token: rt } = await loginAndGetToken(
+        app,
+        reporter.email,
+        reporter.password,
+      );
       const event = await createEvent(app, ot);
 
       const res = await request(app.getHttpServer())
-        .post(`/v1/events/${event.id}/report`).set('Authorization', `Bearer ${rt}`)
-        .send({ reason: 'Suspicious event' }).expect(201);
+        .post(`/v1/events/${event.id}/report`)
+        .set('Authorization', `Bearer ${rt}`)
+        .send({ reason: 'Suspicious event' })
+        .expect(201);
       expect(res.body).toHaveProperty('success', true);
     });
 
     it('POST /v1/events/:id/report should return 400 with empty reason', async () => {
       const owner = await createTestUser(app, 'owner2');
       const reporter = await createTestUser(app, 'reporter2');
-      const { token: ot } = await loginAndGetToken(app, owner.email, owner.password);
-      const { token: rt } = await loginAndGetToken(app, reporter.email, reporter.password);
+      const { token: ot } = await loginAndGetToken(
+        app,
+        owner.email,
+        owner.password,
+      );
+      const { token: rt } = await loginAndGetToken(
+        app,
+        reporter.email,
+        reporter.password,
+      );
       const event = await createEvent(app, ot);
 
       await request(app.getHttpServer())
-        .post(`/v1/events/${event.id}/report`).set('Authorization', `Bearer ${rt}`)
-        .send({ reason: '' }).expect(400);
+        .post(`/v1/events/${event.id}/report`)
+        .set('Authorization', `Bearer ${rt}`)
+        .send({ reason: '' })
+        .expect(400);
     });
   });
 

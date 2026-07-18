@@ -16,7 +16,8 @@ export class UpdatesService {
   private readonly updatesDir: string;
 
   constructor(private readonly config: ConfigService) {
-    this.updatesDir = this.config.get<string>('UPDATES_DIR') ?? join(process.cwd(), 'updates');
+    this.updatesDir =
+      this.config.get<string>('UPDATES_DIR') ?? join(process.cwd(), 'updates');
   }
 
   async getLatest(): Promise<UpdateManifest> {
@@ -35,7 +36,11 @@ export class UpdatesService {
     return manifest;
   }
 
-  getDownloadStream(): { stream: NodeJS.ReadableStream; filename: string; size: number } {
+  getDownloadStream(): {
+    stream: NodeJS.ReadableStream;
+    filename: string;
+    size: number;
+  } {
     const jarPath = join(this.updatesDir, 'nabor-app.jar');
     if (!existsSync(jarPath)) {
       throw new NotFoundException('JAR file not found');

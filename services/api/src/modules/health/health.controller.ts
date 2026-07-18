@@ -1,5 +1,10 @@
 import { Controller, Get, Res } from '@nestjs/common';
-import { ApiOperation, ApiTags, ApiOkResponse, ApiServiceUnavailableResponse } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiTags,
+  ApiOkResponse,
+  ApiServiceUnavailableResponse,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import { HealthService } from './health.service';
 

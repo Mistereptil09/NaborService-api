@@ -35,7 +35,7 @@ export const mongoConfig: MongooseModuleAsyncOptions = {
     } catch (err) {
       logger.warn(
         `MongoDB unavailable at startup: ${(err as Error).message}. ` +
-        'Server will start without it — features requiring MongoDB (media, chat, contracts) will be unavailable until it recovers.',
+          'Server will start without it — features requiring MongoDB (media, chat, contracts) will be unavailable until it recovers.',
       );
     }
 
