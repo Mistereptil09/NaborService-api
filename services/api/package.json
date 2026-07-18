@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json --forceExit",
     "test:e2e:fails": "jest --config ./test/jest-e2e.json --forceExit --onlyFailures",
     "db:seed": "ts-node src/seed.ts",
+    "db:migrate:contracts": "ts-node src/scripts/migrate-contracts-dual-signature.ts",
     "mail:test": "ts-node src/scripts/test-smtp.ts"
   },
   "dependencies": {
@@ -53,6 +54,7 @@
     "otplib": "^13.4.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.20.0",
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
