@@ -12,7 +12,8 @@ export class UpdateConfigDto {
   commissionPercent?: number;
 
   @ApiPropertyOptional({
-    description: "Délai limite pour l'annulation et le remboursement d'un événement (en heures)",
+    description:
+      "Délai limite pour l'annulation et le remboursement d'un événement (en heures)",
     example: 48,
   })
   @IsOptional()
@@ -21,7 +22,8 @@ export class UpdateConfigDto {
   refundDeadlineHours?: number;
 
   @ApiPropertyOptional({
-    description: "Délai d'expiration d'un contrat de service non signé (en heures)",
+    description:
+      "Délai d'expiration d'un contrat de service non signé (en heures)",
     example: 24,
   })
   @IsOptional()
@@ -30,7 +32,8 @@ export class UpdateConfigDto {
   contractExpirationHours?: number;
 
   @ApiPropertyOptional({
-    description: 'Délai de confirmation pour la promotion depuis la liste d\'attente (en heures)',
+    description:
+      "Délai de confirmation pour la promotion depuis la liste d'attente (en heures)",
     example: 24,
   })
   @IsOptional()
@@ -39,7 +42,8 @@ export class UpdateConfigDto {
   waitlistConfirmHours?: number;
 
   @ApiPropertyOptional({
-    description: "Taux de conversion pour l'achat de points (centimes par point)",
+    description:
+      "Taux de conversion pour l'achat de points (centimes par point)",
     example: 1,
   })
   @IsOptional()

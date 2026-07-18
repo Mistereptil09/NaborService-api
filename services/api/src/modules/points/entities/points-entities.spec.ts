@@ -53,7 +53,9 @@ describe('Points Entities Metadata', () => {
 
     it('should have CHECK constraint "chk_ple_amount_nonzero"', () => {
       const meta = ds.getMetadata(PointsLedgerEntry);
-      const check = meta.checks.find((c) => c.name === 'chk_ple_amount_nonzero');
+      const check = meta.checks.find(
+        (c) => c.name === 'chk_ple_amount_nonzero',
+      );
       expect(check).toBeDefined();
       expect(check!.expression).toContain('"amount_points" != 0');
     });
@@ -142,7 +144,9 @@ describe('Points Entities Metadata', () => {
       expect(col!.isNullable).toBe(true);
       const hasUnique =
         meta.uniques.some((u) =>
-          u.columns.some((c) => c.databaseName === 'stripe_checkout_session_id'),
+          u.columns.some(
+            (c) => c.databaseName === 'stripe_checkout_session_id',
+          ),
         ) || (col as { isUnique?: boolean }).isUnique === true;
       expect(hasUnique).toBe(true);
     });

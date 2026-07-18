@@ -16,7 +16,9 @@ export class PointsConnectService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getStatus(userId: string): Promise<{ hasAccount: boolean; payoutsEnabled: boolean }> {
+  async getStatus(
+    userId: string,
+  ): Promise<{ hasAccount: boolean; payoutsEnabled: boolean }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('Utilisateur introuvable');
@@ -35,7 +37,9 @@ export class PointsConnectService {
     }
 
     if (!user.stripeAccountId) {
-      user.stripeAccountId = await this.stripeService.createConnectAccount(user.email);
+      user.stripeAccountId = await this.stripeService.createConnectAccount(
+        user.email,
+      );
       await this.userRepository.save(user);
     }
 
@@ -65,7 +69,9 @@ export class PointsConnectService {
       return;
     }
 
-    user.payoutsEnabled = Boolean(account.charges_enabled && account.payouts_enabled);
+    user.payoutsEnabled = Boolean(
+      account.charges_enabled && account.payouts_enabled,
+    );
     await this.userRepository.save(user);
   }
 }

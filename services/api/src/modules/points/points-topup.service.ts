@@ -97,7 +97,10 @@ export class PointsTopupService {
     });
   }
 
-  async markFailed(session: Record<string, any>, reason: string): Promise<void> {
+  async markFailed(
+    session: Record<string, any>,
+    reason: string,
+  ): Promise<void> {
     const topupId = session.metadata?.topupId;
     const topup = topupId
       ? await this.topupRepository.findOne({ where: { id: topupId } })

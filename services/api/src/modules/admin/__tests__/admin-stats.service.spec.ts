@@ -18,11 +18,23 @@ describe('AdminStatsService', () => {
   let mockParticipantRepo: any;
 
   beforeEach(async () => {
-    mockUserRepo = { count: jest.fn().mockResolvedValue(10), createQueryBuilder: jest.fn() };
-    mockListingRepo = { count: jest.fn().mockResolvedValue(5), createQueryBuilder: jest.fn() };
-    mockEventRepo = { count: jest.fn().mockResolvedValue(3), createQueryBuilder: jest.fn() };
+    mockUserRepo = {
+      count: jest.fn().mockResolvedValue(10),
+      createQueryBuilder: jest.fn(),
+    };
+    mockListingRepo = {
+      count: jest.fn().mockResolvedValue(5),
+      createQueryBuilder: jest.fn(),
+    };
+    mockEventRepo = {
+      count: jest.fn().mockResolvedValue(3),
+      createQueryBuilder: jest.fn(),
+    };
     mockTransactionRepo = { createQueryBuilder: jest.fn() };
-    mockIncidentRepo = { count: jest.fn().mockResolvedValue(2), createQueryBuilder: jest.fn() };
+    mockIncidentRepo = {
+      count: jest.fn().mockResolvedValue(2),
+      createQueryBuilder: jest.fn(),
+    };
     mockParticipantRepo = { createQueryBuilder: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -31,9 +43,15 @@ describe('AdminStatsService', () => {
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
         { provide: getRepositoryToken(Listing), useValue: mockListingRepo },
         { provide: getRepositoryToken(Evenement), useValue: mockEventRepo },
-        { provide: getRepositoryToken(ListingTransaction), useValue: mockTransactionRepo },
+        {
+          provide: getRepositoryToken(ListingTransaction),
+          useValue: mockTransactionRepo,
+        },
         { provide: getRepositoryToken(Incident), useValue: mockIncidentRepo },
-        { provide: getRepositoryToken(EventParticipant), useValue: mockParticipantRepo },
+        {
+          provide: getRepositoryToken(EventParticipant),
+          useValue: mockParticipantRepo,
+        },
       ],
     }).compile();
 
