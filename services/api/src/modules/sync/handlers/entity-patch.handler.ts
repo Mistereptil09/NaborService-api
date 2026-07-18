@@ -35,7 +35,11 @@ export class EntityPatchHandler {
     user: ['firstName', 'lastName', 'bio'],
     listing: ['title', 'description', 'price', 'status', 'locationName'],
     event: [
-      'title', 'description', 'date', 'locationName', 'status',
+      'title',
+      'description',
+      'date',
+      'locationName',
+      'status',
       'maxParticipants',
     ],
     incident: ['title', 'description', 'status', 'severity'],
@@ -45,8 +49,13 @@ export class EntityPatchHandler {
 
   static readonly SENSITIVE_FIELDS: Record<string, string[]> = {
     user: [
-      'passwordHash', 'totpSecret', 'stripeAccountId',
-      'passwordChangedAt', 'lastLoginAt', 'isSuspended', 'suspendedAt',
+      'passwordHash',
+      'totpSecret',
+      'stripeAccountId',
+      'passwordChangedAt',
+      'lastLoginAt',
+      'isSuspended',
+      'suspendedAt',
     ],
     listing: [],
     event: [],
@@ -84,14 +93,20 @@ export class EntityPatchHandler {
     { entity_type, changes }: SyncUpdateItemDto,
   ): Promise<PatchResult> {
     if (!this.createDeleteTypes.has(entity_type)) {
-      return { status: 'skipped', reason: `Create not supported for "${entity_type}"` };
+      return {
+        status: 'skipped',
+        reason: `Create not supported for "${entity_type}"`,
+      };
     }
 
     if (!changes.title || typeof changes.title !== 'string') {
       return { status: 'skipped', reason: 'Missing required field "title"' };
     }
     if (!changes.reporterId) {
-      return { status: 'skipped', reason: 'Missing required field "reporterId"' };
+      return {
+        status: 'skipped',
+        reason: 'Missing required field "reporterId"',
+      };
     }
 
     const saved = await repo.save(
@@ -117,7 +132,10 @@ export class EntityPatchHandler {
     { entity_type, entity_id, base_updated_at }: SyncUpdateItemDto,
   ): Promise<PatchResult> {
     if (!this.createDeleteTypes.has(entity_type)) {
-      return { status: 'skipped', reason: `Delete not supported for "${entity_type}"` };
+      return {
+        status: 'skipped',
+        reason: `Delete not supported for "${entity_type}"`,
+      };
     }
 
     const existing = await repo.findOne({ where: { id: entity_id } });
@@ -127,9 +145,8 @@ export class EntityPatchHandler {
 
     // Only check conflict if the entity was modified on the server.
     if (base_updated_at !== undefined && existing.updatedAt) {
-      const clientBase = base_updated_at !== null
-        ? new Date(base_updated_at)
-        : new Date(0);
+      const clientBase =
+        base_updated_at !== null ? new Date(base_updated_at) : new Date(0);
       if (existing.updatedAt.getTime() > clientBase.getTime()) {
         return {
           status: 'conflict',
@@ -159,9 +176,8 @@ export class EntityPatchHandler {
       return { status: 'success', processed: false };
     }
 
-    const clientBase = base_updated_at !== null
-      ? new Date(base_updated_at)
-      : new Date(0);
+    const clientBase =
+      base_updated_at !== null ? new Date(base_updated_at) : new Date(0);
 
     // Whitelist filter
     const allowedFields = this.whitelists[entity_type] ?? [];
@@ -191,7 +207,8 @@ export class EntityPatchHandler {
           conflict: {
             entityType: entity_type,
             entityId: entity_id,
-            fieldName: conflictedFields.length === 1 ? conflictedFields[0] : null,
+            fieldName:
+              conflictedFields.length === 1 ? conflictedFields[0] : null,
             clientData: changes,
             serverData: this.cleanServerData(entity_type, existing),
             detectedAt: new Date(),
@@ -227,11 +244,16 @@ export class EntityPatchHandler {
 
   private resolveRepo(type: string): Repository<any> | null {
     switch (type) {
-      case 'user':     return this.userRepository;
-      case 'listing':  return this.listingRepository;
-      case 'event':    return this.eventRepository;
-      case 'incident': return this.incidentRepository;
-      default:         return null;
+      case 'user':
+        return this.userRepository;
+      case 'listing':
+        return this.listingRepository;
+      case 'event':
+        return this.eventRepository;
+      case 'incident':
+        return this.incidentRepository;
+      default:
+        return null;
     }
   }
 

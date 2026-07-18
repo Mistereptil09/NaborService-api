@@ -35,8 +35,8 @@ describe('ListingModerationService — email payload', () => {
     mockUserRepo as any,
     mockListingsService as any,
     mockTxService as any,
-    mockNeo4jQueue as any,
-    mockEmailQueue as any,
+    mockNeo4jQueue,
+    mockEmailQueue,
   );
 
   beforeEach(() => jest.clearAllMocks());
@@ -45,7 +45,7 @@ describe('ListingModerationService — email payload', () => {
     await service.moderate('moderator-1', 'listing-1', {
       action: 'warned',
       reason: 'Contenu inapproprié',
-    } as any);
+    });
 
     expect(mockEmailQueue.add).toHaveBeenCalledTimes(1);
     const [jobName, payload] = mockEmailQueue.add.mock.calls[0];

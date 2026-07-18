@@ -321,16 +321,41 @@ export class MediaService {
   }
 
   /**
-   * Get all media files for an owner.
+   * Get all media files for an owner, in display order.
    */
   async findByOwner(
     ownerType: OwnerType,
     ownerId: string,
   ): Promise<MediaFileDocument[]> {
-    return this.mediaFileModel.find({
-      owner_type: ownerType,
-      owner_id: ownerId,
-    });
+    return this.mediaFileModel
+      .find({
+        owner_type: ownerType,
+        owner_id: ownerId,
+      })
+      .sort({ order: 1, uploaded_at: 1 });
+  }
+
+  /**
+   * First photo (lowest `order`) per owner, batched for a page of listings —
+   * one query for the whole feed page instead of one per card.
+   */
+  async findCoverImages(
+    ownerType: OwnerType,
+    ownerIds: string[],
+  ): Promise<Map<string, string>> {
+    if (ownerIds.length === 0) return new Map();
+    const docs = await this.mediaFileModel
+      .find({ owner_type: ownerType, owner_id: { $in: ownerIds } })
+      .sort({ order: 1, uploaded_at: 1 })
+      .lean();
+
+    const covers = new Map<string, string>();
+    for (const doc of docs) {
+      if (!covers.has(doc.owner_id)) {
+        covers.set(doc.owner_id, doc._id.toString());
+      }
+    }
+    return covers;
   }
 
   /**

@@ -7,7 +7,13 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Inject, Injectable, Logger, UseFilters, UseGuards } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  UseFilters,
+  UseGuards,
+} from '@nestjs/common';
 import { Server } from 'socket.io';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import Redis from 'ioredis';

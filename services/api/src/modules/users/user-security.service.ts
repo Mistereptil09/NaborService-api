@@ -1,9 +1,5 @@
 import {
-  BadRequestException,
   ConflictException,
-  ForbiddenException,
-  HttpException,
-  HttpStatus,
   Inject,
   Injectable,
   NotFoundException,
@@ -21,9 +17,6 @@ import { TotpService } from '../auth/totp.service';
 import { ChangeEmailDto, ChangePasswordDto } from './dto/user-routes.dtos';
 import { TokenService } from '../auth/token.service';
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const otp = require('otplib');
-
 @Injectable()
 export class UserSecurityService {
   constructor(
@@ -38,26 +31,7 @@ export class UserSecurityService {
   ) {}
 
   private async verifyUserTotp(userId: string, code: string): Promise<void> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw new NotFoundException('Utilisateur introuvable');
-    }
-    if (!user.totpSecret) {
-      throw new ForbiddenException('TOTP non configuré');
-    }
-
-    let secret: string;
-    try {
-      secret = this.totpService.decryptSecret(user.totpSecret);
-    } catch {
-      throw new ForbiddenException('Erreur de déchiffrement du secret');
-    }
-
-    const result = otp.verifySync({ token: code, secret });
-    const isValid = result?.valid === true;
-    if (!isValid) {
-      throw new ForbiddenException('TOTP requis ou invalide');
-    }
+    return this.totpService.verifyTotp(userId, code);
   }
 
   private async hashPassword(password: string): Promise<string> {

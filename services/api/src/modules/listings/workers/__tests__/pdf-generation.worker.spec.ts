@@ -38,7 +38,10 @@ describe('PdfGenerationWorker', () => {
         },
         { provide: getRepositoryToken(Listing), useValue: mockListingRepo },
         { provide: getModelToken(Contract.name), useValue: mockContractModel },
-        { provide: getModelToken(MediaFile.name), useValue: mockMediaFileModel },
+        {
+          provide: getModelToken(MediaFile.name),
+          useValue: mockMediaFileModel,
+        },
         { provide: GridFSService, useValue: mockGridfsService },
         { provide: NotificationsService, useValue: { create: jest.fn() } },
       ],

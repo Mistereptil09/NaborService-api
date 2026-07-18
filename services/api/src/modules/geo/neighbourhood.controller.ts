@@ -22,15 +22,15 @@ import { GeoNearbyQueryDto } from './dto/geo-routes.dtos';
 @ApiTags('Neighbourhoods')
 @Controller('neighbourhoods')
 export class NeighbourhoodController {
-  constructor(
-    private readonly neighbourhoodService: NeighbourhoodService,
-  ) {}
+  constructor(private readonly neighbourhoodService: NeighbourhoodService) {}
 
   // ── GET /neighbourhoods (public) ───────────────────────
 
   @Get()
   @ApiOperation({ summary: 'Lister tous les quartiers' })
-  @ApiOkResponse({ description: 'Liste des quartiers (id, name, city, zip_code)' })
+  @ApiOkResponse({
+    description: 'Liste des quartiers (id, name, city, zip_code)',
+  })
   async listAll() {
     return this.neighbourhoodService.findAll();
   }
@@ -39,8 +39,9 @@ export class NeighbourhoodController {
 
   @Get('nearby')
   @ApiOperation({
-    summary: 'Quartiers proches d\'un point GPS',
-    description: 'Retourne les 5 quartiers les plus proches dans un rayon donné (défaut 2000m)',
+    summary: "Quartiers proches d'un point GPS",
+    description:
+      'Retourne les 5 quartiers les plus proches dans un rayon donné (défaut 2000m)',
   })
   @ApiOkResponse({ description: 'Quartiers proches triés par distance' })
   async nearby(@Query() query: GeoNearbyQueryDto) {
@@ -56,8 +57,10 @@ export class NeighbourhoodController {
   @Get(':neighbourhood_id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Détail complet d\'un quartier (Neo4j)' })
-  @ApiOkResponse({ description: 'Détail du quartier avec géométrie et adjacences' })
+  @ApiOperation({ summary: "Détail complet d'un quartier (Neo4j)" })
+  @ApiOkResponse({
+    description: 'Détail du quartier avec géométrie et adjacences',
+  })
   @ApiNotFoundResponse({ description: 'Quartier introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async getDetail(@Param('neighbourhood_id') pgId: string) {

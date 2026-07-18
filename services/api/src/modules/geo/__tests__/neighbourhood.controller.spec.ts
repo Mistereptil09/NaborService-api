@@ -38,8 +38,20 @@ describe('NeighbourhoodController', () => {
   describe('GET /neighbourhoods', () => {
     it('should return all neighbourhoods', async () => {
       nbService.findAll.mockResolvedValue([
-        { pgId: 'nb-1', name: 'Marais', city: 'Paris', zipCode: '75003', country: 'FR' },
-        { pgId: 'nb-2', name: 'Montmartre', city: 'Paris', zipCode: '75018', country: 'FR' },
+        {
+          pgId: 'nb-1',
+          name: 'Marais',
+          city: 'Paris',
+          zipCode: '75003',
+          country: 'FR',
+        },
+        {
+          pgId: 'nb-2',
+          name: 'Montmartre',
+          city: 'Paris',
+          zipCode: '75018',
+          country: 'FR',
+        },
       ]);
 
       const result = await controller.listAll();
@@ -59,7 +71,11 @@ describe('NeighbourhoodController', () => {
         { pgId: 'nb-1', name: 'Marais', city: 'Paris', distanceMeters: 500 },
       ]);
 
-      const result = await controller.nearby({ lat: 48.86, lng: 2.35, radius: 2000 });
+      const result = await controller.nearby({
+        lat: 48.86,
+        lng: 2.35,
+        radius: 2000,
+      });
       expect(result).toHaveLength(1);
       expect(nbService.findNearby).toHaveBeenCalledWith(48.86, 2.35, 2000);
     });
@@ -74,13 +90,18 @@ describe('NeighbourhoodController', () => {
   describe('GET /neighbourhoods/:id', () => {
     it('should return neighbourhood detail', async () => {
       nbService.findByPgId.mockResolvedValue({
-        pgId: 'nb-1', name: 'Marais', city: 'Paris',
-        zipCode: '75003', country: 'FR',
+        pgId: 'nb-1',
+        name: 'Marais',
+        city: 'Paris',
+        zipCode: '75003',
+        country: 'FR',
         centroid: { latitude: 48.86, longitude: 2.36 },
-        geometry: '{"type":"Polygon","coordinates":[[[2.35,48.85],[2.37,48.85],[2.37,48.87],[2.35,48.87],[2.35,48.85]]]}',
+        geometry:
+          '{"type":"Polygon","coordinates":[[[2.35,48.85],[2.37,48.85],[2.37,48.87],[2.35,48.87],[2.35,48.85]]]}',
         areaM2: 500000,
         adjacentIds: ['nb-2'],
-        createdAt: new Date(), updatedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       } as any);
 
       const result = await controller.getDetail('nb-1');
@@ -90,7 +111,9 @@ describe('NeighbourhoodController', () => {
 
     it('should throw 404 if not found', async () => {
       nbService.findByPgId.mockResolvedValue(null);
-      await expect(controller.getDetail('unknown')).rejects.toThrow(NotFoundException);
+      await expect(controller.getDetail('unknown')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -108,7 +131,9 @@ describe('NeighbourhoodController', () => {
 
     it('should throw 404 if neighbourhood not found', async () => {
       nbService.findByPgId.mockResolvedValue(null);
-      await expect(controller.getMembers('unknown')).rejects.toThrow(NotFoundException);
+      await expect(controller.getMembers('unknown')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -117,12 +142,18 @@ describe('NeighbourhoodController', () => {
       nbService.findByPgId
         .mockResolvedValueOnce({ adjacentIds: ['nb-2', 'nb-3'] } as any)
         .mockResolvedValueOnce({
-          pgId: 'nb-2', name: 'Montmartre', city: 'Paris',
-          zipCode: '75018', country: 'FR',
+          pgId: 'nb-2',
+          name: 'Montmartre',
+          city: 'Paris',
+          zipCode: '75018',
+          country: 'FR',
         } as any)
         .mockResolvedValueOnce({
-          pgId: 'nb-3', name: 'Belleville', city: 'Paris',
-          zipCode: '75020', country: 'FR',
+          pgId: 'nb-3',
+          name: 'Belleville',
+          city: 'Paris',
+          zipCode: '75020',
+          country: 'FR',
         } as any);
 
       const result = await controller.getAdjacent('nb-1');
@@ -138,7 +169,9 @@ describe('NeighbourhoodController', () => {
 
     it('should throw 404 if neighbourhood not found', async () => {
       nbService.findByPgId.mockResolvedValue(null);
-      await expect(controller.getAdjacent('unknown')).rejects.toThrow(NotFoundException);
+      await expect(controller.getAdjacent('unknown')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

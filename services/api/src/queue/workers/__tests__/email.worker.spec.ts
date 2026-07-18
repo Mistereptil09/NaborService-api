@@ -10,7 +10,9 @@ describe('EmailWorker', () => {
 
   const mockUserRepo = { findOne: jest.fn() };
   const mockDataSource = { getRepository: jest.fn(() => mockUserRepo) };
-  const mockMailService = { sendTemplated: jest.fn().mockResolvedValue(undefined) };
+  const mockMailService = {
+    sendTemplated: jest.fn().mockResolvedValue(undefined),
+  };
   const mockPrefs = { isPreferenceEnabled: jest.fn() };
 
   const basePayload = {
@@ -19,7 +21,7 @@ describe('EmailWorker', () => {
     templateName: 'reset-password',
     templateVariables: { firstName: 'Alice' },
   };
-  const asJob = (data: any): Job => ({ id: 'job-1', data } as unknown as Job);
+  const asJob = (data: any): Job => ({ id: 'job-1', data }) as unknown as Job;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -60,9 +62,15 @@ describe('EmailWorker', () => {
       asJob({ ...basePayload, preferenceKey: 'notifWaitlist' }),
     );
 
-    expect(mockPrefs.isPreferenceEnabled).toHaveBeenCalledWith('u1', 'notifWaitlist');
+    expect(mockPrefs.isPreferenceEnabled).toHaveBeenCalledWith(
+      'u1',
+      'notifWaitlist',
+    );
     expect(mockMailService.sendTemplated).not.toHaveBeenCalled();
-    expect(result).toEqual({ skipped: true, reason: 'user_preference_opt_out' });
+    expect(result).toEqual({
+      skipped: true,
+      reason: 'user_preference_opt_out',
+    });
   });
 
   it('sends an essential email even when the user opted out', async () => {
@@ -70,7 +78,11 @@ describe('EmailWorker', () => {
     mockPrefs.isPreferenceEnabled.mockResolvedValue(false);
 
     const result = await worker.process(
-      asJob({ ...basePayload, essential: true, preferenceKey: 'notifWaitlist' }),
+      asJob({
+        ...basePayload,
+        essential: true,
+        preferenceKey: 'notifWaitlist',
+      }),
     );
 
     // essential bypasses opt-out entirely — preference must not even be checked
@@ -82,7 +94,9 @@ describe('EmailWorker', () => {
   it('sends to an external recipient (no user) defaulting to fr', async () => {
     mockUserRepo.findOne.mockResolvedValue(null);
 
-    await worker.process(asJob({ ...basePayload, preferenceKey: 'notifNewEvent' }));
+    await worker.process(
+      asJob({ ...basePayload, preferenceKey: 'notifNewEvent' }),
+    );
 
     expect(mockPrefs.isPreferenceEnabled).not.toHaveBeenCalled();
     expect(mockMailService.sendTemplated).toHaveBeenCalledWith(

@@ -61,7 +61,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const msg = await this.chatMessageService.sendMessage(
       data.group_id,
       client.userId!,
-      { content: data.content, type: data.type, parent_message_id: data.parent_message_id },
+      {
+        content: data.content,
+        type: data.type,
+        parent_message_id: data.parent_message_id,
+      },
     );
     this.server.to(`chat:group:${data.group_id}`).emit('message:received', msg);
     return { status: 'sent', message: msg };
@@ -124,11 +128,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.userId!,
       data.emoji,
     );
-    this.server.to(`chat:group:${result.group_id}`).emit('message:reaction_updated', {
-      message_id: result.message_id,
+    this.server
+      .to(`chat:group:${result.group_id}`)
+      .emit('message:reaction_updated', {
+        message_id: result.message_id,
+        reactions: result.reactions,
+      });
+    return {
+      status: 'reacted',
+      message_id: data.message_id,
       reactions: result.reactions,
-    });
-    return { status: 'reacted', message_id: data.message_id, reactions: result.reactions };
+    };
   }
 
   @SubscribeMessage('message:unreact')
@@ -140,11 +150,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       data.message_id,
       client.userId!,
     );
-    this.server.to(`chat:group:${result.group_id}`).emit('message:reaction_updated', {
-      message_id: result.message_id,
+    this.server
+      .to(`chat:group:${result.group_id}`)
+      .emit('message:reaction_updated', {
+        message_id: result.message_id,
+        reactions: result.reactions,
+      });
+    return {
+      status: 'unreacted',
+      message_id: data.message_id,
       reactions: result.reactions,
-    });
-    return { status: 'unreacted', message_id: data.message_id, reactions: result.reactions };
+    };
   }
 
   @SubscribeMessage('message:pin')
@@ -152,7 +168,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { message_id: string },
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
-    const msg = await this.chatMessageService.pinMessage(data.message_id, client.userId!);
+    const msg = await this.chatMessageService.pinMessage(
+      data.message_id,
+      client.userId!,
+    );
     this.server.to(`chat:group:${msg.group_id}`).emit('message:pinned', msg);
     return { status: 'pinned', message: msg };
   }
@@ -162,7 +181,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { message_id: string },
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
-    const msg = await this.chatMessageService.unpinMessage(data.message_id, client.userId!);
+    const msg = await this.chatMessageService.unpinMessage(
+      data.message_id,
+      client.userId!,
+    );
     this.server.to(`chat:group:${msg.group_id}`).emit('message:unpinned', msg);
     return { status: 'unpinned', message: msg };
   }

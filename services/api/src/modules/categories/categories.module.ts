@@ -6,9 +6,7 @@ import { CategoriesController } from './categories.controller';
 import { CategoriesService } from './categories.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([ListingCategory, EvenementsCategory]),
-  ],
+  imports: [TypeOrmModule.forFeature([ListingCategory, EvenementsCategory])],
   controllers: [CategoriesController],
   providers: [CategoriesService],
   exports: [CategoriesService],

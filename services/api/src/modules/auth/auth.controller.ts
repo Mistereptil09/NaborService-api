@@ -62,7 +62,7 @@ export class AuthController {
     private readonly userSecurityService: UserSecurityService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) { }
+  ) {}
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -276,8 +276,8 @@ export class AuthController {
     const tokenPreview = token.slice(0, 8) + '...' + token.slice(-4);
     this.logger.debug(
       `[refresh] source=${viaHeader ? 'header' : 'cookie'} ` +
-      `token=${tokenPreview} sessionId=${session?.id ?? 'none'} ` +
-      `userId=${payload?.user_id ?? session?.userId ?? 'unknown'}`,
+        `token=${tokenPreview} sessionId=${session?.id ?? 'none'} ` +
+        `userId=${payload?.user_id ?? session?.userId ?? 'unknown'}`,
     );
 
     // Fallback validation against DB if Redis miss
@@ -341,9 +341,9 @@ export class AuthController {
 
     this.logger.debug(
       `[refresh] issued userId=${user.id} sessionId=${session.id} ` +
-      `access=${newAccessToken.slice(0, 12)}... ` +
-      `refresh=${newRefreshToken.slice(0, 8)}... ` +
-      `via=${viaHeader ? 'header' : 'cookie'} expires=${expiresAt.toISOString()}`,
+        `access=${newAccessToken.slice(0, 12)}... ` +
+        `refresh=${newRefreshToken.slice(0, 8)}... ` +
+        `via=${viaHeader ? 'header' : 'cookie'} expires=${expiresAt.toISOString()}`,
     );
 
     return {
@@ -516,13 +516,18 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Générer un QR Code SSO (web ou desktop)' })
   @ApiOkResponse({ description: 'QR Code généré avec succès' })
-  @ApiBadRequestResponse({ description: 'device_name requis ou trop de requêtes' })
+  @ApiBadRequestResponse({
+    description: 'device_name requis ou trop de requêtes',
+  })
   async generateSsoQr(
     @Req() req: Express.Request,
     @Body('device_name') deviceName: string,
   ) {
     if (!deviceName) {
-      throw new HttpException('device_name is required', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'device_name is required',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     const ip = req.ip || this.getIpAddress(req);
     const { qr, scanUrl } = await this.ssoService.generateQr(ip, deviceName);

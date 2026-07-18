@@ -11,7 +11,7 @@ export class GetSnapshotQueryDto {
   })
   @IsOptional()
   @IsDate()
-  @Transform(({ value }) => value ? new Date(value) : undefined)
+  @Transform(({ value }) => (value ? new Date(value) : undefined))
   since?: Date;
 
   @ApiPropertyOptional({
@@ -29,10 +29,11 @@ export class GetSnapshotQueryDto {
   @ApiPropertyOptional({
     description:
       'Curseur composite pour la pagination. Format : base64(ISO_TIMESTAMP + "|" + entityType + "|" + entityId). ' +
-      'Le curseur encode la position exacte (timestamp, type d\'entité, ID) de la dernière entité incluse dans la page précédente. ' +
+      "Le curseur encode la position exacte (timestamp, type d'entité, ID) de la dernière entité incluse dans la page précédente. " +
       'Le serveur utilise un WHERE composite — (timeCol = cursorDate AND id > cursorId) OR (timeCol > cursorDate) — ' +
-      'pour le type d\'entité du curseur, évitant toute perte de données même lorsque plusieurs entités partagent le même timestamp.',
-    example: 'MjAyNi0wNi0wOVQxNTozMDowMC4wMDBafGluY2lkZW50fDAxOTU3Y2E2LWUyOWItN2Q0MS1hNzE2LTQ0NjY1NTQ0MDAwMA==',
+      "pour le type d'entité du curseur, évitant toute perte de données même lorsque plusieurs entités partagent le même timestamp.",
+    example:
+      'MjAyNi0wNi0wOVQxNTozMDowMC4wMDBafGluY2lkZW50fDAxOTU3Y2E2LWUyOWItN2Q0MS1hNzE2LTQ0NjY1NTQ0MDAwMA==',
   })
   @IsOptional()
   @IsString()
@@ -53,7 +54,8 @@ export class SnapshotResponseDto {
       'Curseur composite encodant la position de la dernière entité incluse dans cette page ' +
       '(ou sync_at si le delta est vide). Toujours présent — le client le stocke comme point ' +
       'de reprise inconditionnel, sans avoir à brancher sur has_more.',
-    example: 'MjAyNi0wNi0wOVQxNTozMDowMC4wMDBafGluY2lkZW50fDAxOTU3Y2E2LWUyOWItN2Q0MS1hNzE2LTQ0NjY1NTQ0MDAwMA==',
+    example:
+      'MjAyNi0wNi0wOVQxNTozMDowMC4wMDBafGluY2lkZW50fDAxOTU3Y2E2LWUyOWItN2Q0MS1hNzE2LTQ0NjY1NTQ0MDAwMA==',
   })
   cursor: string;
 
@@ -115,8 +117,12 @@ export class SnapshotResponseDto {
   friendships?: any[];
 
   @ApiPropertyOptional({
-    description: 'Map of neighbourhood pg_id → name for UX display on Java client',
-    example: { 'nb-downtown': 'Downtown Paris', 'nb-marais': 'Marais District' },
+    description:
+      'Map of neighbourhood pg_id → name for UX display on Java client',
+    example: {
+      'nb-downtown': 'Downtown Paris',
+      'nb-marais': 'Marais District',
+    },
   })
   neighbourhoods?: Record<string, string>;
 }

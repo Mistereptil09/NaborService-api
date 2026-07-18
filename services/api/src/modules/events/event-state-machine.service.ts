@@ -43,7 +43,11 @@ export class EventStateMachineService {
   ) {}
 
   async publish(eventId: string, organiserId: string, userRole?: string) {
-    const event = await this.getEventAndCheckOwner(eventId, organiserId, userRole);
+    const event = await this.getEventAndCheckOwner(
+      eventId,
+      organiserId,
+      userRole,
+    );
 
     if (event.status !== EventStatusEnum.DRAFT) {
       throw new ConflictException('Event is not in draft state');
@@ -67,7 +71,11 @@ export class EventStateMachineService {
   }
 
   async open(eventId: string, organiserId: string, userRole?: string) {
-    const event = await this.getEventAndCheckOwner(eventId, organiserId, userRole);
+    const event = await this.getEventAndCheckOwner(
+      eventId,
+      organiserId,
+      userRole,
+    );
 
     if (event.status !== EventStatusEnum.PUBLISHED) {
       throw new ConflictException('Event must be published before opening');
@@ -80,7 +88,11 @@ export class EventStateMachineService {
   }
 
   async complete(eventId: string, organiserId: string, userRole?: string) {
-    const event = await this.getEventAndCheckOwner(eventId, organiserId, userRole);
+    const event = await this.getEventAndCheckOwner(
+      eventId,
+      organiserId,
+      userRole,
+    );
 
     if (event.status !== EventStatusEnum.OPEN) {
       throw new ConflictException('Event must be open to be completed');
@@ -147,12 +159,21 @@ export class EventStateMachineService {
     return { success: true };
   }
 
-  async cancel(eventId: string, organiserId: string, reason: string, userRole?: string) {
+  async cancel(
+    eventId: string,
+    organiserId: string,
+    reason: string,
+    userRole?: string,
+  ) {
     if (!reason || reason.trim() === '') {
       throw new BadRequestException('Cancel reason cannot be empty');
     }
 
-    const event = await this.getEventAndCheckOwner(eventId, organiserId, userRole);
+    const event = await this.getEventAndCheckOwner(
+      eventId,
+      organiserId,
+      userRole,
+    );
 
     if (
       event.status === EventStatusEnum.COMPLETED ||
@@ -225,7 +246,11 @@ export class EventStateMachineService {
     return { success: true };
   }
 
-  private async getEventAndCheckOwner(eventId: string, organiserId: string, userRole?: string) {
+  private async getEventAndCheckOwner(
+    eventId: string,
+    organiserId: string,
+    userRole?: string,
+  ) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) {
       throw new NotFoundException('Event not found');

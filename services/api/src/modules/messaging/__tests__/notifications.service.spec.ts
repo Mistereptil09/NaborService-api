@@ -17,7 +17,10 @@ describe('NotificationsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUserRepo.findOne.mockResolvedValue({ id: 'u1', email: 'u1@example.com' });
+    mockUserRepo.findOne.mockResolvedValue({
+      id: 'u1',
+      email: 'u1@example.com',
+    });
     service = new NotificationsService(
       mockRepo as any,
       mockGateway as any,
@@ -30,7 +33,11 @@ describe('NotificationsService', () => {
   it('saves + emits the in-app notification, and does NOT email when online', async () => {
     mockRedis.exists.mockResolvedValue(1); // online
 
-    await service.create({ userId: 'u1', type: 'new_follower', payload: { x: 1 } });
+    await service.create({
+      userId: 'u1',
+      type: 'new_follower',
+      payload: { x: 1 },
+    });
 
     expect(mockRepo.save).toHaveBeenCalled();
     expect(mockGateway.emitToUser).toHaveBeenCalledWith(
@@ -44,7 +51,11 @@ describe('NotificationsService', () => {
   it('relays a non-essential email with the matching preferenceKey when offline', async () => {
     mockRedis.exists.mockResolvedValue(0); // offline
 
-    await service.create({ userId: 'u1', type: 'new_follower', payload: { x: 1 } });
+    await service.create({
+      userId: 'u1',
+      type: 'new_follower',
+      payload: { x: 1 },
+    });
 
     expect(mockEmailQueue.add).toHaveBeenCalledWith(
       'send-email',
@@ -61,7 +72,11 @@ describe('NotificationsService', () => {
   it('relays an essential email (no preferenceKey) when offline', async () => {
     mockRedis.exists.mockResolvedValue(0);
 
-    await service.create({ userId: 'u1', type: 'listing_accepted', payload: {} });
+    await service.create({
+      userId: 'u1',
+      type: 'listing_accepted',
+      payload: {},
+    });
 
     const [, payload] = mockEmailQueue.add.mock.calls[0];
     expect(payload.essential).toBe(true);

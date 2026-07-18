@@ -1,8 +1,11 @@
-import { Injectable, Inject, BadRequestException, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import {
-  Repository,
-} from 'typeorm';
+  Injectable,
+  Inject,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { REDIS_CLIENT } from '../../database/redis.module';
 import { Neo4jService } from '../../database/neo4j/neo4j.service';
 import Redis from 'ioredis';

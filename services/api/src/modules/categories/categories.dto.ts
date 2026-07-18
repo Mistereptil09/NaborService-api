@@ -7,7 +7,10 @@ export class CreateCategoryDto {
   @MinLength(1)
   category_name!: string;
 
-  @ApiPropertyOptional({ example: 1, description: 'ID de la catégorie parente (null = racine)' })
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'ID de la catégorie parente (null = racine)',
+  })
   @IsInt()
   @IsOptional()
   parent_category?: number | null;
@@ -20,7 +23,10 @@ export class UpdateCategoryDto {
   @IsOptional()
   category_name?: string;
 
-  @ApiPropertyOptional({ example: 2, description: 'ID de la catégorie parente' })
+  @ApiPropertyOptional({
+    example: 2,
+    description: 'ID de la catégorie parente',
+  })
   @IsInt()
   @IsOptional()
   parent_category?: number | null;

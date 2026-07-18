@@ -44,9 +44,7 @@ export class ListingReportService {
     return this.reportRepository.save(report);
   }
 
-  async getReportedListings(
-    dto: ListListingsDto,
-  ): Promise<{
+  async getReportedListings(dto: ListListingsDto): Promise<{
     data: any[];
     meta: { total: number; offset: number; limit: number };
   }> {

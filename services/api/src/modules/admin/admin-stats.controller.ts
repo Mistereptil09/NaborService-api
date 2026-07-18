@@ -37,7 +37,10 @@ export class AdminStatsController {
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Consulter les statistiques globales (Admin)' })
-  @ApiOkResponse({ description: 'Statistiques globales', type: AdminOverviewStatsDto })
+  @ApiOkResponse({
+    description: 'Statistiques globales',
+    type: AdminOverviewStatsDto,
+  })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   async getOverview(): Promise<AdminOverviewStatsDto> {
     return this.statsService.getOverview();
@@ -47,7 +50,10 @@ export class AdminStatsController {
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Statistiques sur les annonces (Admin)' })
-  @ApiOkResponse({ description: 'Statistiques annonces', type: AdminListingsStatsDto })
+  @ApiOkResponse({
+    description: 'Statistiques annonces',
+    type: AdminListingsStatsDto,
+  })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   async getListingsStats(): Promise<AdminListingsStatsDto> {
     return this.statsService.getListingsStats();
@@ -57,7 +63,10 @@ export class AdminStatsController {
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Statistiques sur les événements (Admin)' })
-  @ApiOkResponse({ description: 'Statistiques événements', type: AdminEventsStatsDto })
+  @ApiOkResponse({
+    description: 'Statistiques événements',
+    type: AdminEventsStatsDto,
+  })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   async getEventsStats(): Promise<AdminEventsStatsDto> {
     return this.statsService.getEventsStats();
@@ -67,7 +76,10 @@ export class AdminStatsController {
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Statistiques sur les paiements (Admin)' })
-  @ApiOkResponse({ description: 'Statistiques paiements', type: AdminPaymentsStatsDto })
+  @ApiOkResponse({
+    description: 'Statistiques paiements',
+    type: AdminPaymentsStatsDto,
+  })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   async getPaymentsStats(): Promise<AdminPaymentsStatsDto> {
     return this.statsService.getPaymentsStats();
@@ -77,7 +89,10 @@ export class AdminStatsController {
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Statistiques sur les utilisateurs (Admin)' })
-  @ApiOkResponse({ description: 'Statistiques utilisateurs', type: AdminUsersStatsDto })
+  @ApiOkResponse({
+    description: 'Statistiques utilisateurs',
+    type: AdminUsersStatsDto,
+  })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   async getUsersStats(): Promise<AdminUsersStatsDto> {
     return this.statsService.getUsersStats();
@@ -87,7 +102,10 @@ export class AdminStatsController {
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Statistiques sur les incidents (Admin)' })
-  @ApiOkResponse({ description: 'Statistiques incidents', type: AdminIncidentsStatsDto })
+  @ApiOkResponse({
+    description: 'Statistiques incidents',
+    type: AdminIncidentsStatsDto,
+  })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   async getIncidentsStats(): Promise<AdminIncidentsStatsDto> {
     return this.statsService.getIncidentsStats();

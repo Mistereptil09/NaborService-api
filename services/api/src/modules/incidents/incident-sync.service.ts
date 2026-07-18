@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { SyncService } from '../sync/sync.service';
-import { SyncUpdatesBatchDto, SyncUpdatesResponseDto } from '../sync/dto/sync-push.dto';
+import {
+  SyncUpdatesBatchDto,
+  SyncUpdatesResponseDto,
+} from '../sync/dto/sync-push.dto';
 
 /**
  * Dedicated service that handles incident-specific sync concerns for the

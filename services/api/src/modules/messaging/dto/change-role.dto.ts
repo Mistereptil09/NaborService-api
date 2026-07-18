@@ -4,6 +4,11 @@ import { GroupRoleEnum } from '../../../common/enums';
 
 export class ChangeRoleDto {
   @ApiProperty({ enum: GroupRoleEnum })
-  @IsIn([GroupRoleEnum.WATCH, GroupRoleEnum.MESSAGE, GroupRoleEnum.ACTIONS, GroupRoleEnum.ADMIN])
+  @IsIn([
+    GroupRoleEnum.WATCH,
+    GroupRoleEnum.MESSAGE,
+    GroupRoleEnum.ACTIONS,
+    GroupRoleEnum.ADMIN,
+  ])
   role: GroupRoleEnum;
 }

@@ -74,7 +74,11 @@ describe('Feature: gridfs-media-storage, Property 7: Range Header Partial Conten
             headers: {
               range: `bytes=${start}-${end}`,
             },
-            user: { sub: 'test-user', email: 'test@test.com', role: 'resident' },
+            user: {
+              sub: 'test-user',
+              email: 'test@test.com',
+              role: 'resident',
+            },
           };
 
           const res: any = {

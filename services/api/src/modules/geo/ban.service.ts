@@ -89,7 +89,10 @@ export class BanService {
     }
   }
 
-  async autocomplete(address: string, limit: number = 5): Promise<AutocompleteResult[]> {
+  async autocomplete(
+    address: string,
+    limit: number = 5,
+  ): Promise<AutocompleteResult[]> {
     this.validateAddress(address);
     const trimmedAddress = address.trim();
     const encodedAddress = encodeURIComponent(trimmedAddress);
@@ -100,11 +103,15 @@ export class BanService {
     url += `&limit=${safeLimit}`;
 
     try {
-      const response = await this.httpRetryService.fetchWithRetry(url, {}, {
-        maxAttempts: 4,
-        backoffs: [1000, 2000, 4000],
-        timeoutMs: 5000,
-      });
+      const response = await this.httpRetryService.fetchWithRetry(
+        url,
+        {},
+        {
+          maxAttempts: 4,
+          backoffs: [1000, 2000, 4000],
+          timeoutMs: 5000,
+        },
+      );
 
       const data = await response.json();
       const parsed = parseFeatureCollection(data);
@@ -126,7 +133,9 @@ export class BanService {
       if (error instanceof HttpRequestFailedException) {
         throw new BanServerException(`BAN API returned ${error.status}`);
       }
-      throw new BanUnavailableException(`BAN API unavailable: ${error.message}`);
+      throw new BanUnavailableException(
+        `BAN API unavailable: ${error.message}`,
+      );
     }
   }
 

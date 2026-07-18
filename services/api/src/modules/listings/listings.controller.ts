@@ -27,6 +27,7 @@ import {
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiNoContentResponse,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -189,6 +190,26 @@ export class ListingsController {
     return this.listingsService.create(req.user.sub, dto);
   }
 
+  @Get('me/operations')
+  @ApiOperation({
+    summary: "Lister les annonces en cours avec l'utilisateur connecté",
+  })
+  @ApiOkResponse({
+    description:
+      "Liste paginée des annonces où l'utilisateur est partie prenante retournée",
+    type: ListListingsResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Paramètres de filtre ou de pagination invalides',
+  })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
+  async listMyOperations(
+    @Query() query: ListListingsDto,
+    @Req() req: any,
+  ): Promise<ListListingsResponseDto> {
+    return this.listingsService.findUserOperations(req.user.sub, query);
+  }
+
   @Get(':listing_id')
   @ApiOperation({ summary: "Consulter les détails d'une annonce" })
   @ApiOkResponse({ description: "Détails de l'annonce retournés avec succès" })
@@ -258,10 +279,24 @@ export class ListingsController {
     @Body() dto: UpdateContentDto,
     @Req() req: any,
   ) {
-    return this.contentService.updateContent(req.user.sub, id, dto, req.user.role);
+    return this.contentService.updateContent(
+      req.user.sub,
+      id,
+      dto,
+      req.user.role,
+    );
   }
 
   // --- Listing Media (Multipart Upload) ---
+
+  @Get(':listing_id/media')
+  @ApiOperation({ summary: "Lister les photos d'une annonce" })
+  @ApiOkResponse({ description: "Liste des photos de l'annonce retournée" })
+  @ApiNotFoundResponse({ description: 'Annonce introuvable' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
+  async listMedia(@Param('listing_id') id: string) {
+    return this.mediaService.listMedia(id);
+  }
 
   @Post(':listing_id/media')
   @UseInterceptors(FileInterceptor('file'))
@@ -295,7 +330,12 @@ export class ListingsController {
     @Param('media_id') mediaId: string,
     @Req() req: any,
   ) {
-    await this.mediaService.deleteMedia(req.user.sub, id, mediaId, req.user.role);
+    await this.mediaService.deleteMedia(
+      req.user.sub,
+      id,
+      mediaId,
+      req.user.role,
+    );
     return { success: true };
   }
 
@@ -393,7 +433,12 @@ export class ListingsController {
     @Body() dto: CancelListingDto,
     @Req() req: any,
   ) {
-    return this.stateMachineService.cancel(id, req.user.sub, dto.reason, req.user.role);
+    return this.stateMachineService.cancel(
+      id,
+      req.user.sub,
+      dto.reason,
+      req.user.role,
+    );
   }
 
   // --- Listing Chat Group ---
@@ -429,9 +474,15 @@ export class ListingsController {
 
   @Get(':listing_id/contract')
   @ApiOperation({ summary: 'Télécharger le contrat de transaction généré' })
+  @ApiQuery({
+    name: 'original',
+    required: false,
+    description:
+      "true pour forcer le PDF original non signé (vérification d'empreinte SHA-256)",
+  })
   @ApiOkResponse({
     description:
-      'Fichier PDF du contrat co-signé ou à signer retourné sous forme de flux',
+      'Fichier PDF du contrat (version signée si disponible) retourné sous forme de flux',
   })
   @ApiForbiddenResponse({
     description: "Accès interdit (réservé aux parties prenantes de l'annonce)",
@@ -440,6 +491,7 @@ export class ListingsController {
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async downloadContract(
     @Param('listing_id') id: string,
+    @Query('original') original: string,
     @Req() req: any,
     @Res() res: any,
   ) {
@@ -447,6 +499,7 @@ export class ListingsController {
       req.user.sub,
       id,
       'contract',
+      original === 'true',
     );
     res.setHeader('Content-Type', doc.mimetype);
     res.setHeader(
@@ -455,6 +508,20 @@ export class ListingsController {
     );
     res.setHeader('Content-Length', doc.sizeBytes.toString());
     doc.stream.pipe(res);
+  }
+
+  @Get(':listing_id/contract/status')
+  @ApiOperation({
+    summary: 'État de signature du contrat (qui a signé, qui doit signer)',
+  })
+  @ApiOkResponse({ description: 'État de signature retourné' })
+  @ApiForbiddenResponse({
+    description: "Accès interdit (réservé aux parties prenantes de l'annonce)",
+  })
+  @ApiNotFoundResponse({ description: 'Contrat ou transaction non trouvés' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
+  async getContractStatus(@Param('listing_id') id: string, @Req() req: any) {
+    return this.signatureService.getSignatureStatus(req.user.sub, id);
   }
 
   @Get(':listing_id/receipt')

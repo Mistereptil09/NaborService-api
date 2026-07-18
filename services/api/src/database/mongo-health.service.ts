@@ -21,9 +21,7 @@ export class MongoHealthService implements OnModuleInit {
   private readonly errorThreshold = 5;
   private readonly probeIntervalMs = 60_000;
 
-  constructor(
-    @InjectConnection() private readonly connection: Connection,
-  ) {}
+  constructor(@InjectConnection() private readonly connection: Connection) {}
 
   onModuleInit() {
     // Mongoose connection events
@@ -67,11 +65,14 @@ export class MongoHealthService implements OnModuleInit {
   private onError() {
     this.consecutiveErrors++;
 
-    if (this.consecutiveErrors >= this.errorThreshold && this.state !== 'down') {
+    if (
+      this.consecutiveErrors >= this.errorThreshold &&
+      this.state !== 'down'
+    ) {
       this.state = 'down';
       this.logger.error(
         `MongoDB marked DOWN after ${this.consecutiveErrors} consecutive errors. ` +
-        'MongoDB-dependent features (media, chat, contracts) will return 503 until recovery.',
+          'MongoDB-dependent features (media, chat, contracts) will return 503 until recovery.',
       );
       this.startProbing();
     } else if (this.state === 'healthy') {

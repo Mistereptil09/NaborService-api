@@ -62,7 +62,11 @@ export class MediaFile {
   @Prop({ type: String, default: null })
   sha256_hash: string | null;
 
-  @Prop({ type: String, default: null, enum: ['contract', 'receipt', null] })
+  @Prop({
+    type: String,
+    default: null,
+    enum: ['contract', 'receipt', 'contract_signed', null],
+  })
   contract_type: string | null;
 
   // Incident photo-specific fields

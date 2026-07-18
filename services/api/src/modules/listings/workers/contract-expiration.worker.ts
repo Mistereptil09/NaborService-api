@@ -82,6 +82,7 @@ export class ContractExpirationWorker extends WorkerHost {
 
     const contract = await this.contractModel.findOne({
       pg_transaction_id: transaction.id,
+      type: 'contract',
     });
 
     // If no contract found or it's not signed yet, expire it

@@ -6,10 +6,7 @@ import {
   clearRedis,
   clearQueues,
 } from './utils/e2e-setup';
-import {
-  createTestUser,
-  loginAndGetToken,
-} from './utils/test-factories';
+import { createTestUser, loginAndGetToken } from './utils/test-factories';
 
 describe('Users & Social Modules (e2e)', () => {
   let app: INestApplication;
@@ -107,7 +104,11 @@ describe('Users & Social Modules (e2e)', () => {
     it('GET /v1/users/:user_id should return a public profile', async () => {
       const user1 = await createTestUser(app, 'user1');
       const user2 = await createTestUser(app, 'user2');
-      const { token } = await loginAndGetToken(app, user1.email, user1.password);
+      const { token } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
 
       const res = await request(app.getHttpServer())
         .get(`/v1/users/${user2.user.id}`)
@@ -185,9 +186,7 @@ describe('Users & Social Modules (e2e)', () => {
         .query({ q: user.firstName })
         .expect(200);
 
-      const foundSelf = res.body.data.some(
-        (item: any) => item.id === user.id,
-      );
+      const foundSelf = res.body.data.some((item: any) => item.id === user.id);
       expect(foundSelf).toBe(false);
     });
 
@@ -330,7 +329,11 @@ describe('Users & Social Modules (e2e)', () => {
     it('POST /v1/users/:user_id/swipe should register a like', async () => {
       const user1 = await createTestUser(app, 'swiper');
       const user2 = await createTestUser(app, 'target');
-      const { token } = await loginAndGetToken(app, user1.email, user1.password);
+      const { token } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
 
       const res = await request(app.getHttpServer())
         .post(`/v1/users/${user2.user.id}/swipe`)
@@ -344,7 +347,11 @@ describe('Users & Social Modules (e2e)', () => {
     it('POST /v1/users/:user_id/swipe should register a dislike', async () => {
       const user1 = await createTestUser(app, 'swiper2');
       const user2 = await createTestUser(app, 'target2');
-      const { token } = await loginAndGetToken(app, user1.email, user1.password);
+      const { token } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
 
       await request(app.getHttpServer())
         .post(`/v1/users/${user2.user.id}/swipe`)
@@ -356,7 +363,11 @@ describe('Users & Social Modules (e2e)', () => {
     it('POST /v1/users/:user_id/swipe should return 400 for invalid direction', async () => {
       const user1 = await createTestUser(app, 'badswiper');
       const user2 = await createTestUser(app, 'victim3');
-      const { token } = await loginAndGetToken(app, user1.email, user1.password);
+      const { token } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
 
       await request(app.getHttpServer())
         .post(`/v1/users/${user2.user.id}/swipe`)
@@ -368,7 +379,11 @@ describe('Users & Social Modules (e2e)', () => {
     it('GET /v1/users/me/swipes should return swipe history', async () => {
       const user1 = await createTestUser(app, 'history');
       const user2 = await createTestUser(app, 'target3');
-      const { token } = await loginAndGetToken(app, user1.email, user1.password);
+      const { token } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
 
       // First create a swipe
       await request(app.getHttpServer())
@@ -396,7 +411,11 @@ describe('Users & Social Modules (e2e)', () => {
     it('GET /v1/users/:user_id/following should return paginated following list', async () => {
       const user1 = await createTestUser(app, 'follower');
       const user2 = await createTestUser(app, 'followee');
-      const { token } = await loginAndGetToken(app, user1.email, user1.password);
+      const { token } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
 
       // User1 follows User2
       await request(app.getHttpServer())
@@ -413,14 +432,24 @@ describe('Users & Social Modules (e2e)', () => {
       expect(res.body).toHaveProperty('data');
       expect(res.body).toHaveProperty('meta');
       expect(Array.isArray(res.body.data)).toBe(true);
-      expect(res.body.data.some((item: any) => item.id === user2.user.id)).toBe(true);
+      expect(res.body.data.some((item: any) => item.id === user2.user.id)).toBe(
+        true,
+      );
     });
 
     it('GET /v1/users/:user_id/friends should return mutual follows', async () => {
       const user1 = await createTestUser(app, 'friend1');
       const user2 = await createTestUser(app, 'friend2');
-      const { token: token1 } = await loginAndGetToken(app, user1.email, user1.password);
-      const { token: token2 } = await loginAndGetToken(app, user2.email, user2.password);
+      const { token: token1 } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
+      const { token: token2 } = await loginAndGetToken(
+        app,
+        user2.email,
+        user2.password,
+      );
 
       // Both follow each other (mutual)
       await request(app.getHttpServer())
@@ -440,12 +469,18 @@ describe('Users & Social Modules (e2e)', () => {
         .expect(200);
 
       expect(res.body).toHaveProperty('data');
-      expect(res.body.data.some((item: any) => item.id === user2.user.id)).toBe(true);
+      expect(res.body.data.some((item: any) => item.id === user2.user.id)).toBe(
+        true,
+      );
     });
 
     it('GET /v1/users/:user_id/friends should support pagination', async () => {
       const user1 = await createTestUser(app, 'friendpag');
-      const { token } = await loginAndGetToken(app, user1.email, user1.password);
+      const { token } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
 
       const res = await request(app.getHttpServer())
         .get(`/v1/users/${user1.user.id}/friends`)
@@ -464,7 +499,11 @@ describe('Users & Social Modules (e2e)', () => {
     it('POST /v1/users/:user_id/report should register a report', async () => {
       const user1 = await createTestUser(app, 'reporter');
       const user2 = await createTestUser(app, 'reported');
-      const { token } = await loginAndGetToken(app, user1.email, user1.password);
+      const { token } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
 
       const res = await request(app.getHttpServer())
         .post(`/v1/users/${user2.user.id}/report`)
@@ -478,7 +517,11 @@ describe('Users & Social Modules (e2e)', () => {
     it('POST /v1/users/:user_id/report should return 400 for empty reason', async () => {
       const user1 = await createTestUser(app, 'badreporter');
       const user2 = await createTestUser(app, 'badreported');
-      const { token } = await loginAndGetToken(app, user1.email, user1.password);
+      const { token } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
 
       await request(app.getHttpServer())
         .post(`/v1/users/${user2.user.id}/report`)

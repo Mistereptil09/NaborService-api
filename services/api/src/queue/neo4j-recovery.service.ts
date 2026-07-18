@@ -45,9 +45,7 @@ export class Neo4jRecoveryService {
       }
     } catch (error) {
       // Redis might be down — that's fine, we'll try again in 15 min
-      this.logger.warn(
-        `Neo4j recovery skipped: ${(error as Error).message}`,
-      );
+      this.logger.warn(`Neo4j recovery skipped: ${(error as Error).message}`);
     }
   }
 }

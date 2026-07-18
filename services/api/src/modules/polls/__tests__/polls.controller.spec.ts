@@ -16,8 +16,24 @@ describe('PollsController', () => {
   let chatMessageService: any;
   let chatGateway: any;
 
-  const residentUser = { user: { sub: 'u1', role: 'resident', locale: 'fr', iat: 1, exp: 9999999999 } };
-  const repUser = { user: { sub: 'u1', role: 'neighbourhood_rep', locale: 'fr', iat: 1, exp: 9999999999 } };
+  const residentUser = {
+    user: {
+      sub: 'u1',
+      role: 'resident',
+      locale: 'fr',
+      iat: 1,
+      exp: 9999999999,
+    },
+  };
+  const repUser = {
+    user: {
+      sub: 'u1',
+      role: 'neighbourhood_rep',
+      locale: 'fr',
+      iat: 1,
+      exp: 9999999999,
+    },
+  };
 
   beforeEach(async () => {
     service = {
@@ -47,7 +63,9 @@ describe('PollsController', () => {
       isMember: jest.fn().mockResolvedValue(false),
     };
     chatMessageService = {
-      sendMessage: jest.fn().mockResolvedValue({ id: 'm1', type: 'poll', poll_id: 'p1' }),
+      sendMessage: jest
+        .fn()
+        .mockResolvedValue({ id: 'm1', type: 'poll', poll_id: 'p1' }),
     };
     chatGateway = {
       emitToGroup: jest.fn(),
@@ -81,7 +99,7 @@ describe('PollsController', () => {
 
   describe('POST /polls — neighbourhood scope (global role)', () => {
     it('allows neighbourhood_rep+', async () => {
-      await controller.createPoll(repUser as any, { title: 'Test' } as any);
+      await controller.createPoll(repUser as any, { title: 'Test' });
       expect(service.createPoll).toHaveBeenCalledWith('u1', { title: 'Test' });
       expect(chatMessageService.sendMessage).not.toHaveBeenCalled();
     });
@@ -93,30 +111,44 @@ describe('PollsController', () => {
       expect(service.createPoll).not.toHaveBeenCalled();
     });
 
-    it('bridges into the neighbourhood\'s own conversation when the group exists and the creator is a member', async () => {
+    it("bridges into the neighbourhood's own conversation when the group exists and the creator is a member", async () => {
       chatService.getNeighbourhoodGroup.mockResolvedValue({ id: 'nb-g1' });
       chatService.isMember.mockResolvedValue(true);
 
-      await controller.createPoll(repUser as any, { title: 'Test', neighbourhood_id: 'nb1' } as any);
+      await controller.createPoll(repUser as any, {
+        title: 'Test',
+        neighbourhood_id: 'nb1',
+      });
 
       expect(chatService.getNeighbourhoodGroup).toHaveBeenCalledWith('nb1');
       expect(chatService.isMember).toHaveBeenCalledWith('nb-g1', 'u1');
-      expect(chatMessageService.sendMessage).toHaveBeenCalledWith('nb-g1', 'u1', {
-        content: 'Test',
-        type: 'poll',
-        poll_id: 'p1',
-      });
-      expect(chatGateway.emitToGroup).toHaveBeenCalledWith('nb-g1', 'message:received', {
-        id: 'm1',
-        type: 'poll',
-        poll_id: 'p1',
-      });
+      expect(chatMessageService.sendMessage).toHaveBeenCalledWith(
+        'nb-g1',
+        'u1',
+        {
+          content: 'Test',
+          type: 'poll',
+          poll_id: 'p1',
+        },
+      );
+      expect(chatGateway.emitToGroup).toHaveBeenCalledWith(
+        'nb-g1',
+        'message:received',
+        {
+          id: 'm1',
+          type: 'poll',
+          poll_id: 'p1',
+        },
+      );
     });
 
     it('skips the bridge when the neighbourhood has no auto-managed group yet', async () => {
       chatService.getNeighbourhoodGroup.mockResolvedValue(null);
 
-      await controller.createPoll(repUser as any, { title: 'Test', neighbourhood_id: 'nb1' } as any);
+      await controller.createPoll(repUser as any, {
+        title: 'Test',
+        neighbourhood_id: 'nb1',
+      });
 
       expect(chatMessageService.sendMessage).not.toHaveBeenCalled();
     });
@@ -125,7 +157,10 @@ describe('PollsController', () => {
       chatService.getNeighbourhoodGroup.mockResolvedValue({ id: 'nb-g1' });
       chatService.isMember.mockResolvedValue(false);
 
-      await controller.createPoll(repUser as any, { title: 'Test', neighbourhood_id: 'nb1' } as any);
+      await controller.createPoll(repUser as any, {
+        title: 'Test',
+        neighbourhood_id: 'nb1',
+      });
 
       expect(chatMessageService.sendMessage).not.toHaveBeenCalled();
     });
@@ -133,28 +168,43 @@ describe('PollsController', () => {
 
   describe('POST /polls — group scope (group role)', () => {
     it('allows a resident with ACTIONS/ADMIN role in the target group, and synthesizes a chat message', async () => {
-      await controller.createPoll(residentUser as any, { title: 'Test', group_id: 'g1' } as any);
+      await controller.createPoll(residentUser as any, {
+        title: 'Test',
+        group_id: 'g1',
+      });
       expect(chatService.assertGroupRole).toHaveBeenCalledWith('g1', 'u1', [
         GroupRoleEnum.ACTIONS,
         GroupRoleEnum.ADMIN,
       ]);
-      expect(service.createPoll).toHaveBeenCalledWith('u1', { title: 'Test', group_id: 'g1' });
+      expect(service.createPoll).toHaveBeenCalledWith('u1', {
+        title: 'Test',
+        group_id: 'g1',
+      });
       expect(chatMessageService.sendMessage).toHaveBeenCalledWith('g1', 'u1', {
         content: 'Test',
         type: 'poll',
         poll_id: 'p1',
       });
-      expect(chatGateway.emitToGroup).toHaveBeenCalledWith('g1', 'message:received', {
-        id: 'm1',
-        type: 'poll',
-        poll_id: 'p1',
-      });
+      expect(chatGateway.emitToGroup).toHaveBeenCalledWith(
+        'g1',
+        'message:received',
+        {
+          id: 'm1',
+          type: 'poll',
+          poll_id: 'p1',
+        },
+      );
     });
 
     it('propagates rejection when the group role check fails', async () => {
-      chatService.assertGroupRole.mockRejectedValue(new ForbiddenException('Permission insuffisante'));
+      chatService.assertGroupRole.mockRejectedValue(
+        new ForbiddenException('Permission insuffisante'),
+      );
       await expect(
-        controller.createPoll(residentUser as any, { title: 'Test', group_id: 'g1' } as any),
+        controller.createPoll(
+          residentUser as any,
+          { title: 'Test', group_id: 'g1' } as any,
+        ),
       ).rejects.toThrow(ForbiddenException);
       expect(service.createPoll).not.toHaveBeenCalled();
     });
@@ -167,7 +217,12 @@ describe('PollsController', () => {
 
   it('PATCH /polls/:id', async () => {
     await controller.updatePoll('p1', residentUser as any, { title: 'New' });
-    expect(service.updatePoll).toHaveBeenCalledWith('p1', 'u1', { title: 'New' }, 'resident');
+    expect(service.updatePoll).toHaveBeenCalledWith(
+      'p1',
+      'u1',
+      { title: 'New' },
+      'resident',
+    );
   });
 
   it('DELETE /polls/:id', async () => {
@@ -181,13 +236,27 @@ describe('PollsController', () => {
   });
 
   it('POST /polls/:id/options', async () => {
-    await controller.addOption('p1', residentUser as any, { label: 'Yes', weight: 5 });
-    expect(service.addOption).toHaveBeenCalledWith('p1', 'u1', 'Yes', 'resident', 5);
+    await controller.addOption('p1', residentUser as any, {
+      label: 'Yes',
+      weight: 5,
+    });
+    expect(service.addOption).toHaveBeenCalledWith(
+      'p1',
+      'u1',
+      'Yes',
+      'resident',
+      5,
+    );
   });
 
   it('DELETE /polls/:id/options/:oid', async () => {
     await controller.deleteOption('p1', 'o1', residentUser as any);
-    expect(service.deleteOption).toHaveBeenCalledWith('p1', 'o1', 'u1', 'resident');
+    expect(service.deleteOption).toHaveBeenCalledWith(
+      'p1',
+      'o1',
+      'u1',
+      'resident',
+    );
   });
 
   it('GET /polls/:id/vote', async () => {

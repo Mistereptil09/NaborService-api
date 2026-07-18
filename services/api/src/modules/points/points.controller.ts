@@ -53,7 +53,9 @@ export class PointsController {
 
   @Post('topup')
   @HttpCode(HttpStatus.ACCEPTED)
-  @ApiOperation({ summary: 'Créer une session de paiement Stripe pour acheter des points' })
+  @ApiOperation({
+    summary: 'Créer une session de paiement Stripe pour acheter des points',
+  })
   async createTopup(@Body() dto: CreateTopupDto, @Req() req: any) {
     return this.pointsTopupService.createCheckoutSession(
       req.user.sub,

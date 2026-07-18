@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString, Min, MaxLength } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  MaxLength,
+} from 'class-validator';
 
 export class AddOptionDto {
   @ApiProperty({ example: 'Vert forêt' })
@@ -9,7 +15,8 @@ export class AddOptionDto {
 
   @ApiPropertyOptional({
     default: 1,
-    description: 'Poids de cette option pour un sondage "weighted" — par pas de 0.5 (0.5, 1, 1.5, 2…).',
+    description:
+      'Poids de cette option pour un sondage "weighted" — par pas de 0.5 (0.5, 1, 1.5, 2…).',
   })
   @IsOptional()
   @IsNumber()

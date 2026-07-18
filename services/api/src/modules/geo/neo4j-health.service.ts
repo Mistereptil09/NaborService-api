@@ -24,9 +24,7 @@ export class Neo4jHealthService implements OnModuleInit {
   /** Delay between probes when down (ms). */
   private readonly probeIntervalMs = 60_000;
 
-  constructor(
-    @Inject(NEO4J_DRIVER) private readonly driver: Driver,
-  ) {}
+  constructor(@Inject(NEO4J_DRIVER) private readonly driver: Driver) {}
 
   onModuleInit() {
     // Proactively verify connectivity at startup
@@ -83,7 +81,10 @@ export class Neo4jHealthService implements OnModuleInit {
 
   private startProbing(): void {
     if (this.probeTimer) return;
-    this.probeTimer = setInterval(() => this.probeConnectivity(), this.probeIntervalMs);
+    this.probeTimer = setInterval(
+      () => this.probeConnectivity(),
+      this.probeIntervalMs,
+    );
   }
 
   private stopProbing(): void {

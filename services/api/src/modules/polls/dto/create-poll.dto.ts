@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsDateString, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 import { PollTypeEnum } from '../../../common/enums';
 
 export class CreatePollDto {
@@ -16,7 +24,8 @@ export class CreatePollDto {
   @ApiPropertyOptional({
     enum: PollTypeEnum,
     default: PollTypeEnum.SINGLE,
-    description: 'Mode de sélection uniquement — la pondération est indépendante, voir is_weighted.',
+    description:
+      'Mode de sélection uniquement — la pondération est indépendante, voir is_weighted.',
   })
   @IsOptional()
   @IsIn([PollTypeEnum.SINGLE, PollTypeEnum.MULTIPLE])
@@ -28,7 +37,8 @@ export class CreatePollDto {
   neighbourhood_id?: string;
 
   @ApiPropertyOptional({
-    description: 'Sondage rattaché à une conversation de groupe (prioritaire sur neighbourhood_id si les deux sont fournis).',
+    description:
+      'Sondage rattaché à une conversation de groupe (prioritaire sur neighbourhood_id si les deux sont fournis).',
   })
   @IsOptional()
   @IsUUID()
@@ -51,7 +61,8 @@ export class CreatePollDto {
 
   @ApiPropertyOptional({
     default: false,
-    description: 'Chaque option votée compte pour son propre poids (voir AddOptionDto.weight) — combinable avec poll_type "multiple".',
+    description:
+      'Chaque option votée compte pour son propre poids (voir AddOptionDto.weight) — combinable avec poll_type "multiple".',
   })
   @IsOptional()
   @IsBoolean()

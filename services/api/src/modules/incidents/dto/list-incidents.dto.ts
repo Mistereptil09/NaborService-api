@@ -1,13 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import {
-  IsIn,
-  IsInt,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import {
   IncidentSeverityEnum,
   IncidentStatusEnum,
@@ -21,12 +14,21 @@ export class ListIncidentsDto {
 
   @ApiPropertyOptional({ enum: IncidentStatusEnum })
   @IsOptional()
-  @IsIn([IncidentStatusEnum.OPEN, IncidentStatusEnum.IN_PROGRESS, IncidentStatusEnum.RESOLVED])
+  @IsIn([
+    IncidentStatusEnum.OPEN,
+    IncidentStatusEnum.IN_PROGRESS,
+    IncidentStatusEnum.RESOLVED,
+  ])
   status?: IncidentStatusEnum;
 
   @ApiPropertyOptional({ enum: IncidentSeverityEnum })
   @IsOptional()
-  @IsIn([IncidentSeverityEnum.LOW, IncidentSeverityEnum.MEDIUM, IncidentSeverityEnum.HIGH, IncidentSeverityEnum.CRITICAL])
+  @IsIn([
+    IncidentSeverityEnum.LOW,
+    IncidentSeverityEnum.MEDIUM,
+    IncidentSeverityEnum.HIGH,
+    IncidentSeverityEnum.CRITICAL,
+  ])
   severity?: IncidentSeverityEnum;
 
   @ApiPropertyOptional({ default: 0 })

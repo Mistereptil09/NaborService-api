@@ -131,8 +131,16 @@ describe('Listings Module (e2e)', () => {
     it('PATCH /v1/listings/:id should return 403 for non-owner', async () => {
       const user1 = await createTestUser(app, 'owner');
       const user2 = await createTestUser(app, 'intruder');
-      const { token: token1 } = await loginAndGetToken(app, user1.email, user1.password);
-      const { token: token2 } = await loginAndGetToken(app, user2.email, user2.password);
+      const { token: token1 } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
+      const { token: token2 } = await loginAndGetToken(
+        app,
+        user2.email,
+        user2.password,
+      );
 
       const created = await createListing(app, token1);
 
@@ -171,11 +179,21 @@ describe('Listings Module (e2e)', () => {
       // Setup two users
       const creator = await createTestUser(app, 'creator');
       const requester = await createTestUser(app, 'requester');
-      const { token: creatorToken } = await loginAndGetToken(app, creator.email, creator.password);
-      const { token: requesterToken } = await loginAndGetToken(app, requester.email, requester.password);
+      const { token: creatorToken } = await loginAndGetToken(
+        app,
+        creator.email,
+        creator.password,
+      );
+      const { token: requesterToken } = await loginAndGetToken(
+        app,
+        requester.email,
+        requester.password,
+      );
 
       // 1. Creator creates a listing → OPEN
-      const listing = await createListing(app, creatorToken, { title: 'Lifecycle Test' });
+      const listing = await createListing(app, creatorToken, {
+        title: 'Lifecycle Test',
+      });
       expect(listing.status).toBe('open');
 
       // 2. Requester expresses interest → PENDING
@@ -252,8 +270,16 @@ describe('Listings Module (e2e)', () => {
     it('POST /v1/listings/:id/accept should fail for non-creator', async () => {
       const creator = await createTestUser(app, 'creator');
       const other = await createTestUser(app, 'other');
-      const { token: creatorToken } = await loginAndGetToken(app, creator.email, creator.password);
-      const { token: otherToken } = await loginAndGetToken(app, other.email, other.password);
+      const { token: creatorToken } = await loginAndGetToken(
+        app,
+        creator.email,
+        creator.password,
+      );
+      const { token: otherToken } = await loginAndGetToken(
+        app,
+        other.email,
+        other.password,
+      );
 
       // Creator makes listing, other expresses interest
       const listing = await createListing(app, creatorToken);
@@ -276,8 +302,16 @@ describe('Listings Module (e2e)', () => {
     it('POST /v1/listings/:id/report should report a listing', async () => {
       const owner = await createTestUser(app, 'owner');
       const reporter = await createTestUser(app, 'reporter');
-      const { token: ownerToken } = await loginAndGetToken(app, owner.email, owner.password);
-      const { token: reporterToken } = await loginAndGetToken(app, reporter.email, reporter.password);
+      const { token: ownerToken } = await loginAndGetToken(
+        app,
+        owner.email,
+        owner.password,
+      );
+      const { token: reporterToken } = await loginAndGetToken(
+        app,
+        reporter.email,
+        reporter.password,
+      );
 
       const listing = await createListing(app, ownerToken);
 
@@ -293,8 +327,16 @@ describe('Listings Module (e2e)', () => {
     it('POST /v1/listings/:id/report should return 400 with empty reason', async () => {
       const owner = await createTestUser(app, 'owner2');
       const reporter = await createTestUser(app, 'reporter2');
-      const { token: ownerToken } = await loginAndGetToken(app, owner.email, owner.password);
-      const { token: reporterToken } = await loginAndGetToken(app, reporter.email, reporter.password);
+      const { token: ownerToken } = await loginAndGetToken(
+        app,
+        owner.email,
+        owner.password,
+      );
+      const { token: reporterToken } = await loginAndGetToken(
+        app,
+        reporter.email,
+        reporter.password,
+      );
 
       const listing = await createListing(app, ownerToken);
 
@@ -310,9 +352,7 @@ describe('Listings Module (e2e)', () => {
 
   describe('Auth', () => {
     it('should return 401 without auth token', async () => {
-      await request(app.getHttpServer())
-        .get('/v1/listings')
-        .expect(401);
+      await request(app.getHttpServer()).get('/v1/listings').expect(401);
     });
 
     it('should return 401 for invalid token', async () => {

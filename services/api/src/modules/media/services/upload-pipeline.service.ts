@@ -194,14 +194,16 @@ export class UploadPipeline {
             // has to buffer the entire file first, since it can't find the
             // index until it reaches the end. This is why playback looked
             // stuck/never-loading regardless of file size.
-            '-movflags', '+faststart',
+            '-movflags',
+            '+faststart',
             // Without this, libx264 preserves the source's chroma subsampling
             // (e.g. yuv422p/yuv444p, common from some phones/screen recorders)
             // instead of the yuv420p browsers require to decode H.264 at all —
             // that's the "no video with a supported format/MIME type was found"
             // error, distinct from the faststart issue above (a plain byte
             // download still "works" either way since it never decodes anything).
-            '-pix_fmt', 'yuv420p',
+            '-pix_fmt',
+            'yuv420p',
           ])
           .on('end', () => resolve())
           .on('error', (err) => reject(err))

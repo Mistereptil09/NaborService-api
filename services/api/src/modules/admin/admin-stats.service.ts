@@ -28,7 +28,9 @@ export class AdminStatsService {
 
   async getOverview() {
     const totalUsers = await this.userRepository.count({ withDeleted: true });
-    const totalListings = await this.listingRepository.count({ withDeleted: true });
+    const totalListings = await this.listingRepository.count({
+      withDeleted: true,
+    });
     const totalEvents = await this.eventRepository.count({ withDeleted: true });
 
     const activeIncidents = await this.incidentRepository.count({
@@ -188,5 +190,8 @@ export class AdminStatsService {
 function withNumericCount<T extends { count: string | number }>(
   row: T,
 ): T & { count: number } {
-  return { ...row, count: typeof row.count === 'string' ? parseInt(row.count, 10) : row.count };
+  return {
+    ...row,
+    count: typeof row.count === 'string' ? parseInt(row.count, 10) : row.count,
+  };
 }

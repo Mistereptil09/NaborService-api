@@ -3,7 +3,9 @@ import { NotificationsController } from '../notifications.controller';
 describe('NotificationsController', () => {
   let controller: NotificationsController;
   const mockService = {
-    getForUser: jest.fn().mockResolvedValue({ notifications: [], unreadCount: 3 }),
+    getForUser: jest
+      .fn()
+      .mockResolvedValue({ notifications: [], unreadCount: 3 }),
     getUnreadCount: jest.fn().mockResolvedValue(3),
     markAsRead: jest.fn().mockResolvedValue(undefined),
     markAllAsRead: jest.fn().mockResolvedValue(undefined),

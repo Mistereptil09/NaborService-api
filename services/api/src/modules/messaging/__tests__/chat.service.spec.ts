@@ -811,7 +811,7 @@ describe('ChatService', () => {
       expect(uigRepo.save).not.toHaveBeenCalled();
     });
 
-    it("neighbourhood has no auto-managed group yet (not backfilled): no-op", async () => {
+    it('neighbourhood has no auto-managed group yet (not backfilled): no-op', async () => {
       groupRepo.findOne.mockResolvedValue(null);
 
       await service.resyncNeighbourhoodGroupMembershipForRoleChange(

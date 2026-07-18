@@ -60,7 +60,10 @@ describe('AdminConfigService', () => {
     } as PlatformConfig;
     mockRepository.findOne.mockResolvedValue(mockConfig);
 
-    const result = await service.updateConfig({ commissionPercent: 8, contractExpirationHours: 12 });
+    const result = await service.updateConfig({
+      commissionPercent: 8,
+      contractExpirationHours: 12,
+    });
     expect(result.commissionPercent).toBe(8);
     expect(result.contractExpirationHours).toBe(12);
     expect(result.refundDeadlineHours).toBe(48); // untouched

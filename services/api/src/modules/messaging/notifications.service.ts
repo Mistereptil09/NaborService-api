@@ -129,4 +129,18 @@ export class NotificationsService {
   async getUnreadCount(userId: string): Promise<number> {
     return this.repo.count({ where: { userId, read: false } });
   }
+
+  async delete(notificationId: string, userId: string): Promise<void> {
+    await this.repo.delete({ id: notificationId, userId });
+    this.gateway.emitToUser(userId, 'notification:deleted', {
+      notification_id: notificationId,
+    });
+  }
+
+  async deleteAll(userId: string): Promise<void> {
+    await this.repo.delete({ userId });
+    this.gateway.emitToUser(userId, 'notification:deleted', {
+      all: true,
+    });
+  }
 }

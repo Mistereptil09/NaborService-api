@@ -157,9 +157,9 @@ export class NeighbourhoodService {
   /**
    * Find members (residents) of a neighbourhood
    */
-  async findMembers(pgId: string): Promise<
-    { pgId: string; visibility: string }[]
-  > {
+  async findMembers(
+    pgId: string,
+  ): Promise<{ pgId: string; visibility: string }[]> {
     const cypher = `
       MATCH (u:User)-[:LIVES_IN]->(n:Neighbourhood {pg_id: $pgId})
       WHERE u.deleted_at IS NULL

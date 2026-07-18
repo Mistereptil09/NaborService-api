@@ -13,6 +13,7 @@ export type NotificationType =
   | 'listing_accepted'
   | 'contract_pending'
   | 'contract_signed'
+  | 'contract_fully_signed'
   | 'payment_confirmed'
   | 'waitlist_place'
   | 'new_follower'

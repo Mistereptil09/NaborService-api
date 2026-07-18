@@ -7,8 +7,9 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Listing } from './entities/listing.entity';
+import { ListingTransaction } from './entities/listing-transaction.entity';
 import {
   CreateListingDto,
   UpdateListingDto,
@@ -17,14 +18,27 @@ import {
 import { ListingStatusEnum, ListingTypeEnum } from '../../common/enums';
 import { isModeratorOrAdmin } from '../../common/ownership';
 import { UserBlock } from '../social/entities/user-block.entity';
+import { MediaService } from '../media/services/media.service';
+
+// Champs de l'auteur exposés au client — jamais l'entité User complète, qui
+// porte email/passwordHash/totpSecret/etc.
+const CREATOR_SAFE_FIELDS = [
+  'creator.id',
+  'creator.firstName',
+  'creator.lastName',
+  'creator.profilePictureMongoId',
+];
 
 @Injectable()
 export class ListingsService {
   constructor(
     @InjectRepository(Listing)
     private readonly listingRepository: Repository<Listing>,
+    @InjectRepository(ListingTransaction)
+    private readonly transactionRepository: Repository<ListingTransaction>,
     @InjectRepository(UserBlock)
     private readonly blockRepository: Repository<UserBlock>,
+    private readonly mediaService: MediaService,
     @Inject('BullQueue_neo4j-sync')
     private readonly neo4jSyncQueue: {
       add: (name: string, data: any) => Promise<any>;
@@ -35,11 +49,13 @@ export class ListingsService {
     userId: string,
     dto: ListListingsDto,
   ): Promise<{
-    data: Listing[];
+    data: (Listing & { coverMediaId: string | null })[];
     meta: { total: number; offset: number; limit: number };
   }> {
     const query = this.listingRepository
       .createQueryBuilder('listing')
+      .leftJoin('listing.creator', 'creator')
+      .addSelect(CREATOR_SAFE_FIELDS)
       .where('listing.deletedAt IS NULL');
 
     const blocks = await this.blockRepository.find({
@@ -70,16 +86,89 @@ export class ListingsService {
       query.andWhere('listing.listingType = :type', { type: dto.type });
     }
 
-    // Default status to open if not specified
-    const statusFilter = dto.status || ListingStatusEnum.OPEN;
-    query.andWhere('listing.status = :status', { status: statusFilter });
+    // Status filter : 'all' or omitted means no status filtering.
+    if (dto.status && dto.status !== 'all') {
+      query.andWhere('listing.status = :status', { status: dto.status });
+    }
 
     query.orderBy('listing.createdAt', 'DESC').skip(dto.offset).take(dto.limit);
 
     const [data, total] = await query.getManyAndCount();
+
+    const covers = await this.mediaService.findCoverImages(
+      'listing_photo',
+      data.map((l) => l.id),
+    );
+    const enriched = data.map((l) => ({
+      ...l,
+      coverMediaId: covers.get(l.id) ?? null,
+    }));
+
     // { data, meta: { total, offset, limit } } — same pagination envelope
     // used across the rest of the API (incidents, users social/discovery).
-    return { data, meta: { total, offset: dto.offset, limit: dto.limit } };
+    return {
+      data: enriched,
+      meta: { total, offset: dto.offset, limit: dto.limit },
+    };
+  }
+
+  /**
+   * Liste les annonces où l'utilisateur est partie prenante d'une transaction
+   * (provider ou requester). Exclut les annonces supprimées et les créateurs
+   * bloqués. Utile pour l'espace "Mes opérations".
+   */
+  async findUserOperations(
+    userId: string,
+    dto: ListListingsDto,
+  ): Promise<{
+    data: (Listing & { coverMediaId: string | null })[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
+    const query = this.listingRepository
+      .createQueryBuilder('listing')
+      .leftJoin('listing.creator', 'creator')
+      .addSelect(CREATOR_SAFE_FIELDS)
+      .innerJoin(
+        ListingTransaction,
+        'transaction',
+        'transaction.listingId = listing.id AND (transaction.providerId = :userId OR transaction.requesterId = :userId)',
+        { userId },
+      )
+      .where('listing.deletedAt IS NULL');
+
+    const blocks = await this.blockRepository.find({
+      where: [{ blockerId: userId }, { blockedId: userId }],
+    });
+    const blockedUserIds = blocks.map((b) =>
+      b.blockerId === userId ? b.blockedId : b.blockerId,
+    );
+    if (blockedUserIds.length > 0) {
+      query.andWhere('listing.creatorId NOT IN (:...blockedUserIds)', {
+        blockedUserIds,
+      });
+    }
+
+    if (dto.status && dto.status !== 'all') {
+      query.andWhere('listing.status = :status', { status: dto.status });
+    }
+
+    query.orderBy('listing.createdAt', 'DESC').skip(dto.offset).take(dto.limit);
+
+    const [data, total] = await query.getManyAndCount();
+
+    const covers = await this.mediaService.findCoverImages(
+      'listing_photo',
+      data.map((l) => l.id),
+    );
+    const enriched = data.map((l) => ({
+      ...l,
+      coverMediaId: covers.get(l.id) ?? null,
+    }));
+
+    return {
+      data: enriched,
+      meta: { total, offset: dto.offset, limit: dto.limit },
+    };
   }
 
   async create(creatorId: string, dto: CreateListingDto): Promise<Listing> {
@@ -130,9 +219,13 @@ export class ListingsService {
   }
 
   async findOne(id: string): Promise<Listing> {
-    const listing = await this.listingRepository.findOne({
-      where: { id, deletedAt: IsNull() },
-    });
+    const listing = await this.listingRepository
+      .createQueryBuilder('listing')
+      .leftJoin('listing.creator', 'creator')
+      .addSelect(CREATOR_SAFE_FIELDS)
+      .where('listing.id = :id', { id })
+      .andWhere('listing.deletedAt IS NULL')
+      .getOne();
     if (!listing) {
       throw new NotFoundException('Annonce introuvable');
     }

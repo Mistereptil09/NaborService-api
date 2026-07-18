@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { PointsLedgerEntry } from './entities/points-ledger-entry.entity';
@@ -114,9 +118,10 @@ export class PointsService {
     return user.pointsBalance;
   }
 
-  async findLedger(
-    filters: LedgerFilters,
-  ): Promise<{ data: PointsLedgerEntry[]; meta: { total: number; offset: number; limit: number } }> {
+  async findLedger(filters: LedgerFilters): Promise<{
+    data: PointsLedgerEntry[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
     const qb = this.ledgerRepository
       .createQueryBuilder('ple')
       .orderBy('ple.createdAt', 'DESC')
@@ -137,10 +142,16 @@ export class PointsService {
     }
 
     const [data, total] = await qb.getManyAndCount();
-    return { data, meta: { total, offset: filters.offset, limit: filters.limit } };
+    return {
+      data,
+      meta: { total, offset: filters.offset, limit: filters.limit },
+    };
   }
 
-  private async lockUser(manager: EntityManager, userId: string): Promise<User> {
+  private async lockUser(
+    manager: EntityManager,
+    userId: string,
+  ): Promise<User> {
     const user = await manager
       .createQueryBuilder(User, 'u')
       .setLock('pessimistic_write')

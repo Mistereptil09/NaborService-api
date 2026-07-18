@@ -36,11 +36,7 @@ import { AdminPointsController } from './admin-points.controller';
     AdminRgpdController,
     AdminPointsController,
   ],
-  providers: [
-    AdminConfigService,
-    AdminStatsService,
-    AdminRgpdService,
-  ],
+  providers: [AdminConfigService, AdminStatsService, AdminRgpdService],
   exports: [AdminConfigService],
 })
 export class AdminModule {}

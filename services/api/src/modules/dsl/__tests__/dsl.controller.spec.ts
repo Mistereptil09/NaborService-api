@@ -34,14 +34,10 @@ function createMockDslService(): Partial<DslService> {
         );
       }
       if (query.includes('users')) {
-        throw new ForbiddenException(
-          "Collection 'users' non autorisée",
-        );
+        throw new ForbiddenException("Collection 'users' non autorisée");
       }
       if (query.includes('DSL_DOWN')) {
-        throw new InternalServerErrorException(
-          'Service DSL indisponible',
-        );
+        throw new InternalServerErrorException('Service DSL indisponible');
       }
       const collection = query.includes('contracts')
         ? 'contracts'
@@ -105,10 +101,7 @@ describe('DslController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DslController],
-      providers: [
-        { provide: DslService, useValue: mockService },
-        Reflector,
-      ],
+      providers: [{ provide: DslService, useValue: mockService }, Reflector],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockJwtAuthGuard)
@@ -124,7 +117,9 @@ describe('DslController', () => {
   });
 
   describe('executeQuery', () => {
-    const mockRequest = (overrides: Partial<{ sub: string; role: string; ip: string }> = {}) =>
+    const mockRequest = (
+      overrides: Partial<{ sub: string; role: string; ip: string }> = {},
+    ) =>
       ({
         user: {
           sub: overrides.sub ?? 'user-1',

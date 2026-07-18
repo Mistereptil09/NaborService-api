@@ -12,7 +12,7 @@ describe('Feature: gridfs-media-storage, Property: multipart filename re-decodin
     uploadPipeline = new UploadPipeline(mockGridFSService);
   });
 
-  it('fixes an accented filename mangled by multer/busboy\'s latin1 decoding', async () => {
+  it("fixes an accented filename mangled by multer/busboy's latin1 decoding", async () => {
     const buffer = Buffer.from('%PDF-1.4');
     const file = {
       buffer,
@@ -31,7 +31,9 @@ describe('Feature: gridfs-media-storage, Property: multipart filename re-decodin
 
     const result = await uploadPipeline.process(file, context);
 
-    expect(result.originalFilename).toBe('Déclaration du 2ème trimestre 2026.pdf');
+    expect(result.originalFilename).toBe(
+      'Déclaration du 2ème trimestre 2026.pdf',
+    );
     expect(mockGridFSService.upload).toHaveBeenCalledWith(
       buffer,
       'Déclaration du 2ème trimestre 2026.pdf',

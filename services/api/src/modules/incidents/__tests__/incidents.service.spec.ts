@@ -1,5 +1,8 @@
 import { IncidentsService } from '../incidents.service';
-import { IncidentStatusEnum, IncidentSeverityEnum } from '../../../common/enums';
+import {
+  IncidentStatusEnum,
+  IncidentSeverityEnum,
+} from '../../../common/enums';
 
 describe('IncidentsService', () => {
   let service: IncidentsService;
@@ -22,7 +25,11 @@ describe('IncidentsService', () => {
       create: jest.fn(),
     };
 
-    service = new IncidentsService(incidentRepo, userRepo, notificationsService);
+    service = new IncidentsService(
+      incidentRepo,
+      userRepo,
+      notificationsService,
+    );
   });
 
   describe('findAll', () => {
@@ -31,7 +38,10 @@ describe('IncidentsService', () => {
       incidentRepo.findAndCount.mockResolvedValue([rows, 2]);
       userRepo.findOne.mockResolvedValue({ neighbourhoodId: 'nb-downtown' });
 
-      const result = await service.findAll('user-1', { offset: 0, limit: 20 } as any);
+      const result = await service.findAll('user-1', {
+        offset: 0,
+        limit: 20,
+      });
 
       expect(result).toEqual({
         data: rows,
@@ -48,7 +58,7 @@ describe('IncidentsService', () => {
       incidentRepo.findAndCount.mockResolvedValue([[], 0]);
       userRepo.findOne.mockResolvedValue({ neighbourhoodId: 'nb-downtown' });
 
-      const result = await service.findAll('user-1', {} as any);
+      const result = await service.findAll('user-1', {});
 
       expect(result.meta).toEqual({ total: 0, offset: 0, limit: 20 });
     });
@@ -57,7 +67,7 @@ describe('IncidentsService', () => {
       incidentRepo.findAndCount.mockResolvedValue([[], 0]);
       userRepo.findOne.mockResolvedValue({ neighbourhoodId: 'nb-marais' });
 
-      await service.findAll('user-1', {} as any);
+      await service.findAll('user-1', {});
 
       expect(incidentRepo.findAndCount).toHaveBeenCalledWith(
         expect.objectContaining({ where: { neighbourhoodId: 'nb-marais' } }),
@@ -71,7 +81,7 @@ describe('IncidentsService', () => {
         neighbourhood_id: 'nb-downtown',
         status: IncidentStatusEnum.OPEN,
         severity: IncidentSeverityEnum.HIGH,
-      } as any);
+      });
 
       expect(userRepo.findOne).not.toHaveBeenCalled();
       expect(incidentRepo.findAndCount).toHaveBeenCalledWith(

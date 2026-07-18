@@ -79,7 +79,10 @@ export class MediaController {
   ) {}
 
   /** Vérifie que `userId` est membre actif du groupe du message. */
-  private async isMessageGroupMember(groupId: string, userId: string): Promise<boolean> {
+  private async isMessageGroupMember(
+    groupId: string,
+    userId: string,
+  ): Promise<boolean> {
     const membership = await this.usersInGroupRepository.findOne({
       where: { groupId, userId, leftAt: IsNull(), kickedAt: IsNull() },
     });
@@ -141,7 +144,10 @@ export class MediaController {
         if (!incident) {
           throw new NotFoundException('Signalement introuvable');
         }
-        if (incident.reporterId === user.sub || incident.assignedTo === user.sub) {
+        if (
+          incident.reporterId === user.sub ||
+          incident.assignedTo === user.sub
+        ) {
           return;
         }
         throw new ForbiddenException('Action non autorisée');
@@ -226,7 +232,7 @@ export class MediaController {
       );
     }
 
-    const rangeHeader = req.headers.range as string | undefined;
+    const rangeHeader = req.headers.range;
 
     if (!rangeHeader) {
       res.setHeader('Content-Length', totalSize.toString());
@@ -456,7 +462,9 @@ export class MediaController {
     @Param('messageId') messageId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    const message = await this.messageMetadataRepository.findOne({ where: { id: messageId } });
+    const message = await this.messageMetadataRepository.findOne({
+      where: { id: messageId },
+    });
     if (!message) {
       throw new NotFoundException('Message introuvable');
     }
@@ -533,7 +541,12 @@ export class MediaController {
       }
       if (message.senderId !== req.user.sub) {
         const membership = await this.usersInGroupRepository.findOne({
-          where: { groupId: message.groupId, userId: req.user.sub, leftAt: IsNull(), kickedAt: IsNull() },
+          where: {
+            groupId: message.groupId,
+            userId: req.user.sub,
+            leftAt: IsNull(),
+            kickedAt: IsNull(),
+          },
         });
         if (!membership || membership.roleInGroup !== GroupRoleEnum.ADMIN) {
           throw new ForbiddenException('Action non autorisée');

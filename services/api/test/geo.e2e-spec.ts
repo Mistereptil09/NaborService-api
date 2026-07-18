@@ -20,7 +20,9 @@ describe('Geo Module (e2e)', () => {
     }
 
     if (!banAvailable) {
-      console.warn('BAN API unreachable — BAN-dependent geo tests will be skipped');
+      console.warn(
+        'BAN API unreachable — BAN-dependent geo tests will be skipped',
+      );
     }
   }, 10000);
 

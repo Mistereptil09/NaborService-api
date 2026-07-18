@@ -14,7 +14,11 @@ describe('MediaController — assertCanReadMedia (stream authorization)', () => 
   let mockEvenementRepo: any;
   let mockEventParticipantRepo: any;
 
-  const user = (sub = 'u1', role = 'resident') => ({ sub, email: 'a@b.c', role });
+  const user = (sub = 'u1', role = 'resident') => ({
+    sub,
+    email: 'a@b.c',
+    role,
+  });
 
   const assertCanRead = (doc: any, u: any) =>
     (controller as any).assertCanReadMedia(doc, u);
@@ -77,20 +81,35 @@ describe('MediaController — assertCanReadMedia (stream authorization)', () => 
 
   describe('message_attachment', () => {
     it('allows an active group member', async () => {
-      mockMessageMetadataRepo.findOne.mockResolvedValue({ id: 'msg1', groupId: 'g1' });
-      mockUsersInGroupRepo.findOne.mockResolvedValue({ userId: 'u1', groupId: 'g1' });
+      mockMessageMetadataRepo.findOne.mockResolvedValue({
+        id: 'msg1',
+        groupId: 'g1',
+      });
+      mockUsersInGroupRepo.findOne.mockResolvedValue({
+        userId: 'u1',
+        groupId: 'g1',
+      });
 
       await expect(
-        assertCanRead({ owner_type: 'message_attachment', owner_id: 'msg1' }, user('u1')),
+        assertCanRead(
+          { owner_type: 'message_attachment', owner_id: 'msg1' },
+          user('u1'),
+        ),
       ).resolves.toBeUndefined();
     });
 
     it('rejects a non-member', async () => {
-      mockMessageMetadataRepo.findOne.mockResolvedValue({ id: 'msg1', groupId: 'g1' });
+      mockMessageMetadataRepo.findOne.mockResolvedValue({
+        id: 'msg1',
+        groupId: 'g1',
+      });
       mockUsersInGroupRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        assertCanRead({ owner_type: 'message_attachment', owner_id: 'msg1' }, user('u9')),
+        assertCanRead(
+          { owner_type: 'message_attachment', owner_id: 'msg1' },
+          user('u9'),
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -98,7 +117,10 @@ describe('MediaController — assertCanReadMedia (stream authorization)', () => 
       mockMessageMetadataRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        assertCanRead({ owner_type: 'message_attachment', owner_id: 'missing' }, user('u1')),
+        assertCanRead(
+          { owner_type: 'message_attachment', owner_id: 'missing' },
+          user('u1'),
+        ),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -144,7 +166,10 @@ describe('MediaController — assertCanReadMedia (stream authorization)', () => 
       mockListingTransactionRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        assertCanRead({ owner_type: 'contract', owner_id: 'missing' }, user('u1')),
+        assertCanRead(
+          { owner_type: 'contract', owner_id: 'missing' },
+          user('u1'),
+        ),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -158,7 +183,10 @@ describe('MediaController — assertCanReadMedia (stream authorization)', () => 
       });
 
       await expect(
-        assertCanRead({ owner_type: 'incident_photo', owner_id: 'inc1' }, user('u1')),
+        assertCanRead(
+          { owner_type: 'incident_photo', owner_id: 'inc1' },
+          user('u1'),
+        ),
       ).resolves.toBeUndefined();
     });
 
@@ -170,7 +198,10 @@ describe('MediaController — assertCanReadMedia (stream authorization)', () => 
       });
 
       await expect(
-        assertCanRead({ owner_type: 'incident_photo', owner_id: 'inc1' }, user('u1')),
+        assertCanRead(
+          { owner_type: 'incident_photo', owner_id: 'inc1' },
+          user('u1'),
+        ),
       ).resolves.toBeUndefined();
     });
 
@@ -182,23 +213,35 @@ describe('MediaController — assertCanReadMedia (stream authorization)', () => 
       });
 
       await expect(
-        assertCanRead({ owner_type: 'incident_photo', owner_id: 'inc1' }, user('u9')),
+        assertCanRead(
+          { owner_type: 'incident_photo', owner_id: 'inc1' },
+          user('u9'),
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
   });
 
   describe('event_attachment', () => {
     it('allows the event creator', async () => {
-      mockEvenementRepo.findOne.mockResolvedValue({ id: 'ev1', creatorId: 'u1' });
+      mockEvenementRepo.findOne.mockResolvedValue({
+        id: 'ev1',
+        creatorId: 'u1',
+      });
 
       await expect(
-        assertCanRead({ owner_type: 'event_attachment', owner_id: 'ev1' }, user('u1')),
+        assertCanRead(
+          { owner_type: 'event_attachment', owner_id: 'ev1' },
+          user('u1'),
+        ),
       ).resolves.toBeUndefined();
       expect(mockEventParticipantRepo.findOne).not.toHaveBeenCalled();
     });
 
     it('allows a registered (non-cancelled) participant', async () => {
-      mockEvenementRepo.findOne.mockResolvedValue({ id: 'ev1', creatorId: 'u2' });
+      mockEvenementRepo.findOne.mockResolvedValue({
+        id: 'ev1',
+        creatorId: 'u2',
+      });
       mockEventParticipantRepo.findOne.mockResolvedValue({
         userId: 'u1',
         eventId: 'ev1',
@@ -206,16 +249,25 @@ describe('MediaController — assertCanReadMedia (stream authorization)', () => 
       });
 
       await expect(
-        assertCanRead({ owner_type: 'event_attachment', owner_id: 'ev1' }, user('u1')),
+        assertCanRead(
+          { owner_type: 'event_attachment', owner_id: 'ev1' },
+          user('u1'),
+        ),
       ).resolves.toBeUndefined();
     });
 
     it('rejects a cancelled participant / stranger', async () => {
-      mockEvenementRepo.findOne.mockResolvedValue({ id: 'ev1', creatorId: 'u2' });
+      mockEvenementRepo.findOne.mockResolvedValue({
+        id: 'ev1',
+        creatorId: 'u2',
+      });
       mockEventParticipantRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        assertCanRead({ owner_type: 'event_attachment', owner_id: 'ev1' }, user('u9')),
+        assertCanRead(
+          { owner_type: 'event_attachment', owner_id: 'ev1' },
+          user('u9'),
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -223,7 +275,10 @@ describe('MediaController — assertCanReadMedia (stream authorization)', () => 
       mockEvenementRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        assertCanRead({ owner_type: 'event_attachment', owner_id: 'missing' }, user('u1')),
+        assertCanRead(
+          { owner_type: 'event_attachment', owner_id: 'missing' },
+          user('u1'),
+        ),
       ).rejects.toThrow(NotFoundException);
     });
   });

@@ -1,14 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import {
-  createTestingApp,
-  clearDatabase,
-  clearRedis,
-} from './utils/e2e-setup';
-import {
-  createTestUser,
-  loginAndGetToken,
-} from './utils/test-factories';
+import { createTestingApp, clearDatabase, clearRedis } from './utils/e2e-setup';
+import { createTestUser, loginAndGetToken } from './utils/test-factories';
 
 describe('Chat Module (e2e)', () => {
   let app: INestApplication;
@@ -31,9 +24,7 @@ describe('Chat Module (e2e)', () => {
   // ── Auth ────────────────────────────────────────────────────
 
   it('should return 401 without token', async () => {
-    await request(app.getHttpServer())
-      .get('/v1/chat/groups')
-      .expect(401);
+    await request(app.getHttpServer()).get('/v1/chat/groups').expect(401);
   });
 
   // ── Groups CRUD ─────────────────────────────────────────────
@@ -150,7 +141,11 @@ describe('Chat Module (e2e)', () => {
     it('POST /v1/chat/groups/:id/members should add a member', async () => {
       const user1 = await createTestUser(app, 'owner');
       const user2 = await createTestUser(app, 'joiner');
-      const { token: token1 } = await loginAndGetToken(app, user1.email, user1.password);
+      const { token: token1 } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
 
       const group = await request(app.getHttpServer())
         .post('/v1/chat/groups')

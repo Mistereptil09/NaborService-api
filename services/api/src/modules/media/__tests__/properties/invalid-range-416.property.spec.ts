@@ -58,7 +58,11 @@ describe('Feature: gridfs-media-storage, Property 18: Invalid Range Returns 416'
             headers: {
               range: `bytes=${start}-${end}`,
             },
-            user: { sub: 'test-user', email: 'test@test.com', role: 'resident' },
+            user: {
+              sub: 'test-user',
+              email: 'test@test.com',
+              role: 'resident',
+            },
           };
 
           const res: any = {

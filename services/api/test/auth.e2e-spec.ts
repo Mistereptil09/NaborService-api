@@ -157,9 +157,7 @@ describe('Auth Module (e2e)', () => {
     });
 
     it('should return 401 without a refresh token', async () => {
-      await request(app.getHttpServer())
-        .post('/v1/auth/refresh')
-        .expect(401);
+      await request(app.getHttpServer()).post('/v1/auth/refresh').expect(401);
     });
 
     it('should return 401 with an invalid refresh token', async () => {
@@ -198,9 +196,7 @@ describe('Auth Module (e2e)', () => {
     });
 
     it('should return 401 without a refresh cookie', async () => {
-      await request(app.getHttpServer())
-        .post('/v1/auth/logout')
-        .expect(401);
+      await request(app.getHttpServer()).post('/v1/auth/logout').expect(401);
     });
   });
 
@@ -247,9 +243,7 @@ describe('Auth Module (e2e)', () => {
     });
 
     it('should return 401 without auth', async () => {
-      await request(app.getHttpServer())
-        .get('/v1/auth/sessions')
-        .expect(401);
+      await request(app.getHttpServer()).get('/v1/auth/sessions').expect(401);
     });
   });
 
@@ -290,8 +284,16 @@ describe('Auth Module (e2e)', () => {
     it('should return 403 when revoking another user session', async () => {
       const user1 = await createTestUser(app, 'user1');
       const user2 = await createTestUser(app, 'user2');
-      const { token: token1 } = await loginAndGetToken(app, user1.email, user1.password);
-      const { token: token2 } = await loginAndGetToken(app, user2.email, user2.password);
+      const { token: token1 } = await loginAndGetToken(
+        app,
+        user1.email,
+        user1.password,
+      );
+      const { token: token2 } = await loginAndGetToken(
+        app,
+        user2.email,
+        user2.password,
+      );
 
       // Get user2's session
       const sessionsRes = await request(app.getHttpServer())

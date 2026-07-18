@@ -327,7 +327,8 @@ export class ListingStateMachineService {
         savedTransaction.completedAt = new Date();
         const completed = await manager.save(savedTransaction);
 
-        const payoutPoints = completed.amountPoints - completed.commissionPoints;
+        const payoutPoints =
+          completed.amountPoints - completed.commissionPoints;
         if (payoutPoints > 0) {
           await this.pointsService.credit(
             {

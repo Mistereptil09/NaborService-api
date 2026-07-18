@@ -89,9 +89,7 @@ export class DslService {
         `DSL service unavailable: ${(error as Error).message}`,
         (error as Error).stack,
       );
-      throw new InternalServerErrorException(
-        'Service DSL indisponible',
-      );
+      throw new InternalServerErrorException('Service DSL indisponible');
     }
   }
 
@@ -148,9 +146,7 @@ export class DslService {
       await this.dslQueryRepository.save(entry);
     } catch (error) {
       // Non-bloquant : le log d'audit ne doit pas faire échouer la requête
-      this.logger.error(
-        `Failed to log DSL query: ${(error as Error).message}`,
-      );
+      this.logger.error(`Failed to log DSL query: ${(error as Error).message}`);
     }
   }
 

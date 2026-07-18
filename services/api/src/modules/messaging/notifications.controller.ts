@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -9,7 +10,12 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { NotificationsService } from './notifications.service';
 
@@ -57,5 +63,19 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Marquer une notification comme lue' })
   async markAsRead(@Req() req: any, @Param('id') id: string): Promise<void> {
     await this.notificationsService.markAsRead(id, req.user.sub);
+  }
+
+  @Delete()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Supprimer toutes les notifications' })
+  async deleteAll(@Req() req: any): Promise<void> {
+    await this.notificationsService.deleteAll(req.user.sub);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Supprimer une notification' })
+  async delete(@Req() req: any, @Param('id') id: string): Promise<void> {
+    await this.notificationsService.delete(id, req.user.sub);
   }
 }

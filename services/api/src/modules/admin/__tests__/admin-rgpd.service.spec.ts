@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { AdminRgpdService } from '../admin-rgpd.service';
 import { User } from '../../users/entities/user.entity';
 
@@ -42,8 +46,20 @@ describe('AdminRgpdService', () => {
   describe('getRgpdRequests', () => {
     it('should map soft-deleted users and set their status based on name prefix', async () => {
       const mockUsers = [
-        { id: '1', firstName: 'Alice', lastName: 'Dupont', email: 'a@a.com', deletedAt: new Date() },
-        { id: '2', firstName: 'Anonymized-123456', lastName: 'Anonymized-123456', email: 'anonymized-123@deleted.user', deletedAt: new Date() },
+        {
+          id: '1',
+          firstName: 'Alice',
+          lastName: 'Dupont',
+          email: 'a@a.com',
+          deletedAt: new Date(),
+        },
+        {
+          id: '2',
+          firstName: 'Anonymized-123456',
+          lastName: 'Anonymized-123456',
+          email: 'anonymized-123@deleted.user',
+          deletedAt: new Date(),
+        },
       ];
       mockRepository.find.mockResolvedValue(mockUsers);
 
@@ -71,7 +87,9 @@ describe('AdminRgpdService', () => {
   describe('getRgpdRequestStatus', () => {
     it('should throw NotFoundException if user does not exist', async () => {
       mockRepository.findOne.mockResolvedValue(null);
-      await expect(service.getRgpdRequestStatus('non-existent')).rejects.toThrow(NotFoundException);
+      await expect(
+        service.getRgpdRequestStatus('non-existent'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should return none status if user is not deleted', async () => {
@@ -89,7 +107,11 @@ describe('AdminRgpdService', () => {
     });
 
     it('should return completed if deleted and anonymized', async () => {
-      const user = { id: '1', firstName: 'Anonymized-123', deletedAt: new Date() } as User;
+      const user = {
+        id: '1',
+        firstName: 'Anonymized-123',
+        deletedAt: new Date(),
+      } as User;
       mockRepository.findOne.mockResolvedValue(user);
       const result = await service.getRgpdRequestStatus('1');
       expect(result).toEqual({ status: 'completed' });
@@ -100,13 +122,21 @@ describe('AdminRgpdService', () => {
     it('should throw BadRequestException if user is not soft deleted', async () => {
       const user = { id: '1', deletedAt: null } as User;
       mockRepository.findOne.mockResolvedValue(user);
-      await expect(service.anonymizeUserManually('1')).rejects.toThrow(BadRequestException);
+      await expect(service.anonymizeUserManually('1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw ConflictException if user is already anonymized', async () => {
-      const user = { id: '1', firstName: 'Anonymized-123', deletedAt: new Date() } as User;
+      const user = {
+        id: '1',
+        firstName: 'Anonymized-123',
+        deletedAt: new Date(),
+      } as User;
       mockRepository.findOne.mockResolvedValue(user);
-      await expect(service.anonymizeUserManually('1')).rejects.toThrow(ConflictException);
+      await expect(service.anonymizeUserManually('1')).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('should enqueue job if user is deleted but not anonymized', async () => {
@@ -115,7 +145,9 @@ describe('AdminRgpdService', () => {
 
       const result = await service.anonymizeUserManually('1');
       expect(result).toEqual({ success: true });
-      expect(mockQueue.add).toHaveBeenCalledWith('user.anonymise', { userId: '1' });
+      expect(mockQueue.add).toHaveBeenCalledWith('user.anonymise', {
+        userId: '1',
+      });
     });
   });
 });

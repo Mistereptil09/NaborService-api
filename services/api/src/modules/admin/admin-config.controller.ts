@@ -31,7 +31,9 @@ export class AdminConfigController {
   @Get()
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Consulter la configuration globale de la plateforme (Admin)' })
+  @ApiOperation({
+    summary: 'Consulter la configuration globale de la plateforme (Admin)',
+  })
   @ApiOkResponse({ description: 'Configuration globale retournée' })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
@@ -42,7 +44,9 @@ export class AdminConfigController {
   @Patch()
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Modifier la configuration globale de la plateforme (Admin)' })
+  @ApiOperation({
+    summary: 'Modifier la configuration globale de la plateforme (Admin)',
+  })
   @ApiOkResponse({ description: 'Configuration globale mise à jour' })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })

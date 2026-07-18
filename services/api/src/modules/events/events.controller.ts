@@ -199,7 +199,12 @@ export class EventsController {
     @Body() dto: EventUpdateContentDto,
     @Req() req: any,
   ) {
-    return this.contentService.updateContent(req.user.sub, id, dto, req.user.role);
+    return this.contentService.updateContent(
+      req.user.sub,
+      id,
+      dto,
+      req.user.role,
+    );
   }
 
   @Post(':event_id/media')
@@ -215,7 +220,9 @@ export class EventsController {
   }
 
   @Get(':event_id/media/:media_id')
-  @ApiOperation({ summary: 'Streamer un média d\'évènement (cover ou pièce jointe)' })
+  @ApiOperation({
+    summary: "Streamer un média d'évènement (cover ou pièce jointe)",
+  })
   async streamMedia(
     @Param('event_id') id: string,
     @Param('media_id') mediaId: string,
@@ -234,7 +241,12 @@ export class EventsController {
     @Param('media_id') mediaId: string,
     @Req() req: any,
   ) {
-    return this.mediaService.deleteMedia(req.user.sub, id, mediaId, req.user.role);
+    return this.mediaService.deleteMedia(
+      req.user.sub,
+      id,
+      mediaId,
+      req.user.role,
+    );
   }
 
   // --- Lifecycle & State Machine ---
@@ -264,7 +276,12 @@ export class EventsController {
     @Body() dto: CancelDto,
     @Req() req: any,
   ) {
-    return this.stateMachineService.cancel(id, req.user.sub, dto.reason, req.user.role);
+    return this.stateMachineService.cancel(
+      id,
+      req.user.sub,
+      dto.reason,
+      req.user.role,
+    );
   }
 
   // --- Participants & Waitlist ---

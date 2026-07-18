@@ -1,6 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsDateString, IsEnum, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
 import { PointsLedgerEntryTypeEnum } from '../../../common/enums';
 
 export class AdminListLedgerDto {
@@ -25,7 +33,7 @@ export class AdminListLedgerDto {
   @Max(100)
   limit: number = 20;
 
-  @ApiPropertyOptional({ description: "Filtrer par utilisateur" })
+  @ApiPropertyOptional({ description: 'Filtrer par utilisateur' })
   @IsOptional()
   @IsUUID()
   userId?: string;

@@ -6,7 +6,13 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { forwardRef, Inject, Injectable, UseFilters, UseGuards } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  UseFilters,
+  UseGuards,
+} from '@nestjs/common';
 import { Server } from 'socket.io';
 import { WsAuthService } from '../auth/ws-auth.service';
 import type { AuthenticatedSocket } from '../auth/ws-auth.service';

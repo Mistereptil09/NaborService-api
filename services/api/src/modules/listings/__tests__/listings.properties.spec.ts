@@ -26,6 +26,11 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
     add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
   };
 
+  // Simple MediaService mock (cover images for the feed)
+  const mockMediaService = {
+    findCoverImages: jest.fn().mockResolvedValue(new Map()),
+  };
+
   // Simple gateway mock
   const mockGateway = {
     joinPartiesToRoom: jest.fn(),
@@ -123,6 +128,8 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
         async (listingsData, filters) => {
           // Mock Repository query builder
           const mockQueryBuilder: any = {
+            leftJoin: jest.fn().mockReturnThis(),
+            addSelect: jest.fn().mockReturnThis(),
             where: jest.fn().mockReturnThis(),
             andWhere: jest.fn().mockReturnThis(),
             orderBy: jest.fn().mockReturnThis(),
@@ -144,8 +151,12 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
                   return false;
                 if (filters.type && item.listingType !== filters.type)
                   return false;
-                const statusFilter = filters.status || 'open';
-                if (item.status !== statusFilter) return false;
+                if (
+                  filters.status &&
+                  filters.status !== 'all' &&
+                  item.status !== filters.status
+                )
+                  return false;
                 return true;
               });
               return Promise.resolve([filtered, filtered.length]);
@@ -159,7 +170,9 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
           try {
             const service = new ListingsService(
               mockRepo,
+              {} as any,
               { find: jest.fn().mockResolvedValue([]) } as any,
+              mockMediaService as any,
               mockQueue,
             );
             const result = await service.list('test-user-id', filters as any);
@@ -176,8 +189,9 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
               if (filters.type) {
                 expect(listing.listingType).toBe(filters.type);
               }
-              const expectedStatus = filters.status || 'open';
-              expect(listing.status).toBe(expectedStatus);
+              if (filters.status && filters.status !== 'all') {
+                expect(listing.status).toBe(filters.status);
+              }
             });
           } catch (e) {
             console.error('--- Property 1 Failure Trace ---');
@@ -213,6 +227,8 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
           );
 
           const mockQueryBuilder: any = {
+            leftJoin: jest.fn().mockReturnThis(),
+            addSelect: jest.fn().mockReturnThis(),
             where: jest.fn().mockReturnThis(),
             andWhere: jest.fn().mockReturnThis(),
             orderBy: jest.fn().mockReturnThis(),
@@ -230,7 +246,9 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
 
           const service = new ListingsService(
             mockRepo,
+            {} as any,
             { find: jest.fn().mockResolvedValue([]) } as any,
+            mockMediaService as any,
             mockQueue,
           );
           const result = await service.list('test-user-id', {
@@ -283,7 +301,9 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
 
           const service = new ListingsService(
             mockRepo,
+            {} as any,
             { find: jest.fn().mockResolvedValue([]) } as any,
+            mockMediaService as any,
             mockQueue,
           );
           const result = await service.create(creatorId, payload);
@@ -615,9 +635,11 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
           };
 
           const mockUserRepo: any = {
-            findOne: jest
-              .fn()
-              .mockResolvedValue({ id: 'c1', email: 'c1@example.com', firstName: 'C' }),
+            findOne: jest.fn().mockResolvedValue({
+              id: 'c1',
+              email: 'c1@example.com',
+              firstName: 'C',
+            }),
           };
 
           const mockListingsService: any = {

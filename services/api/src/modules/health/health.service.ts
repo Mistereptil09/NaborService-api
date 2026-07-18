@@ -76,7 +76,11 @@ export class HealthService {
     const start = Date.now();
     try {
       await this.dataSource.query('SELECT 1');
-      return { status: 'up', dependency: 'hard', latency_ms: Date.now() - start };
+      return {
+        status: 'up',
+        dependency: 'hard',
+        latency_ms: Date.now() - start,
+      };
     } catch (error: any) {
       this.logger.error(`PostgreSQL health check failed: ${error.message}`);
       return { status: 'down', dependency: 'hard', error: error.message };
@@ -87,18 +91,35 @@ export class HealthService {
     const start = Date.now();
     try {
       if (!this.mongoConnection || this.mongoConnection.readyState !== 1) {
-        const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+        const states = [
+          'disconnected',
+          'connected',
+          'connecting',
+          'disconnecting',
+        ];
         const stateName = this.mongoConnection
-          ? states[this.mongoConnection.readyState] ?? 'unknown'
+          ? (states[this.mongoConnection.readyState] ?? 'unknown')
           : 'no connection';
-        return { status: 'down', dependency: 'soft', error: `MongoDB not connected (state: ${stateName})` };
+        return {
+          status: 'down',
+          dependency: 'soft',
+          error: `MongoDB not connected (state: ${stateName})`,
+        };
       }
       const db = this.mongoConnection.db;
       if (!db) {
-        return { status: 'down', dependency: 'soft', error: 'MongoDB connection established but db handle is undefined' };
+        return {
+          status: 'down',
+          dependency: 'soft',
+          error: 'MongoDB connection established but db handle is undefined',
+        };
       }
       await db.admin().ping();
-      return { status: 'up', dependency: 'soft', latency_ms: Date.now() - start };
+      return {
+        status: 'up',
+        dependency: 'soft',
+        latency_ms: Date.now() - start,
+      };
     } catch (error: any) {
       this.logger.error(`MongoDB health check failed: ${error.message}`);
       return { status: 'down', dependency: 'soft', error: error.message };
@@ -109,7 +130,11 @@ export class HealthService {
     const start = Date.now();
     try {
       await this.neo4jDriver.verifyConnectivity();
-      return { status: 'up', dependency: 'soft', latency_ms: Date.now() - start };
+      return {
+        status: 'up',
+        dependency: 'soft',
+        latency_ms: Date.now() - start,
+      };
     } catch (error: any) {
       this.logger.error(`Neo4j health check failed: ${error.message}`);
       return { status: 'down', dependency: 'soft', error: error.message };
@@ -120,10 +145,18 @@ export class HealthService {
     const start = Date.now();
     try {
       if (this.redisClient.status !== 'ready') {
-        return { status: 'down', dependency: 'hard', error: `Redis not ready (status: ${this.redisClient.status})` };
+        return {
+          status: 'down',
+          dependency: 'hard',
+          error: `Redis not ready (status: ${this.redisClient.status})`,
+        };
       }
       await this.redisClient.ping();
-      return { status: 'up', dependency: 'hard', latency_ms: Date.now() - start };
+      return {
+        status: 'up',
+        dependency: 'hard',
+        latency_ms: Date.now() - start,
+      };
     } catch (error: any) {
       this.logger.error(`Redis health check failed: ${error.message}`);
       return { status: 'down', dependency: 'hard', error: error.message };

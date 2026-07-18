@@ -8,7 +8,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, IsNull } from 'typeorm';
 import { User } from '../users/entities/user.entity';
-import { RgpdRequestDto, RgpdRequestStatusDto } from './dto/admin-rgpd-response.dto';
+import {
+  RgpdRequestDto,
+  RgpdRequestStatusDto,
+} from './dto/admin-rgpd-response.dto';
 
 @Injectable()
 export class AdminRgpdService {

@@ -57,7 +57,10 @@ export class UpdateNeighbourhoodDto {
   @IsNotEmpty()
   country?: string;
 
-  @ApiPropertyOptional({ description: 'GeoJSON Polygon — if provided, centroid and adjacencies are recomputed' })
+  @ApiPropertyOptional({
+    description:
+      'GeoJSON Polygon — if provided, centroid and adjacencies are recomputed',
+  })
   @IsOptional()
   @IsObject()
   geometry?: GeoJSON.Polygon;

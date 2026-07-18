@@ -1,5 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IncidentSeverityEnum, IncidentStatusEnum } from '../../../common/enums';
+import {
+  IncidentSeverityEnum,
+  IncidentStatusEnum,
+} from '../../../common/enums';
 
 export class IncidentResponseDto {
   @ApiProperty({ example: '019e8ac4-cec5-7bf0-a384-4dfb905a9471' })
@@ -17,10 +20,16 @@ export class IncidentResponseDto {
   @ApiProperty({ example: 'Nid de poule béant' })
   title: string;
 
-  @ApiPropertyOptional({ nullable: true, example: 'Trou énorme chaussée principale.' })
+  @ApiPropertyOptional({
+    nullable: true,
+    example: 'Trou énorme chaussée principale.',
+  })
   description: string | null;
 
-  @ApiProperty({ enum: IncidentSeverityEnum, example: IncidentSeverityEnum.HIGH })
+  @ApiProperty({
+    enum: IncidentSeverityEnum,
+    example: IncidentSeverityEnum.HIGH,
+  })
   severity: IncidentSeverityEnum;
 
   @ApiProperty({ enum: IncidentStatusEnum, example: IncidentStatusEnum.OPEN })

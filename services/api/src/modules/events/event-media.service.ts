@@ -108,7 +108,11 @@ export class EventMediaService {
       document.updated_at = new Date();
       await document.save();
 
-      return { type: 'cover', mimetype: 'image/webp', size_bytes: compressedBuffer.length };
+      return {
+        type: 'cover',
+        mimetype: 'image/webp',
+        size_bytes: compressedBuffer.length,
+      };
     } else {
       // Attachments
       if (document.attachments.length >= 5) {
@@ -138,11 +142,19 @@ export class EventMediaService {
       document.updated_at = new Date();
       await document.save();
 
-      return { type: 'attachment', name: nameToSave, mimetype: mimetypeToSave, size_bytes: bufferToSave.length };
+      return {
+        type: 'attachment',
+        name: nameToSave,
+        mimetype: mimetypeToSave,
+        size_bytes: bufferToSave.length,
+      };
     }
   }
 
-  async getMedia(eventId: string, mediaId: string): Promise<{ data: Buffer; mimetype: string }> {
+  async getMedia(
+    eventId: string,
+    mediaId: string,
+  ): Promise<{ data: Buffer; mimetype: string }> {
     const document = await this.eventDocumentModel.findOne({
       pg_event_id: eventId,
     });
@@ -164,7 +176,12 @@ export class EventMediaService {
     return { data: attachment.data, mimetype: attachment.mimetype };
   }
 
-  async deleteMedia(userId: string, eventId: string, mediaId: string, userRole?: string) {
+  async deleteMedia(
+    userId: string,
+    eventId: string,
+    mediaId: string,
+    userRole?: string,
+  ) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) {
       throw new NotFoundException('Event not found');

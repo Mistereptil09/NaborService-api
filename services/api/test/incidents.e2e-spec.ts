@@ -1,10 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import {
-  createTestingApp,
-  clearDatabase,
-  clearRedis,
-} from './utils/e2e-setup';
+import { createTestingApp, clearDatabase, clearRedis } from './utils/e2e-setup';
 import {
   createTestUser,
   loginAndGetToken,
@@ -33,9 +29,7 @@ describe('Incidents Module (e2e)', () => {
 
   describe('Auth', () => {
     it('should return 401 without token', async () => {
-      await request(app.getHttpServer())
-        .get('/v1/incidents')
-        .expect(401);
+      await request(app.getHttpServer()).get('/v1/incidents').expect(401);
     });
   });
 

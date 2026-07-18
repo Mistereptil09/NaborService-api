@@ -16,17 +16,48 @@ describe('PollsService', () => {
   let userRepo: any;
 
   const makePoll = (overrides = {}) => ({
-    id: 'p1', title: 'Test Poll', description: null, creatorId: 'u1',
-    neighbourhoodId: 'nb1', groupId: null, pollType: PollTypeEnum.SINGLE,
-    isAnonymous: false, startsAt: null, endsAt: null,
-    closedAt: null, closedBy: null, createdAt: new Date(), updatedAt: null, deletedAt: null,
-    options: [], ...overrides,
+    id: 'p1',
+    title: 'Test Poll',
+    description: null,
+    creatorId: 'u1',
+    neighbourhoodId: 'nb1',
+    groupId: null,
+    pollType: PollTypeEnum.SINGLE,
+    isAnonymous: false,
+    startsAt: null,
+    endsAt: null,
+    closedAt: null,
+    closedBy: null,
+    createdAt: new Date(),
+    updatedAt: null,
+    deletedAt: null,
+    options: [],
+    ...overrides,
   });
 
   beforeEach(async () => {
-    pollRepo = { create: jest.fn((d) => d), save: jest.fn((d) => Promise.resolve({ ...d, id: d.id ?? 'p1' })), findOne: jest.fn(), find: jest.fn(), count: jest.fn() };
-    optionRepo = { create: jest.fn((d) => d), save: jest.fn((d) => Promise.resolve(d)), findOne: jest.fn(), remove: jest.fn() };
-    voteRepo = { create: jest.fn((d) => d), save: jest.fn((d) => Promise.resolve(d)), findOne: jest.fn(), find: jest.fn().mockResolvedValue([]), count: jest.fn(), delete: jest.fn(), remove: jest.fn().mockResolvedValue(undefined) };
+    pollRepo = {
+      create: jest.fn((d) => d),
+      save: jest.fn((d) => Promise.resolve({ ...d, id: d.id ?? 'p1' })),
+      findOne: jest.fn(),
+      find: jest.fn(),
+      count: jest.fn(),
+    };
+    optionRepo = {
+      create: jest.fn((d) => d),
+      save: jest.fn((d) => Promise.resolve(d)),
+      findOne: jest.fn(),
+      remove: jest.fn(),
+    };
+    voteRepo = {
+      create: jest.fn((d) => d),
+      save: jest.fn((d) => Promise.resolve(d)),
+      findOne: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
+      count: jest.fn(),
+      delete: jest.fn(),
+      remove: jest.fn().mockResolvedValue(undefined),
+    };
     userRepo = { find: jest.fn().mockResolvedValue([]) };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -61,7 +92,9 @@ describe('PollsService', () => {
       pollRepo.find.mockResolvedValue([]);
       await service.listPolls('nb1');
       expect(pollRepo.find).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ neighbourhoodId: 'nb1' }) }),
+        expect.objectContaining({
+          where: expect.objectContaining({ neighbourhoodId: 'nb1' }),
+        }),
       );
     });
 
@@ -75,9 +108,14 @@ describe('PollsService', () => {
 
     it('should attach aggregated results to every poll in the list (not just single-poll getPoll)', async () => {
       pollRepo.find.mockResolvedValue([
-        { ...makePoll(), options: [{ id: 'o1', label: 'Yes', pollId: 'p1', weight: 1 }] },
+        {
+          ...makePoll(),
+          options: [{ id: 'o1', label: 'Yes', pollId: 'p1', weight: 1 }],
+        },
       ]);
-      voteRepo.find.mockResolvedValue([{ userId: 'u2', optionId: 'o1', weight: 2, option: { pollId: 'p1' } }]);
+      voteRepo.find.mockResolvedValue([
+        { userId: 'u2', optionId: 'o1', weight: 2, option: { pollId: 'p1' } },
+      ]);
       const [poll] = await service.listPolls();
       expect(poll.results).toBeDefined();
       expect(poll.results[0].vote_count).toBe(2);
@@ -88,7 +126,10 @@ describe('PollsService', () => {
 
   describe('createPoll', () => {
     it('should create a neighbourhood-scoped poll', async () => {
-      const p = await service.createPoll('u1', { title: 'Q?', neighbourhood_id: 'nb1' } as any);
+      const p = await service.createPoll('u1', {
+        title: 'Q?',
+        neighbourhood_id: 'nb1',
+      });
       expect(p.title).toBe('Q?');
       expect(p.creatorId).toBe('u1');
       expect(p.neighbourhoodId).toBe('nb1');
@@ -98,16 +139,21 @@ describe('PollsService', () => {
 
     it('should create a multiple-choice AND weighted poll (independent flags)', async () => {
       const p = await service.createPoll('u1', {
-        title: 'Q?', neighbourhood_id: 'nb1', poll_type: PollTypeEnum.MULTIPLE, is_weighted: true,
-      } as any);
+        title: 'Q?',
+        neighbourhood_id: 'nb1',
+        poll_type: PollTypeEnum.MULTIPLE,
+        is_weighted: true,
+      });
       expect(p.pollType).toBe(PollTypeEnum.MULTIPLE);
       expect(p.isWeighted).toBe(true);
     });
 
     it('should create a group-scoped poll and ignore neighbourhood_id', async () => {
       const p = await service.createPoll('u1', {
-        title: 'Q?', neighbourhood_id: 'nb1', group_id: 'g1',
-      } as any);
+        title: 'Q?',
+        neighbourhood_id: 'nb1',
+        group_id: 'g1',
+      });
       expect(p.groupId).toBe('g1');
       expect(p.neighbourhoodId).toBeNull();
     });
@@ -117,8 +163,13 @@ describe('PollsService', () => {
 
   describe('getPoll', () => {
     it('should return poll with results', async () => {
-      pollRepo.findOne.mockResolvedValue({ ...makePoll(), options: [{ id: 'o1', label: 'Yes', pollId: 'p1', weight: 1 }] });
-      voteRepo.find.mockResolvedValue([{ userId: 'u2', optionId: 'o1', weight: 2, option: { pollId: 'p1' } }]);
+      pollRepo.findOne.mockResolvedValue({
+        ...makePoll(),
+        options: [{ id: 'o1', label: 'Yes', pollId: 'p1', weight: 1 }],
+      });
+      voteRepo.find.mockResolvedValue([
+        { userId: 'u2', optionId: 'o1', weight: 2, option: { pollId: 'p1' } },
+      ]);
       const p = await service.getPoll('p1');
       expect(p.results).toBeDefined();
       expect(p.results[0].vote_count).toBe(2);
@@ -130,18 +181,40 @@ describe('PollsService', () => {
     });
 
     it('should attach voter identities for a non-anonymous poll', async () => {
-      pollRepo.findOne.mockResolvedValue({ ...makePoll({ isAnonymous: false }), options: [{ id: 'o1', label: 'Yes', pollId: 'p1', weight: 1 }] });
-      voteRepo.find.mockResolvedValue([{ userId: 'u2', optionId: 'o1', weight: 1, option: { pollId: 'p1' } }]);
-      userRepo.find.mockResolvedValue([{ id: 'u2', firstName: 'Ana', lastName: 'B', profilePictureMongoId: null }]);
+      pollRepo.findOne.mockResolvedValue({
+        ...makePoll({ isAnonymous: false }),
+        options: [{ id: 'o1', label: 'Yes', pollId: 'p1', weight: 1 }],
+      });
+      voteRepo.find.mockResolvedValue([
+        { userId: 'u2', optionId: 'o1', weight: 1, option: { pollId: 'p1' } },
+      ]);
+      userRepo.find.mockResolvedValue([
+        {
+          id: 'u2',
+          firstName: 'Ana',
+          lastName: 'B',
+          profilePictureMongoId: null,
+        },
+      ]);
       const p = await service.getPoll('p1');
       expect(p.results[0].voters).toEqual([
-        { id: 'u2', first_name: 'Ana', last_name: 'B', profile_picture_mongo_id: null },
+        {
+          id: 'u2',
+          first_name: 'Ana',
+          last_name: 'B',
+          profile_picture_mongo_id: null,
+        },
       ]);
     });
 
     it('should NOT attach voter identities for an anonymous poll', async () => {
-      pollRepo.findOne.mockResolvedValue({ ...makePoll({ isAnonymous: true }), options: [{ id: 'o1', label: 'Yes', pollId: 'p1', weight: 1 }] });
-      voteRepo.find.mockResolvedValue([{ userId: 'u2', optionId: 'o1', weight: 1, option: { pollId: 'p1' } }]);
+      pollRepo.findOne.mockResolvedValue({
+        ...makePoll({ isAnonymous: true }),
+        options: [{ id: 'o1', label: 'Yes', pollId: 'p1', weight: 1 }],
+      });
+      voteRepo.find.mockResolvedValue([
+        { userId: 'u2', optionId: 'o1', weight: 1, option: { pollId: 'p1' } },
+      ]);
       const p = await service.getPoll('p1');
       expect(p.results[0].voters).toBeUndefined();
       expect(userRepo.find).not.toHaveBeenCalled();
@@ -161,12 +234,16 @@ describe('PollsService', () => {
     it('should reject after first vote', async () => {
       pollRepo.findOne.mockResolvedValue(makePoll());
       voteRepo.count.mockResolvedValue(1);
-      await expect(service.updatePoll('p1', 'u1', { title: 'Nope' })).rejects.toThrow(ForbiddenException);
+      await expect(
+        service.updatePoll('p1', 'u1', { title: 'Nope' }),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should reject non-creator', async () => {
       pollRepo.findOne.mockResolvedValue(makePoll());
-      await expect(service.updatePoll('p1', 'u2', { title: 'Nope' })).rejects.toThrow(ForbiddenException);
+      await expect(
+        service.updatePoll('p1', 'u2', { title: 'Nope' }),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -181,47 +258,79 @@ describe('PollsService', () => {
 
     it('should reject if already closed', async () => {
       pollRepo.findOne.mockResolvedValue(makePoll({ closedAt: new Date() }));
-      await expect(service.closePoll('p1', 'u1')).rejects.toThrow(ForbiddenException);
+      await expect(service.closePoll('p1', 'u1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
   // ── vote ────────────────────────────────────────────────
 
   describe('vote', () => {
-    it('should cast a vote using the option\'s weight, not a voter-supplied one', async () => {
+    it("should cast a vote using the option's weight, not a voter-supplied one", async () => {
       pollRepo.findOne.mockResolvedValue(makePoll());
-      optionRepo.findOne.mockResolvedValue({ id: 'o1', pollId: 'p1', weight: 3 });
+      optionRepo.findOne.mockResolvedValue({
+        id: 'o1',
+        pollId: 'p1',
+        weight: 3,
+      });
       await service.vote('p1', 'u1', 'o1');
-      expect(voteRepo.save).toHaveBeenCalledWith(expect.objectContaining({ weight: 3 }));
+      expect(voteRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ weight: 3 }),
+      );
     });
 
     it('should reject on closed poll', async () => {
       pollRepo.findOne.mockResolvedValue(makePoll({ closedAt: new Date() }));
-      await expect(service.vote('p1', 'u1', 'o1')).rejects.toThrow(ForbiddenException);
+      await expect(service.vote('p1', 'u1', 'o1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should clear prior votes for SINGLE poll', async () => {
       pollRepo.findOne.mockResolvedValue(makePoll());
-      optionRepo.findOne.mockResolvedValue({ id: 'o2', pollId: 'p1', weight: 1 });
+      optionRepo.findOne.mockResolvedValue({
+        id: 'o2',
+        pollId: 'p1',
+        weight: 1,
+      });
       // Mock existing prior vote
-      voteRepo.find.mockResolvedValue([{ userId: 'u1', optionId: 'o1', option: { pollId: 'p1' } }]);
+      voteRepo.find.mockResolvedValue([
+        { userId: 'u1', optionId: 'o1', option: { pollId: 'p1' } },
+      ]);
       await service.vote('p1', 'u1', 'o2');
       expect(voteRepo.remove).toHaveBeenCalled();
       expect(voteRepo.save).toHaveBeenCalled(); // new vote saved
     });
 
     it('should clear prior votes for WEIGHTED poll too (single-select)', async () => {
-      pollRepo.findOne.mockResolvedValue(makePoll({ pollType: PollTypeEnum.WEIGHTED }));
-      optionRepo.findOne.mockResolvedValue({ id: 'o2', pollId: 'p1', weight: 5 });
-      voteRepo.find.mockResolvedValue([{ userId: 'u1', optionId: 'o1', option: { pollId: 'p1' } }]);
+      pollRepo.findOne.mockResolvedValue(
+        makePoll({ pollType: PollTypeEnum.WEIGHTED }),
+      );
+      optionRepo.findOne.mockResolvedValue({
+        id: 'o2',
+        pollId: 'p1',
+        weight: 5,
+      });
+      voteRepo.find.mockResolvedValue([
+        { userId: 'u1', optionId: 'o1', option: { pollId: 'p1' } },
+      ]);
       await service.vote('p1', 'u1', 'o2');
       expect(voteRepo.remove).toHaveBeenCalled();
-      expect(voteRepo.save).toHaveBeenCalledWith(expect.objectContaining({ optionId: 'o2', weight: 5 }));
+      expect(voteRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ optionId: 'o2', weight: 5 }),
+      );
     });
 
     it('should NOT clear prior votes for MULTIPLE poll', async () => {
-      pollRepo.findOne.mockResolvedValue(makePoll({ pollType: PollTypeEnum.MULTIPLE }));
-      optionRepo.findOne.mockResolvedValue({ id: 'o2', pollId: 'p1', weight: 1 });
+      pollRepo.findOne.mockResolvedValue(
+        makePoll({ pollType: PollTypeEnum.MULTIPLE }),
+      );
+      optionRepo.findOne.mockResolvedValue({
+        id: 'o2',
+        pollId: 'p1',
+        weight: 1,
+      });
       await service.vote('p1', 'u1', 'o2');
       expect(voteRepo.remove).not.toHaveBeenCalled();
     });
@@ -231,14 +340,23 @@ describe('PollsService', () => {
 
   describe('updateVote', () => {
     it('should refresh the vote weight from the option', async () => {
-      voteRepo.findOne.mockResolvedValue({ userId: 'u1', optionId: 'o1', weight: 1, option: { pollId: 'p1', weight: 4 } });
+      voteRepo.findOne.mockResolvedValue({
+        userId: 'u1',
+        optionId: 'o1',
+        weight: 1,
+        option: { pollId: 'p1', weight: 4 },
+      });
       await service.updateVote('p1', 'u1', 'o1');
-      expect(voteRepo.save).toHaveBeenCalledWith(expect.objectContaining({ weight: 4 }));
+      expect(voteRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ weight: 4 }),
+      );
     });
 
     it('should throw when no matching vote exists', async () => {
       voteRepo.findOne.mockResolvedValue(null);
-      await expect(service.updateVote('p1', 'u1', 'o1')).rejects.toThrow(NotFoundException);
+      await expect(service.updateVote('p1', 'u1', 'o1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -259,14 +377,18 @@ describe('PollsService', () => {
       pollRepo.findOne.mockResolvedValue(makePoll());
       voteRepo.count.mockResolvedValue(0);
       await service.addOption('p1', 'u1', 'New option');
-      expect(optionRepo.save).toHaveBeenCalledWith(expect.objectContaining({ weight: 1 }));
+      expect(optionRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ weight: 1 }),
+      );
     });
 
     it('should add an option with a creator-assigned weight', async () => {
       pollRepo.findOne.mockResolvedValue(makePoll());
       voteRepo.count.mockResolvedValue(0);
       await service.addOption('p1', 'u1', 'New option', undefined, 1.5);
-      expect(optionRepo.save).toHaveBeenCalledWith(expect.objectContaining({ weight: 1.5 }));
+      expect(optionRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ weight: 1.5 }),
+      );
     });
   });
 });

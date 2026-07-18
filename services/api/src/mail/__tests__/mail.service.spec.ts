@@ -36,7 +36,10 @@ describe('MailService', () => {
       subject: 'Réinitialisation',
       templateName: 'reset-password',
       locale: 'fr',
-      variables: { resetLink: 'https://app.nabor.fr/reset?token=abc', firstName: 'Alice' },
+      variables: {
+        resetLink: 'https://app.nabor.fr/reset?token=abc',
+        firstName: 'Alice',
+      },
     });
 
     expect(mockSendMail).toHaveBeenCalledTimes(1);

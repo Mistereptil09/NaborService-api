@@ -77,7 +77,7 @@ export class SyncUpdateResultDto {
 
   @ApiPropertyOptional({
     description:
-      'ID serveur assigné lors d\'une création. Le client doit remplacer ' +
+      "ID serveur assigné lors d'une création. Le client doit remplacer " +
       'son UUID temporaire par cet ID dans sa base SQLite locale.',
   })
   @IsOptional()
@@ -85,13 +85,16 @@ export class SyncUpdateResultDto {
   server_entity_id?: string;
 
   @ApiPropertyOptional({
-    description: 'Raison du skip (champ requis manquant, action non supportée, etc.)',
+    description:
+      'Raison du skip (champ requis manquant, action non supportée, etc.)',
   })
   @IsOptional()
   @IsString()
   reason?: string;
 
-  @ApiPropertyOptional({ description: 'Conflict details (only when status = conflict)' })
+  @ApiPropertyOptional({
+    description: 'Conflict details (only when status = conflict)',
+  })
   @IsOptional()
   @IsObject()
   conflict?: {
@@ -102,21 +105,30 @@ export class SyncUpdateResultDto {
 }
 
 export class SyncUpdatesResponseDto {
-  @ApiProperty({ description: 'True when all updates were applied without conflicts' })
+  @ApiProperty({
+    description: 'True when all updates were applied without conflicts',
+  })
   @IsBoolean()
   success: boolean;
 
-  @ApiProperty({ description: 'True when at least one conflict was detected and logged' })
+  @ApiProperty({
+    description: 'True when at least one conflict was detected and logged',
+  })
   @IsBoolean()
   has_conflicts: boolean;
 
   @ApiProperty({ description: 'Number of updates successfully applied' })
   applied_count: number;
 
-  @ApiProperty({ description: 'Number of conflicts detected and logged for audit' })
+  @ApiProperty({
+    description: 'Number of conflicts detected and logged for audit',
+  })
   conflict_count: number;
 
-  @ApiProperty({ type: [SyncUpdateResultDto], description: 'Per-entity result details' })
+  @ApiProperty({
+    type: [SyncUpdateResultDto],
+    description: 'Per-entity result details',
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => SyncUpdateResultDto)

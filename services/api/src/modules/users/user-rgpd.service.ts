@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,9 +12,6 @@ import { DataProcessingService } from './data-processing.service';
 import { TotpService } from '../auth/totp.service';
 import { RectifyDataDto } from './dto/user-routes.dtos';
 import { PROCESSING_TYPES, ProcessingType } from './data-processing.constants';
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const otp = require('otplib');
 
 @Injectable()
 export class UserRgpdService {
@@ -29,25 +25,7 @@ export class UserRgpdService {
   ) {}
 
   private async verifyUserTotp(userId: string, code: string): Promise<void> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw new NotFoundException('Utilisateur introuvable');
-    }
-    if (!user.totpSecret) {
-      throw new ForbiddenException('TOTP non configuré');
-    }
-
-    let secret: string;
-    try {
-      secret = this.totpService.decryptSecret(user.totpSecret);
-    } catch {
-      throw new ForbiddenException('Erreur de déchiffrement du secret');
-    }
-
-    const isValid = otp.verifySync({ token: code, secret })?.valid === true;
-    if (!isValid) {
-      throw new ForbiddenException('TOTP requis ou invalide');
-    }
+    return this.totpService.verifyTotp(userId, code);
   }
 
   async rectifyPersonalData(

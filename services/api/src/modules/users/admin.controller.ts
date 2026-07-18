@@ -57,7 +57,9 @@ export class AdminController {
     type: AdminUsersListDto,
   })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
-  async getUsers(@Query() query: AdminListUsersDto): Promise<AdminUsersListDto> {
+  async getUsers(
+    @Query() query: AdminListUsersDto,
+  ): Promise<AdminUsersListDto> {
     const { data, meta } = await this.usersService.findAllAdmin({
       offset: query.offset,
       limit: query.limit,
@@ -71,8 +73,13 @@ export class AdminController {
   @Get('users/:user_id')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Consulter le profil complet de tout utilisateur (Admin)' })
-  @ApiOkResponse({ description: 'Profil utilisateur complet retourné', type: AdminUserDto })
+  @ApiOperation({
+    summary: 'Consulter le profil complet de tout utilisateur (Admin)',
+  })
+  @ApiOkResponse({
+    description: 'Profil utilisateur complet retourné',
+    type: AdminUserDto,
+  })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   @ApiNotFoundResponse({ description: 'Utilisateur introuvable' })
   async getUser(@Param('user_id') userId: string): Promise<AdminUserDto> {
@@ -83,7 +90,7 @@ export class AdminController {
   @Patch('users/:user_id/role')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Modifier le rôle d\'un utilisateur (Admin)' })
+  @ApiOperation({ summary: "Modifier le rôle d'un utilisateur (Admin)" })
   @ApiOkResponse({ description: 'Rôle mis à jour', type: AdminUserDto })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   @ApiNotFoundResponse({ description: 'Utilisateur introuvable' })
@@ -129,7 +136,9 @@ export class AdminController {
   })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   @ApiNotFoundResponse({ description: 'Utilisateur introuvable' })
-  async deleteUser(@Param('user_id') userId: string): Promise<SuccessResponseDto> {
+  async deleteUser(
+    @Param('user_id') userId: string,
+  ): Promise<SuccessResponseDto> {
     await this.usersService.adminSoftDelete(userId);
     return { success: true };
   }
@@ -138,11 +147,16 @@ export class AdminController {
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Désactiver la MFA TOTP pour un utilisateur' })
-  @ApiOkResponse({ description: 'MFA désactivée avec succès', type: SuccessResponseDto })
+  @ApiOkResponse({
+    description: 'MFA désactivée avec succès',
+    type: SuccessResponseDto,
+  })
   @ApiForbiddenResponse({ description: 'Action réservée aux administrateurs' })
   @ApiNotFoundResponse({ description: 'Utilisateur introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async disableTotp(@Param('user_id') userId: string): Promise<SuccessResponseDto> {
+  async disableTotp(
+    @Param('user_id') userId: string,
+  ): Promise<SuccessResponseDto> {
     await this.usersService.disableTotp(userId);
     return { success: true };
   }
