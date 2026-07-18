@@ -114,12 +114,17 @@ export class ChatService {
       where: { userId, leftAt: IsNull(), kickedAt: IsNull() },
       relations: ['group'],
     });
-    const roleByGroupId = new Map(memberships.map((m) => [m.groupId, m.roleInGroup]));
+    const roleByGroupId = new Map(
+      memberships.map((m) => [m.groupId, m.roleInGroup]),
+    );
     const groups = memberships
       .map((m) => m.group)
       .filter((g) => g && g.deletedAt === null);
     const enriched = await this.enrichGroups(groups, userId);
-    return enriched.map((g) => ({ ...g, my_role: roleByGroupId.get(g.id) ?? null }));
+    return enriched.map((g) => ({
+      ...g,
+      my_role: roleByGroupId.get(g.id) ?? null,
+    }));
   }
 
   /**
@@ -197,7 +202,8 @@ export class ChatService {
     const unreadCounts = await Promise.all(
       ids.map(async (id) => {
         const membership = membershipMap.get(id);
-        const threshold = membership?.lastReadAt ?? membership?.joinedAt ?? new Date(0);
+        const threshold =
+          membership?.lastReadAt ?? membership?.joinedAt ?? new Date(0);
         const count = await this.msgRepo.count({
           where: {
             groupId: id,
@@ -378,7 +384,12 @@ export class ChatService {
     const group = await this.getGroupDetail(groupId);
     const [enriched] = await this.enrichGroups([group], requestingUserId);
     const membership = await this.uigRepo.findOne({
-      where: { groupId, userId: requestingUserId, leftAt: IsNull(), kickedAt: IsNull() },
+      where: {
+        groupId,
+        userId: requestingUserId,
+        leftAt: IsNull(),
+        kickedAt: IsNull(),
+      },
     });
     return { ...enriched, my_role: membership?.roleInGroup ?? null };
   }

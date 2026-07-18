@@ -383,7 +383,9 @@ describe('CallsService', () => {
   describe('getIceServers', () => {
     it('falls back to STUN-only when Cloudflare credentials are not configured', async () => {
       const result = await service.getIceServers();
-      expect(result.flatMap((s) => s.urls)).toContain('stun:stun.l.google.com:19302');
+      expect(result.flatMap((s) => s.urls)).toContain(
+        'stun:stun.l.google.com:19302',
+      );
       expect(httpRetryService.fetchWithRetry).not.toHaveBeenCalled();
     });
 
@@ -401,7 +403,11 @@ describe('CallsService', () => {
         json: async () => ({
           iceServers: [
             { urls: ['stun:stun.cloudflare.com:3478'] },
-            { urls: ['turn:turn.cloudflare.com:3478?transport=udp'], username: 'u', credential: 'c' },
+            {
+              urls: ['turn:turn.cloudflare.com:3478?transport=udp'],
+              username: 'u',
+              credential: 'c',
+            },
           ],
         }),
       });

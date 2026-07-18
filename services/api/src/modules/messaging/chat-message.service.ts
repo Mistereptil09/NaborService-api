@@ -19,7 +19,10 @@ import {
   Message,
   MessageDocument,
 } from '../../database/mongo-schemas/schemas/message.schema';
-import { MediaFile, MediaFileDocument } from '../media/schemas/media-file.schema';
+import {
+  MediaFile,
+  MediaFileDocument,
+} from '../media/schemas/media-file.schema';
 import { MediaService } from '../media/services/media.service';
 import { User } from '../users/entities/user.entity';
 import { ChatGroupTypeEnum, GroupRoleEnum } from '../../common/enums';
@@ -79,11 +82,7 @@ export class ChatMessageService {
 
   // ── Send ────────────────────────────────────────────────
 
-  async sendMessage(
-    groupId: string,
-    senderId: string,
-    dto: SendMessageDto,
-  ) {
+  async sendMessage(groupId: string, senderId: string, dto: SendMessageDto) {
     // Note : la sourdine (mute) ne fait que masquer les notifications côté
     // destinataire, elle n'empêche jamais l'expéditeur d'envoyer/réagir dans
     // ses propres groupes — un utilisateur en sourdine dans un groupe doit
@@ -91,9 +90,13 @@ export class ChatMessageService {
     await this.chatService.assertCanParticipate(groupId, senderId);
     let parent: MessageMetadata | null = null;
     if (dto.parent_message_id) {
-      parent = await this.msgRepo.findOne({ where: { id: dto.parent_message_id } });
+      parent = await this.msgRepo.findOne({
+        where: { id: dto.parent_message_id },
+      });
       if (!parent || parent.groupId !== groupId) {
-        throw new NotFoundException('Message parent introuvable dans ce groupe');
+        throw new NotFoundException(
+          'Message parent introuvable dans ce groupe',
+        );
       }
     }
 
@@ -203,7 +206,9 @@ export class ChatMessageService {
   }
 
   /** Récupère les pièces jointes (module media, GridFS) pour un lot de messages, sans N+1. */
-  private async getAttachmentsMap(messageIds: string[]): Promise<Map<string, AttachmentDto[]>> {
+  private async getAttachmentsMap(
+    messageIds: string[],
+  ): Promise<Map<string, AttachmentDto[]>> {
     const map = new Map<string, AttachmentDto[]>();
     if (messageIds.length === 0) return map;
 
@@ -235,7 +240,7 @@ export class ChatMessageService {
     direction: 'older' | 'newer' = 'older',
   ) {
     if (!(await this.chatService.isMember(groupId, userId))) {
-      throw new ForbiddenException('Vous n\'êtes pas membre de ce groupe');
+      throw new ForbiddenException("Vous n'êtes pas membre de ce groupe");
     }
 
     // Jump-to-message (ex. depuis un message épinglé plus chargé dans le fil) :
@@ -243,7 +248,9 @@ export class ChatMessageService {
     // n'existe pas/plus, sans construire un query builder pour rien.
     let aroundTimestamp: Date | null = null;
     if (aroundMessageId) {
-      const target = await this.msgRepo.findOne({ where: { id: aroundMessageId, groupId } });
+      const target = await this.msgRepo.findOne({
+        where: { id: aroundMessageId, groupId },
+      });
       if (!target) throw new NotFoundException('Message introuvable');
       aroundTimestamp = target.sentAt;
     }
@@ -252,7 +259,8 @@ export class ChatMessageService {
     // qui définit déjà son propre point de départ) — comble le trou laissé
     // entre une fenêtre de contexte (jump-to-message) et le fil "en direct",
     // en repartant vers le présent au lieu de rester coincé dans le passé.
-    const fetchingNewer = direction === 'newer' && !aroundTimestamp && Boolean(cursor);
+    const fetchingNewer =
+      direction === 'newer' && !aroundTimestamp && Boolean(cursor);
 
     const qb = this.msgRepo
       .createQueryBuilder('m')
@@ -263,19 +271,27 @@ export class ChatMessageService {
     if (aroundTimestamp) {
       // `<=` (pas `<`) pour inclure le message cible lui-même — avec le tri
       // DESC il apparaît donc en tête de la page renvoyée.
-      qb.orderBy('m.sentAt', 'DESC').andWhere('m.sentAt <= :around', { around: aroundTimestamp });
+      qb.orderBy('m.sentAt', 'DESC').andWhere('m.sentAt <= :around', {
+        around: aroundTimestamp,
+      });
     } else if (fetchingNewer) {
-      const cursorDate = new Date(Buffer.from(cursor!, 'base64').toString('utf-8'));
-      qb.orderBy('m.sentAt', 'ASC').andWhere('m.sentAt > :cursor', { cursor: cursorDate });
+      const cursorDate = new Date(
+        Buffer.from(cursor!, 'base64').toString('utf-8'),
+      );
+      qb.orderBy('m.sentAt', 'ASC').andWhere('m.sentAt > :cursor', {
+        cursor: cursorDate,
+      });
     } else {
       qb.orderBy('m.sentAt', 'DESC');
       if (cursor) {
-        const cursorDate = new Date(Buffer.from(cursor, 'base64').toString('utf-8'));
+        const cursorDate = new Date(
+          Buffer.from(cursor, 'base64').toString('utf-8'),
+        );
         qb.andWhere('m.sentAt < :cursor', { cursor: cursorDate });
       }
     }
 
-    let metadata = await qb.getMany();
+    const metadata = await qb.getMany();
     const hasExtra = metadata.length > limit;
     if (hasExtra) metadata.pop();
     // Requêté en ASC pour rester "le plus proche du curseur d'abord" ; remis en
@@ -290,13 +306,13 @@ export class ChatMessageService {
       .lean();
 
     const groupKey = await this.getGroupKey(groupId);
-    const attachmentsMap = await this.getAttachmentsMap(metadata.map((m) => m.id));
+    const attachmentsMap = await this.getAttachmentsMap(
+      metadata.map((m) => m.id),
+    );
     const { usersMap, parentsById, parentMongoById } =
       await this.buildListEnrichment(metadata);
     const messages = metadata.map((pg) => {
-      const mongo = mongoDocs.find(
-        (d) => d.pg_message_id === pg.id,
-      );
+      const mongo = mongoDocs.find((d) => d.pg_message_id === pg.id);
       return this.toPlainMessage(mongo ?? null, pg, groupKey, {
         attachments: attachmentsMap.get(pg.id) ?? [],
         sender: usersMap.get(pg.senderId) ?? null,
@@ -321,7 +337,8 @@ export class ChatMessageService {
     // elle ne fait que combler le trou entre une fenêtre `around` et le direct,
     // donc pas besoin de faire une requête supplémentaire pour ce cas.
     const hasMoreOlder = fetchingNewer ? false : hasExtra;
-    const cursorOut = hasMoreOlder && oldestInBatch ? encode(oldestInBatch) : undefined;
+    const cursorOut =
+      hasMoreOlder && oldestInBatch ? encode(oldestInBatch) : undefined;
 
     // Curseur "plus récent" (comble le trou laissé par un jump-to-message) :
     // seulement calculé — pour ne pas alourdir le chemin normal (chargement
@@ -332,9 +349,16 @@ export class ChatMessageService {
       needsNewerInfo && newestInBatch
         ? fetchingNewer
           ? hasExtra
-          : await this.msgRepo.exists({ where: { groupId, isDeleted: false, sentAt: MoreThan(newestInBatch) } })
+          : await this.msgRepo.exists({
+              where: {
+                groupId,
+                isDeleted: false,
+                sentAt: MoreThan(newestInBatch),
+              },
+            })
         : false;
-    const newerCursorOut = hasMoreNewer && newestInBatch ? encode(newestInBatch) : undefined;
+    const newerCursorOut =
+      hasMoreNewer && newestInBatch ? encode(newestInBatch) : undefined;
 
     return {
       messages,
@@ -353,7 +377,7 @@ export class ChatMessageService {
    */
   async getPinnedMessages(groupId: string, userId: string) {
     if (!(await this.chatService.isMember(groupId, userId))) {
-      throw new ForbiddenException('Vous n\'êtes pas membre de ce groupe');
+      throw new ForbiddenException("Vous n'êtes pas membre de ce groupe");
     }
 
     const metadata = await this.msgRepo.find({
@@ -368,7 +392,9 @@ export class ChatMessageService {
       .lean();
 
     const groupKey = await this.getGroupKey(groupId);
-    const attachmentsMap = await this.getAttachmentsMap(metadata.map((m) => m.id));
+    const attachmentsMap = await this.getAttachmentsMap(
+      metadata.map((m) => m.id),
+    );
     const usersMap = await this.getUsersMap(metadata.map((m) => m.senderId));
     const messages = metadata.map((pg) => {
       const mongo = mongoDocs.find((d) => d.pg_message_id === pg.id);
@@ -390,7 +416,7 @@ export class ChatMessageService {
    */
   async getGroupAttachments(groupId: string, userId: string) {
     if (!(await this.chatService.isMember(groupId, userId))) {
-      throw new ForbiddenException('Vous n\'êtes pas membre de ce groupe');
+      throw new ForbiddenException("Vous n'êtes pas membre de ce groupe");
     }
 
     // Les media_files ne référencent pas le groupe (owner_id = id de message) :
@@ -433,14 +459,15 @@ export class ChatMessageService {
     if (!metadata) throw new NotFoundException('Message introuvable');
 
     if (!(await this.chatService.isMember(metadata.groupId, userId))) {
-      throw new ForbiddenException('Vous n\'êtes pas membre de ce groupe');
+      throw new ForbiddenException("Vous n'êtes pas membre de ce groupe");
     }
 
     const mongo = await this.messageModel
       .findOne({ pg_message_id: messageId })
       .lean();
     const groupKey = await this.getGroupKey(metadata.groupId);
-    const attachments = (await this.getAttachmentsMap([messageId])).get(messageId) ?? [];
+    const attachments =
+      (await this.getAttachmentsMap([messageId])).get(messageId) ?? [];
     const sender = await this.buildSenderDto(metadata.senderId);
     const parentMessage = await this.getSingleParentPreview(
       metadata.parentMessageId,
@@ -461,7 +488,9 @@ export class ChatMessageService {
     if (!metadata || metadata.isDeleted)
       throw new NotFoundException('Message introuvable');
     if (metadata.senderId !== userId)
-      throw new ForbiddenException('Seul l\'expéditeur peut modifier son message');
+      throw new ForbiddenException(
+        "Seul l'expéditeur peut modifier son message",
+      );
 
     const mongo = await this.messageModel.findOne({ pg_message_id: messageId });
     if (!mongo) throw new NotFoundException('Contenu introuvable');
@@ -487,7 +516,8 @@ export class ChatMessageService {
     metadata.editedAt = new Date();
     await this.msgRepo.save(metadata);
 
-    const attachments = (await this.getAttachmentsMap([messageId])).get(messageId) ?? [];
+    const attachments =
+      (await this.getAttachmentsMap([messageId])).get(messageId) ?? [];
     const sender = await this.buildSenderDto(metadata.senderId);
     const parentMessage = await this.getSingleParentPreview(
       metadata.parentMessageId,
@@ -505,7 +535,8 @@ export class ChatMessageService {
   /** Remplace la réaction active de l'utilisateur (une seule réaction par utilisateur et par message). */
   async setReaction(messageId: string, userId: string, emoji: string) {
     const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
-    if (!metadata || metadata.isDeleted) throw new NotFoundException('Message introuvable');
+    if (!metadata || metadata.isDeleted)
+      throw new NotFoundException('Message introuvable');
     await this.chatService.assertCanParticipate(metadata.groupId, userId);
 
     // $pull puis $push séparément : MongoDB refuse de modifier le même chemin
@@ -516,17 +547,28 @@ export class ChatMessageService {
     );
     await this.messageModel.updateOne(
       { pg_message_id: messageId },
-      { $push: { reactions: { pg_user_id: userId, emoji, reacted_at: new Date() } } },
+      {
+        $push: {
+          reactions: { pg_user_id: userId, emoji, reacted_at: new Date() },
+        },
+      },
     );
 
-    const mongo = await this.messageModel.findOne({ pg_message_id: messageId }).lean();
-    return { group_id: metadata.groupId, message_id: messageId, reactions: mongo?.reactions ?? [] };
+    const mongo = await this.messageModel
+      .findOne({ pg_message_id: messageId })
+      .lean();
+    return {
+      group_id: metadata.groupId,
+      message_id: messageId,
+      reactions: mongo?.reactions ?? [],
+    };
   }
 
   /** Retire la réaction active de l'utilisateur, quel que soit l'emoji. */
   async removeReaction(messageId: string, userId: string) {
     const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
-    if (!metadata || metadata.isDeleted) throw new NotFoundException('Message introuvable');
+    if (!metadata || metadata.isDeleted)
+      throw new NotFoundException('Message introuvable');
     await this.chatService.assertCanParticipate(metadata.groupId, userId);
 
     await this.messageModel.updateOne(
@@ -534,15 +576,22 @@ export class ChatMessageService {
       { $pull: { reactions: { pg_user_id: userId } } },
     );
 
-    const mongo = await this.messageModel.findOne({ pg_message_id: messageId }).lean();
-    return { group_id: metadata.groupId, message_id: messageId, reactions: mongo?.reactions ?? [] };
+    const mongo = await this.messageModel
+      .findOne({ pg_message_id: messageId })
+      .lean();
+    return {
+      group_id: metadata.groupId,
+      message_id: messageId,
+      reactions: mongo?.reactions ?? [],
+    };
   }
 
   // ── Pin ─────────────────────────────────────────────────
 
   async pinMessage(messageId: string, userId: string) {
     const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
-    if (!metadata || metadata.isDeleted) throw new NotFoundException('Message introuvable');
+    if (!metadata || metadata.isDeleted)
+      throw new NotFoundException('Message introuvable');
     await this.assertCanPin(metadata.groupId, userId);
 
     metadata.pinned = true;
@@ -555,7 +604,8 @@ export class ChatMessageService {
 
   async unpinMessage(messageId: string, userId: string) {
     const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
-    if (!metadata || metadata.isDeleted) throw new NotFoundException('Message introuvable');
+    if (!metadata || metadata.isDeleted)
+      throw new NotFoundException('Message introuvable');
     await this.assertCanPin(metadata.groupId, userId);
 
     metadata.pinned = false;
@@ -577,7 +627,9 @@ export class ChatMessageService {
     const group = await this.groupRepo.findOne({ where: { id: groupId } });
     if (group?.type === ChatGroupTypeEnum.DIRECT_MESSAGE) {
       if (!(await this.chatService.isMember(groupId, userId))) {
-        throw new ForbiddenException('Vous n\'êtes pas membre de cette conversation');
+        throw new ForbiddenException(
+          "Vous n'êtes pas membre de cette conversation",
+        );
       }
       return;
     }
@@ -627,7 +679,8 @@ export class ChatMessageService {
    * the message deletion that already succeeded.
    */
   private async deleteAttachments(messageId: string): Promise<void> {
-    const attachments = (await this.getAttachmentsMap([messageId])).get(messageId) ?? [];
+    const attachments =
+      (await this.getAttachmentsMap([messageId])).get(messageId) ?? [];
     await Promise.all(
       attachments.map((att) =>
         this.mediaService.delete(att.media_id).catch(() => undefined),
@@ -670,7 +723,8 @@ export class ChatMessageService {
   ) {
     // Verify group exists
     const group = await this.groupRepo.findOne({ where: { id: groupId } });
-    if (!group || group.deletedAt) throw new NotFoundException('Groupe introuvable');
+    if (!group || group.deletedAt)
+      throw new NotFoundException('Groupe introuvable');
 
     const qb = this.msgRepo
       .createQueryBuilder('m')
@@ -680,7 +734,9 @@ export class ChatMessageService {
       .take(limit + 1);
 
     if (cursor) {
-      const cursorDate = new Date(Buffer.from(cursor, 'base64').toString('utf-8'));
+      const cursorDate = new Date(
+        Buffer.from(cursor, 'base64').toString('utf-8'),
+      );
       qb.andWhere('m.sentAt < :cursor', { cursor: cursorDate });
     }
 
@@ -694,7 +750,9 @@ export class ChatMessageService {
       .lean();
 
     const groupKey = await this.getGroupKey(groupId);
-    const attachmentsMap = await this.getAttachmentsMap(metadata.map((m) => m.id));
+    const attachmentsMap = await this.getAttachmentsMap(
+      metadata.map((m) => m.id),
+    );
     const { usersMap, parentsById, parentMongoById } =
       await this.buildListEnrichment(metadata);
     const messages = metadata.map((pg) => {
@@ -717,7 +775,9 @@ export class ChatMessageService {
 
     const nextCursor =
       hasMore && metadata.length > 0
-        ? Buffer.from(metadata[metadata.length - 1].sentAt.toISOString()).toString('base64')
+        ? Buffer.from(
+            metadata[metadata.length - 1].sentAt.toISOString(),
+          ).toString('base64')
         : undefined;
 
     return { messages, has_more: hasMore, cursor: nextCursor };
@@ -737,9 +797,11 @@ export class ChatMessageService {
     const mongo = await this.messageModel.findOne({ pg_message_id: messageId });
 
     const groupKey = await this.getGroupKey(metadata.groupId);
-    if (!groupKey) throw new NotFoundException('Clé de chiffrement introuvable');
+    if (!groupKey)
+      throw new NotFoundException('Clé de chiffrement introuvable');
 
-    const attachments = (await this.getAttachmentsMap([messageId])).get(messageId) ?? [];
+    const attachments =
+      (await this.getAttachmentsMap([messageId])).get(messageId) ?? [];
     const sender = await this.buildSenderDto(metadata.senderId);
     const parentMessage = await this.getSingleParentPreview(
       metadata.parentMessageId,
@@ -759,7 +821,8 @@ export class ChatMessageService {
    */
   async getGroupAttachmentsAsAdmin(groupId: string) {
     const group = await this.groupRepo.findOne({ where: { id: groupId } });
-    if (!group || group.deletedAt) throw new NotFoundException('Groupe introuvable');
+    if (!group || group.deletedAt)
+      throw new NotFoundException('Groupe introuvable');
 
     const metadata = await this.msgRepo.find({
       where: { groupId, isDeleted: false },
@@ -799,7 +862,8 @@ export class ChatMessageService {
    */
   async getPinnedMessagesAsAdmin(groupId: string) {
     const group = await this.groupRepo.findOne({ where: { id: groupId } });
-    if (!group || group.deletedAt) throw new NotFoundException('Groupe introuvable');
+    if (!group || group.deletedAt)
+      throw new NotFoundException('Groupe introuvable');
 
     const metadata = await this.msgRepo.find({
       where: { groupId, isDeleted: false, pinned: true },
@@ -813,7 +877,9 @@ export class ChatMessageService {
       .lean();
 
     const groupKey = await this.getGroupKey(groupId);
-    const attachmentsMap = await this.getAttachmentsMap(metadata.map((m) => m.id));
+    const attachmentsMap = await this.getAttachmentsMap(
+      metadata.map((m) => m.id),
+    );
     const usersMap = await this.getUsersMap(metadata.map((m) => m.senderId));
     const messages = metadata.map((pg) => {
       const mongo = mongoDocs.find((d) => d.pg_message_id === pg.id);
@@ -840,7 +906,8 @@ export class ChatMessageService {
     if (!mongo) throw new NotFoundException('Contenu introuvable');
 
     const groupKey = await this.getGroupKey(metadata.groupId);
-    if (!groupKey) throw new NotFoundException('Clé de chiffrement introuvable');
+    if (!groupKey)
+      throw new NotFoundException('Clé de chiffrement introuvable');
 
     const iv = crypto.randomBytes(IV_LENGTH);
     const cipher = crypto.createCipheriv(AES_ALGO, groupKey, iv);
@@ -901,8 +968,15 @@ export class ChatMessageService {
   // ── AES Key management ──────────────────────────────────
 
   /** Encrypts a group key for safe storage in PostgreSQL. */
-  private encryptGroupKeyForStorage(rawKey: Buffer): { encrypted: string; iv: string; authTag: string } {
-    const masterKey = Buffer.from(this.configService.get<string>('AES_MASTER_KEY')!, 'hex');
+  private encryptGroupKeyForStorage(rawKey: Buffer): {
+    encrypted: string;
+    iv: string;
+    authTag: string;
+  } {
+    const masterKey = Buffer.from(
+      this.configService.get<string>('AES_MASTER_KEY')!,
+      'hex',
+    );
     const iv = crypto.randomBytes(IV_LENGTH);
     const cipher = crypto.createCipheriv(AES_ALGO, masterKey, iv);
     const encrypted = Buffer.concat([cipher.update(rawKey), cipher.final()]);
@@ -915,11 +989,25 @@ export class ChatMessageService {
   }
 
   /** Decrypts a group key retrieved from PostgreSQL. */
-  private decryptStoredGroupKey(encryptedB64: string, ivB64: string, authTagB64: string): Buffer {
-    const masterKey = Buffer.from(this.configService.get<string>('AES_MASTER_KEY')!, 'hex');
-    const decipher = crypto.createDecipheriv(AES_ALGO, masterKey, Buffer.from(ivB64, 'base64'));
+  private decryptStoredGroupKey(
+    encryptedB64: string,
+    ivB64: string,
+    authTagB64: string,
+  ): Buffer {
+    const masterKey = Buffer.from(
+      this.configService.get<string>('AES_MASTER_KEY')!,
+      'hex',
+    );
+    const decipher = crypto.createDecipheriv(
+      AES_ALGO,
+      masterKey,
+      Buffer.from(ivB64, 'base64'),
+    );
     decipher.setAuthTag(Buffer.from(authTagB64, 'base64'));
-    return Buffer.concat([decipher.update(Buffer.from(encryptedB64, 'base64')), decipher.final()]);
+    return Buffer.concat([
+      decipher.update(Buffer.from(encryptedB64, 'base64')),
+      decipher.final(),
+    ]);
   }
 
   /**
@@ -939,7 +1027,12 @@ export class ChatMessageService {
     const fromDb = await this.getGroupKeyFromDb(groupId);
     if (fromDb) {
       // Restore to Redis so next read hits the fast path
-      await this.redis.set(redisKey, fromDb.toString('base64'), 'EX', GROUP_KEY_CACHE_TTL);
+      await this.redis.set(
+        redisKey,
+        fromDb.toString('base64'),
+        'EX',
+        GROUP_KEY_CACHE_TTL,
+      );
       return fromDb;
     }
 
@@ -948,9 +1041,16 @@ export class ChatMessageService {
     const packed = this.encryptGroupKeyForStorage(newKey);
     await this.groupRepo.update(
       { id: groupId },
-      { encryptedGroupKey: `${packed.iv}:${packed.authTag}:${packed.encrypted}` },
+      {
+        encryptedGroupKey: `${packed.iv}:${packed.authTag}:${packed.encrypted}`,
+      },
     );
-    await this.redis.set(redisKey, newKey.toString('base64'), 'EX', GROUP_KEY_CACHE_TTL);
+    await this.redis.set(
+      redisKey,
+      newKey.toString('base64'),
+      'EX',
+      GROUP_KEY_CACHE_TTL,
+    );
     return newKey;
   }
 
@@ -982,7 +1082,12 @@ export class ChatMessageService {
     // 2. Fall back to PostgreSQL + restore to Redis
     const fromDb = await this.getGroupKeyFromDb(groupId);
     if (fromDb) {
-      await this.redis.set(redisKey, fromDb.toString('base64'), 'EX', GROUP_KEY_CACHE_TTL);
+      await this.redis.set(
+        redisKey,
+        fromDb.toString('base64'),
+        'EX',
+        GROUP_KEY_CACHE_TTL,
+      );
       return fromDb;
     }
 
@@ -1078,7 +1183,9 @@ export class ChatMessageService {
   }
 
   /** Batch user lookup (avoids N+1 when enriching a page of messages). */
-  private async getUsersMap(userIds: string[]): Promise<Map<string, SenderDto>> {
+  private async getUsersMap(
+    userIds: string[],
+  ): Promise<Map<string, SenderDto>> {
     const map = new Map<string, SenderDto>();
     const unique = [...new Set(userIds)];
     if (unique.length === 0) return map;
@@ -1100,7 +1207,9 @@ export class ChatMessageService {
     groupKey: Buffer | null,
   ): Promise<ParentMessagePreviewDto | null> {
     if (!parentMessageId) return null;
-    const parent = await this.msgRepo.findOne({ where: { id: parentMessageId } });
+    const parent = await this.msgRepo.findOne({
+      where: { id: parentMessageId },
+    });
     if (!parent) return null;
     return this.buildParentPreview(parent, groupKey);
   }
@@ -1109,11 +1218,18 @@ export class ChatMessageService {
     parent: MessageMetadata,
     groupKey: Buffer | null,
   ): Promise<ParentMessagePreviewDto> {
-    const mongo = await this.messageModel.findOne({ pg_message_id: parent.id }).lean();
+    const mongo = await this.messageModel
+      .findOne({ pg_message_id: parent.id })
+      .lean();
     const sender = await this.buildSenderDto(parent.senderId);
     const content =
       !parent.isDeleted && groupKey && mongo?.content_encrypted
-        ? this.decryptContent(mongo.content_encrypted, mongo.iv, mongo.auth_tag, groupKey)
+        ? this.decryptContent(
+            mongo.content_encrypted,
+            mongo.iv,
+            mongo.auth_tag,
+            groupKey,
+          )
         : null;
     return {
       id: parent.id,
@@ -1136,7 +1252,10 @@ export class ChatMessageService {
     const parentIds = [
       ...new Set(
         metadata
-          .filter((m): m is MessageMetadata & { parentMessageId: string } => !!m.parentMessageId)
+          .filter(
+            (m): m is MessageMetadata & { parentMessageId: string } =>
+              !!m.parentMessageId,
+          )
           .map((m) => m.parentMessageId),
       ),
     ];
@@ -1144,7 +1263,9 @@ export class ChatMessageService {
       ? await this.msgRepo.find({ where: { id: In(parentIds) } })
       : [];
     const parentMongoDocs = parentIds.length
-      ? await this.messageModel.find({ pg_message_id: { $in: parentIds } }).lean()
+      ? await this.messageModel
+          .find({ pg_message_id: { $in: parentIds } })
+          .lean()
       : [];
 
     const senderIds = [
@@ -1156,7 +1277,9 @@ export class ChatMessageService {
     return {
       usersMap,
       parentsById: new Map(parents.map((p) => [p.id, p])),
-      parentMongoById: new Map(parentMongoDocs.map((d: any) => [d.pg_message_id, d])),
+      parentMongoById: new Map(
+        parentMongoDocs.map((d: any) => [d.pg_message_id, d]),
+      ),
     };
   }
 
@@ -1172,7 +1295,12 @@ export class ChatMessageService {
     const mongo = parentMongoById.get(parent.id);
     const content =
       !parent.isDeleted && groupKey && mongo?.content_encrypted
-        ? this.decryptContent(mongo.content_encrypted, mongo.iv, mongo.auth_tag, groupKey)
+        ? this.decryptContent(
+            mongo.content_encrypted,
+            mongo.iv,
+            mongo.auth_tag,
+            groupKey,
+          )
         : null;
     return {
       id: parent.id,

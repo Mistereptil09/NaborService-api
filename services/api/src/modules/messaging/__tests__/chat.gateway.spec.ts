@@ -27,20 +27,40 @@ describe('ChatGateway', () => {
     redis = { get: jest.fn(), set: jest.fn(), del: jest.fn() };
 
     jwtService = {
-      verify: jest.fn().mockReturnValue({ sub: 'u1', role: 'resident', locale: 'fr' }),
+      verify: jest
+        .fn()
+        .mockReturnValue({ sub: 'u1', role: 'resident', locale: 'fr' }),
     };
 
     chatMessageService = {
-      sendMessage: jest.fn().mockResolvedValue({ id: 'msg1', group_id: 'g1', content: 'Hello' }),
-      markRead: jest.fn().mockResolvedValue({ message_id: 'msg1', user_id: 'u1', read: true }),
-      editMessage: jest.fn().mockResolvedValue({ id: 'msg1', group_id: 'g1', content: 'Edited' }),
-      softDeleteMessage: jest.fn().mockResolvedValue({ deleted: true, message_id: 'msg1' }),
+      sendMessage: jest
+        .fn()
+        .mockResolvedValue({ id: 'msg1', group_id: 'g1', content: 'Hello' }),
+      markRead: jest
+        .fn()
+        .mockResolvedValue({ message_id: 'msg1', user_id: 'u1', read: true }),
+      editMessage: jest
+        .fn()
+        .mockResolvedValue({ id: 'msg1', group_id: 'g1', content: 'Edited' }),
+      softDeleteMessage: jest
+        .fn()
+        .mockResolvedValue({ deleted: true, message_id: 'msg1' }),
       setReaction: jest.fn().mockResolvedValue({
-        group_id: 'g1', message_id: 'msg1', reactions: [{ pg_user_id: 'u1', emoji: '👍' }],
+        group_id: 'g1',
+        message_id: 'msg1',
+        reactions: [{ pg_user_id: 'u1', emoji: '👍' }],
       }),
-      removeReaction: jest.fn().mockResolvedValue({ group_id: 'g1', message_id: 'msg1', reactions: [] }),
-      pinMessage: jest.fn().mockResolvedValue({ id: 'msg1', group_id: 'g1', pinned: true }),
-      unpinMessage: jest.fn().mockResolvedValue({ id: 'msg1', group_id: 'g1', pinned: false }),
+      removeReaction: jest.fn().mockResolvedValue({
+        group_id: 'g1',
+        message_id: 'msg1',
+        reactions: [],
+      }),
+      pinMessage: jest
+        .fn()
+        .mockResolvedValue({ id: 'msg1', group_id: 'g1', pinned: true }),
+      unpinMessage: jest
+        .fn()
+        .mockResolvedValue({ id: 'msg1', group_id: 'g1', pinned: false }),
     };
 
     chatService = {
@@ -61,7 +81,10 @@ describe('ChatGateway', () => {
 
     gateway = module.get(ChatGateway);
     // Mock the server
-    (gateway as any).server = { to: jest.fn().mockReturnValue({ emit: jest.fn() }), emit: jest.fn() };
+    (gateway as any).server = {
+      to: jest.fn().mockReturnValue({ emit: jest.fn() }),
+      emit: jest.fn(),
+    };
   });
 
   it('should be defined', () => expect(gateway).toBeDefined());
@@ -77,7 +100,9 @@ describe('ChatGateway', () => {
     });
 
     it('should disconnect on invalid token', async () => {
-      jwtService.verify.mockImplementationOnce(() => { throw new Error('invalid'); });
+      jwtService.verify.mockImplementationOnce(() => {
+        throw new Error('invalid');
+      });
       const client = mockSocket('bad');
       await gateway.handleConnection(client as any);
       expect(client.disconnect).toHaveBeenCalled();
@@ -101,19 +126,30 @@ describe('ChatGateway', () => {
         client as any,
       );
       expect(result.status).toBe('sent');
-      expect(chatMessageService.sendMessage).toHaveBeenCalledWith('g1', 'u1', { content: 'Hello', type: 'text', parent_message_id: undefined });
+      expect(chatMessageService.sendMessage).toHaveBeenCalledWith('g1', 'u1', {
+        content: 'Hello',
+        type: 'text',
+        parent_message_id: undefined,
+      });
     });
 
     it('should pass parent_message_id through to the service', async () => {
       const client = mockSocket();
       client.userId = 'u1';
       await gateway.handleSend(
-        { group_id: 'g1', content: 'Reply', type: 'text', parent_message_id: 'parent1' },
+        {
+          group_id: 'g1',
+          content: 'Reply',
+          type: 'text',
+          parent_message_id: 'parent1',
+        },
         client as any,
       );
-      expect(chatMessageService.sendMessage).toHaveBeenCalledWith(
-        'g1', 'u1', { content: 'Reply', type: 'text', parent_message_id: 'parent1' },
-      );
+      expect(chatMessageService.sendMessage).toHaveBeenCalledWith('g1', 'u1', {
+        content: 'Reply',
+        type: 'text',
+        parent_message_id: 'parent1',
+      });
     });
   });
 
@@ -123,8 +159,15 @@ describe('ChatGateway', () => {
     it('should react and broadcast the updated reaction list to the group room', async () => {
       const client = mockSocket();
       client.userId = 'u1';
-      const result = await gateway.handleReact({ message_id: 'msg1', emoji: '👍' }, client as any);
-      expect(chatMessageService.setReaction).toHaveBeenCalledWith('msg1', 'u1', '👍');
+      const result = await gateway.handleReact(
+        { message_id: 'msg1', emoji: '👍' },
+        client as any,
+      );
+      expect(chatMessageService.setReaction).toHaveBeenCalledWith(
+        'msg1',
+        'u1',
+        '👍',
+      );
       expect(result.status).toBe('reacted');
       expect((gateway as any).server.to).toHaveBeenCalledWith('chat:group:g1');
     });
@@ -134,8 +177,14 @@ describe('ChatGateway', () => {
     it('should unreact and broadcast the updated reaction list', async () => {
       const client = mockSocket();
       client.userId = 'u1';
-      const result = await gateway.handleUnreact({ message_id: 'msg1' }, client as any);
-      expect(chatMessageService.removeReaction).toHaveBeenCalledWith('msg1', 'u1');
+      const result = await gateway.handleUnreact(
+        { message_id: 'msg1' },
+        client as any,
+      );
+      expect(chatMessageService.removeReaction).toHaveBeenCalledWith(
+        'msg1',
+        'u1',
+      );
       expect(result.status).toBe('unreacted');
       expect((gateway as any).server.to).toHaveBeenCalledWith('chat:group:g1');
     });
@@ -147,7 +196,10 @@ describe('ChatGateway', () => {
     it('should mark read and broadcast ack', async () => {
       const client = mockSocket();
       client.userId = 'u1';
-      const result = await gateway.handleRead({ message_id: 'msg1' }, client as any);
+      const result = await gateway.handleRead(
+        { message_id: 'msg1' },
+        client as any,
+      );
       expect(result.read).toBe(true);
       expect(chatMessageService.markRead).toHaveBeenCalledWith('msg1', 'u1');
     });
@@ -173,7 +225,10 @@ describe('ChatGateway', () => {
     it('should delete and broadcast', async () => {
       const client = mockSocket();
       client.userId = 'u1';
-      const result = await gateway.handleDelete({ message_id: 'msg1' }, client as any);
+      const result = await gateway.handleDelete(
+        { message_id: 'msg1' },
+        client as any,
+      );
       expect(result.deleted).toBe(true);
     });
   });
@@ -184,7 +239,10 @@ describe('ChatGateway', () => {
     it('should pin and broadcast to the group room', async () => {
       const client = mockSocket();
       client.userId = 'u1';
-      const result = await gateway.handlePin({ message_id: 'msg1' }, client as any);
+      const result = await gateway.handlePin(
+        { message_id: 'msg1' },
+        client as any,
+      );
       expect(chatMessageService.pinMessage).toHaveBeenCalledWith('msg1', 'u1');
       expect(result.status).toBe('pinned');
       expect((gateway as any).server.to).toHaveBeenCalledWith('chat:group:g1');
@@ -195,8 +253,14 @@ describe('ChatGateway', () => {
     it('should unpin and broadcast to the group room', async () => {
       const client = mockSocket();
       client.userId = 'u1';
-      const result = await gateway.handleUnpin({ message_id: 'msg1' }, client as any);
-      expect(chatMessageService.unpinMessage).toHaveBeenCalledWith('msg1', 'u1');
+      const result = await gateway.handleUnpin(
+        { message_id: 'msg1' },
+        client as any,
+      );
+      expect(chatMessageService.unpinMessage).toHaveBeenCalledWith(
+        'msg1',
+        'u1',
+      );
       expect(result.status).toBe('unpinned');
       expect((gateway as any).server.to).toHaveBeenCalledWith('chat:group:g1');
     });
@@ -208,7 +272,10 @@ describe('ChatGateway', () => {
     it('should mark the conversation read', async () => {
       const client = mockSocket();
       client.userId = 'u1';
-      const result = await gateway.handleGroupRead({ group_id: 'g1' }, client as any);
+      const result = await gateway.handleGroupRead(
+        { group_id: 'g1' },
+        client as any,
+      );
       expect(chatService.markGroupRead).toHaveBeenCalledWith('g1', 'u1');
       expect(result.status).toBe('read');
     });
@@ -249,7 +316,10 @@ describe('ChatGateway', () => {
     it('should join room if member', async () => {
       const client = mockSocket();
       client.userId = 'u1';
-      const result = await gateway.handleJoinGroup({ group_id: 'g1' }, client as any);
+      const result = await gateway.handleJoinGroup(
+        { group_id: 'g1' },
+        client as any,
+      );
       expect(result?.status).toBe('joined');
       expect(client.join).toHaveBeenCalledWith('chat:group:g1');
     });
@@ -258,7 +328,10 @@ describe('ChatGateway', () => {
       chatService.isMember.mockResolvedValueOnce(false);
       const client = mockSocket();
       client.userId = 'u1';
-      const result = await gateway.handleJoinGroup({ group_id: 'g1' }, client as any);
+      const result = await gateway.handleJoinGroup(
+        { group_id: 'g1' },
+        client as any,
+      );
       expect(result?.status).toBe('forbidden');
     });
   });
@@ -266,7 +339,10 @@ describe('ChatGateway', () => {
   describe('leave_group', () => {
     it('should leave room', async () => {
       const client = mockSocket();
-      const result = await gateway.handleLeaveGroup({ group_id: 'g1' }, client as any);
+      const result = await gateway.handleLeaveGroup(
+        { group_id: 'g1' },
+        client as any,
+      );
       expect(result.status).toBe('left');
       expect(client.leave).toHaveBeenCalledWith('chat:group:g1');
     });

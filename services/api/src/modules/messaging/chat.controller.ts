@@ -12,7 +12,13 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/auth.interfaces';
 import { ChatService } from './chat.service';
@@ -36,7 +42,7 @@ export class ChatController {
   // ── Groups ──────────────────────────────────────────────
 
   @Get('groups')
-  @ApiOperation({ summary: 'Groupes de l\'utilisateur connecté' })
+  @ApiOperation({ summary: "Groupes de l'utilisateur connecté" })
   async getGroups(@Req() req: any) {
     return this.chatService.getUserGroups(req.user.sub);
   }
@@ -48,7 +54,7 @@ export class ChatController {
   }
 
   @Get('groups/:group_id')
-  @ApiOperation({ summary: 'Détail d\'un groupe' })
+  @ApiOperation({ summary: "Détail d'un groupe" })
   async getGroup(
     @Param('group_id') groupId: string,
     @Req() req: { user: JwtPayload },
@@ -114,7 +120,7 @@ export class ChatController {
   }
 
   @Patch('groups/:group_id/members/:user_id')
-  @ApiOperation({ summary: 'Modifier le rôle d\'un membre (admin uniquement)' })
+  @ApiOperation({ summary: "Modifier le rôle d'un membre (admin uniquement)" })
   async changeRole(
     @Param('group_id') groupId: string,
     @Param('user_id') userId: string,
@@ -127,7 +133,9 @@ export class ChatController {
   // ── Read pointer ────────────────────────────────────────
 
   @Post('groups/:group_id/read')
-  @ApiOperation({ summary: 'Marquer la conversation comme lue (badge non-lus)' })
+  @ApiOperation({
+    summary: 'Marquer la conversation comme lue (badge non-lus)',
+  })
   async markGroupRead(
     @Param('group_id') groupId: string,
     @Req() req: { user: JwtPayload },
@@ -161,8 +169,18 @@ export class ChatController {
   @ApiOperation({ summary: 'Historique paginé (cursor-based, déchiffré)' })
   @ApiQuery({ name: 'cursor', required: false })
   @ApiQuery({ name: 'limit', required: false })
-  @ApiQuery({ name: 'around', required: false, description: 'Id de message : ancre la page sur son horodatage au lieu de "maintenant" (jump-to-message).' })
-  @ApiQuery({ name: 'direction', required: false, description: '"older" (défaut) ou "newer" — avec `cursor`, remonte vers le direct après un jump-to-message.' })
+  @ApiQuery({
+    name: 'around',
+    required: false,
+    description:
+      'Id de message : ancre la page sur son horodatage au lieu de "maintenant" (jump-to-message).',
+  })
+  @ApiQuery({
+    name: 'direction',
+    required: false,
+    description:
+      '"older" (défaut) ou "newer" — avec `cursor`, remonte vers le direct après un jump-to-message.',
+  })
   async getMessages(
     @Param('group_id') groupId: string,
     @Req() req: { user: JwtPayload },
@@ -182,7 +200,9 @@ export class ChatController {
   }
 
   @Get('groups/:group_id/pinned')
-  @ApiOperation({ summary: 'Messages épinglés du groupe (liste complète, non paginée)' })
+  @ApiOperation({
+    summary: 'Messages épinglés du groupe (liste complète, non paginée)',
+  })
   async getPinnedMessages(
     @Param('group_id') groupId: string,
     @Req() req: { user: JwtPayload },
@@ -192,7 +212,8 @@ export class ChatController {
 
   @Get('groups/:group_id/attachments')
   @ApiOperation({
-    summary: 'Fichiers partagés du groupe (toutes les pièces jointes, non paginé)',
+    summary:
+      'Fichiers partagés du groupe (toutes les pièces jointes, non paginé)',
     description:
       "Liste toutes les pièces jointes des messages non supprimés du groupe, triées du plus récent au plus ancien. Indépendant de la pagination du fil (un fichier ancien reste listé sans avoir à scroller jusqu'à son message). Réservé aux membres du groupe.",
   })
@@ -206,10 +227,17 @@ export class ChatController {
           items: {
             type: 'object',
             properties: {
-              message_id: { type: 'string', format: 'uuid', description: "Message d'origine (pour le saut vers le fil)" },
+              message_id: {
+                type: 'string',
+                format: 'uuid',
+                description: "Message d'origine (pour le saut vers le fil)",
+              },
               sender_id: { type: 'string', format: 'uuid', nullable: true },
               sent_at: { type: 'string', format: 'date-time', nullable: true },
-              media_id: { type: 'string', description: 'Id du fichier (module media / GridFS)' },
+              media_id: {
+                type: 'string',
+                description: 'Id du fichier (module media / GridFS)',
+              },
               filename: { type: 'string' },
               mimetype: { type: 'string' },
               size_bytes: { type: 'integer' },
@@ -228,7 +256,7 @@ export class ChatController {
   }
 
   @Get('messages/:message_id')
-  @ApiOperation({ summary: 'Détail d\'un message' })
+  @ApiOperation({ summary: "Détail d'un message" })
   async getMessage(@Param('message_id') messageId: string, @Req() req: any) {
     return this.chatMessageService.getMessage(messageId, req.user.sub);
   }
@@ -246,7 +274,9 @@ export class ChatController {
   // ── Pin ─────────────────────────────────────────────────
 
   @Post('messages/:message_id/pin')
-  @ApiOperation({ summary: 'Épingler un message (rôle actions ou admin dans le groupe)' })
+  @ApiOperation({
+    summary: 'Épingler un message (rôle actions ou admin dans le groupe)',
+  })
   async pinMessage(
     @Param('message_id') messageId: string,
     @Req() req: { user: JwtPayload },
@@ -256,7 +286,9 @@ export class ChatController {
 
   @Delete('messages/:message_id/pin')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Désépingler un message (rôle actions ou admin dans le groupe)' })
+  @ApiOperation({
+    summary: 'Désépingler un message (rôle actions ou admin dans le groupe)',
+  })
   async unpinMessage(
     @Param('message_id') messageId: string,
     @Req() req: { user: JwtPayload },

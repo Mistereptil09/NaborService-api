@@ -8,31 +8,53 @@ describe('ChatController', () => {
   let chatService: any;
   let chatMessageService: any;
 
-  const mockUser = { user: { sub: 'u1', role: 'resident', locale: 'fr', iat: 1, exp: 9999999999 } };
+  const mockUser = {
+    user: {
+      sub: 'u1',
+      role: 'resident',
+      locale: 'fr',
+      iat: 1,
+      exp: 9999999999,
+    },
+  };
 
   beforeEach(async () => {
     chatService = {
       getUserGroups: jest.fn().mockResolvedValue([]),
       createGroup: jest.fn().mockResolvedValue({ id: 'g1', name: 'Test' }),
       getGroupDetail: jest.fn().mockResolvedValue({ id: 'g1', name: 'Test' }),
-      getGroupDetailForUser: jest.fn().mockResolvedValue({ id: 'g1', name: 'Test' }),
+      getGroupDetailForUser: jest
+        .fn()
+        .mockResolvedValue({ id: 'g1', name: 'Test' }),
       updateGroup: jest.fn().mockResolvedValue({ id: 'g1', name: 'Updated' }),
-      softDeleteGroup: jest.fn().mockResolvedValue({ id: 'g1', deletedAt: new Date() }),
+      softDeleteGroup: jest
+        .fn()
+        .mockResolvedValue({ id: 'g1', deletedAt: new Date() }),
       getMembers: jest.fn().mockResolvedValue([]),
       addMember: jest.fn().mockResolvedValue({ userId: 'u2', groupId: 'g1' }),
-      removeMember: jest.fn().mockResolvedValue({ userId: 'u2', leftAt: new Date() }),
-      changeRole: jest.fn().mockResolvedValue({ userId: 'u2', roleInGroup: 'admin' }),
+      removeMember: jest
+        .fn()
+        .mockResolvedValue({ userId: 'u2', leftAt: new Date() }),
+      changeRole: jest
+        .fn()
+        .mockResolvedValue({ userId: 'u2', roleInGroup: 'admin' }),
       mute: jest.fn().mockResolvedValue({ muted_until: new Date() }),
       unmute: jest.fn().mockResolvedValue({ muted: false }),
       markGroupRead: jest.fn().mockResolvedValue(undefined),
     };
 
     chatMessageService = {
-      getMessages: jest.fn().mockResolvedValue({ messages: [], has_more: false }),
+      getMessages: jest
+        .fn()
+        .mockResolvedValue({ messages: [], has_more: false }),
       getPinnedMessages: jest.fn().mockResolvedValue({ messages: [] }),
-      sendMessage: jest.fn().mockResolvedValue({ id: 'msg1', content: 'Hello' }),
+      sendMessage: jest
+        .fn()
+        .mockResolvedValue({ id: 'msg1', content: 'Hello' }),
       getMessage: jest.fn().mockResolvedValue({ id: 'msg1', content: 'Hello' }),
-      editMessage: jest.fn().mockResolvedValue({ id: 'msg1', content: 'Edited' }),
+      editMessage: jest
+        .fn()
+        .mockResolvedValue({ id: 'msg1', content: 'Edited' }),
       softDeleteMessage: jest.fn().mockResolvedValue({ deleted: true }),
       pinMessage: jest.fn().mockResolvedValue({ id: 'msg1', pinned: true }),
       unpinMessage: jest.fn().mockResolvedValue({ id: 'msg1', pinned: false }),
@@ -55,7 +77,9 @@ describe('ChatController', () => {
 
   describe('GET /chat/groups', () => {
     it('should return user groups', async () => {
-      chatService.getUserGroups.mockResolvedValue([{ id: 'g1', name: 'Group A' }]);
+      chatService.getUserGroups.mockResolvedValue([
+        { id: 'g1', name: 'Group A' },
+      ]);
       const result = await controller.getGroups(mockUser as any);
       expect(result).toHaveLength(1);
       expect(chatService.getUserGroups).toHaveBeenCalledWith('u1');
@@ -64,9 +88,13 @@ describe('ChatController', () => {
 
   describe('POST /chat/groups', () => {
     it('should create a group', async () => {
-      const result = await controller.createGroup(mockUser as any, { name: 'New' });
+      const result = await controller.createGroup(mockUser as any, {
+        name: 'New',
+      });
       expect(result.name).toBe('Test');
-      expect(chatService.createGroup).toHaveBeenCalledWith('u1', { name: 'New' });
+      expect(chatService.createGroup).toHaveBeenCalledWith('u1', {
+        name: 'New',
+      });
     });
   });
 
@@ -74,13 +102,18 @@ describe('ChatController', () => {
     it('should return group detail', async () => {
       const result = await controller.getGroup('g1', mockUser as any);
       expect(result.name).toBe('Test');
-      expect(chatService.getGroupDetailForUser).toHaveBeenCalledWith('g1', 'u1');
+      expect(chatService.getGroupDetailForUser).toHaveBeenCalledWith(
+        'g1',
+        'u1',
+      );
     });
   });
 
   describe('PATCH /chat/groups/:id', () => {
     it('should update group', async () => {
-      const result = await controller.updateGroup('g1', mockUser as any, { name: 'Updated' });
+      const result = await controller.updateGroup('g1', mockUser as any, {
+        name: 'Updated',
+      });
       expect(result.name).toBe('Updated');
     });
   });
@@ -101,7 +134,11 @@ describe('ChatController', () => {
           userId: 'u2',
           roleInGroup: 'admin',
           joinedAt: new Date('2026-01-01'),
-          user: { firstName: 'Jane', lastName: 'Doe', profilePictureMongoId: 'm1' },
+          user: {
+            firstName: 'Jane',
+            lastName: 'Doe',
+            profilePictureMongoId: 'm1',
+          },
         },
       ]);
       const result = await controller.getMembers('g1');
@@ -135,8 +172,15 @@ describe('ChatController', () => {
 
   describe('PATCH /chat/groups/:id/members/:uid', () => {
     it('should change role', async () => {
-      await controller.changeRole('g1', 'u2', mockUser as any, { role: 'admin' as any });
-      expect(chatService.changeRole).toHaveBeenCalledWith('g1', 'u2', 'admin', 'u1');
+      await controller.changeRole('g1', 'u2', mockUser as any, {
+        role: 'admin' as any,
+      });
+      expect(chatService.changeRole).toHaveBeenCalledWith(
+        'g1',
+        'u2',
+        'admin',
+        'u1',
+      );
     });
   });
 
@@ -161,30 +205,79 @@ describe('ChatController', () => {
   describe('GET /chat/groups/:id/messages', () => {
     it('should return paginated messages', async () => {
       await controller.getMessages('g1', mockUser as any);
-      expect(chatMessageService.getMessages).toHaveBeenCalledWith('g1', 'u1', undefined, 50, undefined, 'older');
+      expect(chatMessageService.getMessages).toHaveBeenCalledWith(
+        'g1',
+        'u1',
+        undefined,
+        50,
+        undefined,
+        'older',
+      );
     });
 
     it('should pass cursor and limit', async () => {
-      await controller.getMessages('g1', mockUser as any, 'cursor123', '25' as any);
+      await controller.getMessages(
+        'g1',
+        mockUser as any,
+        'cursor123',
+        '25' as any,
+      );
       // limit comes from query string → passed as-is (not parsed to number)
-      expect(chatMessageService.getMessages).toHaveBeenCalledWith('g1', 'u1', 'cursor123', '25', undefined, 'older');
+      expect(chatMessageService.getMessages).toHaveBeenCalledWith(
+        'g1',
+        'u1',
+        'cursor123',
+        '25',
+        undefined,
+        'older',
+      );
     });
 
     it('should pass "around" through for jump-to-message', async () => {
-      await controller.getMessages('g1', mockUser as any, undefined, undefined, 'msg5');
-      expect(chatMessageService.getMessages).toHaveBeenCalledWith('g1', 'u1', undefined, 50, 'msg5', 'older');
+      await controller.getMessages(
+        'g1',
+        mockUser as any,
+        undefined,
+        undefined,
+        'msg5',
+      );
+      expect(chatMessageService.getMessages).toHaveBeenCalledWith(
+        'g1',
+        'u1',
+        undefined,
+        50,
+        'msg5',
+        'older',
+      );
     });
 
     it('should pass direction=newer through for filling the gap back to live after a jump', async () => {
-      await controller.getMessages('g1', mockUser as any, 'cursor123', undefined, undefined, 'newer');
-      expect(chatMessageService.getMessages).toHaveBeenCalledWith('g1', 'u1', 'cursor123', 50, undefined, 'newer');
+      await controller.getMessages(
+        'g1',
+        mockUser as any,
+        'cursor123',
+        undefined,
+        undefined,
+        'newer',
+      );
+      expect(chatMessageService.getMessages).toHaveBeenCalledWith(
+        'g1',
+        'u1',
+        'cursor123',
+        50,
+        undefined,
+        'newer',
+      );
     });
   });
 
   describe('GET /chat/groups/:id/pinned', () => {
     it('should return pinned messages', async () => {
       await controller.getPinnedMessages('g1', mockUser as any);
-      expect(chatMessageService.getPinnedMessages).toHaveBeenCalledWith('g1', 'u1');
+      expect(chatMessageService.getPinnedMessages).toHaveBeenCalledWith(
+        'g1',
+        'u1',
+      );
     });
   });
 
@@ -198,7 +291,10 @@ describe('ChatController', () => {
   describe('DELETE /chat/messages/:id', () => {
     it('should delete message', async () => {
       await controller.deleteMessage('msg1', mockUser as any);
-      expect(chatMessageService.softDeleteMessage).toHaveBeenCalledWith('msg1', 'u1');
+      expect(chatMessageService.softDeleteMessage).toHaveBeenCalledWith(
+        'msg1',
+        'u1',
+      );
     });
   });
 
@@ -215,7 +311,10 @@ describe('ChatController', () => {
   describe('DELETE /chat/messages/:id/pin', () => {
     it('should unpin a message', async () => {
       const result = await controller.unpinMessage('msg1', mockUser as any);
-      expect(chatMessageService.unpinMessage).toHaveBeenCalledWith('msg1', 'u1');
+      expect(chatMessageService.unpinMessage).toHaveBeenCalledWith(
+        'msg1',
+        'u1',
+      );
       expect(result.pinned).toBe(false);
     });
   });

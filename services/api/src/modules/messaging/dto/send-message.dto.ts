@@ -7,7 +7,10 @@ export class SendMessageDto {
   @MaxLength(10000)
   content: string;
 
-  @ApiProperty({ enum: ['text', 'image', 'file', 'voice', 'poll'], default: 'text' })
+  @ApiProperty({
+    enum: ['text', 'image', 'file', 'voice', 'poll'],
+    default: 'text',
+  })
   @IsIn(['text', 'image', 'file', 'voice', 'poll'])
   type: 'text' | 'image' | 'file' | 'voice' | 'poll';
 
@@ -16,7 +19,9 @@ export class SendMessageDto {
   @IsUUID()
   parent_message_id?: string;
 
-  @ApiPropertyOptional({ description: 'Id du sondage affiché (type "poll" uniquement)' })
+  @ApiPropertyOptional({
+    description: 'Id du sondage affiché (type "poll" uniquement)',
+  })
   @IsOptional()
   @IsUUID()
   poll_id?: string;

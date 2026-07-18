@@ -46,7 +46,8 @@ export class ChatAdminController {
   @Get('groups')
   @ApiOperation({
     summary: 'Lister tous les groupes (modérateur/admin)',
-    description: 'Retourne tous les groupes non supprimés avec le nombre de membres actifs.',
+    description:
+      'Retourne tous les groupes non supprimés avec le nombre de membres actifs.',
   })
   @ApiOkResponse({ description: 'Liste des groupes' })
   async getGroups() {
@@ -55,11 +56,13 @@ export class ChatAdminController {
 
   @Get('groups/:group_id/messages')
   @ApiOperation({
-    summary: 'Historique des messages d\'un groupe (modérateur/admin)',
-    description: 'Contourne l\'appartenance au groupe. Pagination cursor-based.',
+    summary: "Historique des messages d'un groupe (modérateur/admin)",
+    description: "Contourne l'appartenance au groupe. Pagination cursor-based.",
   })
   @ApiOkResponse({ description: 'Messages déchiffrés' })
-  @ApiForbiddenResponse({ description: 'Réservé aux modérateurs et administrateurs' })
+  @ApiForbiddenResponse({
+    description: 'Réservé aux modérateurs et administrateurs',
+  })
   @ApiNotFoundResponse({ description: 'Groupe introuvable' })
   @ApiQuery({ name: 'cursor', required: false })
   @ApiQuery({ name: 'limit', required: false })
@@ -77,8 +80,8 @@ export class ChatAdminController {
 
   @Get('groups/:group_id/pinned')
   @ApiOperation({
-    summary: 'Messages épinglés d\'un groupe (modérateur/admin)',
-    description: 'Liste complète, non paginée, sans contrôle d\'appartenance.',
+    summary: "Messages épinglés d'un groupe (modérateur/admin)",
+    description: "Liste complète, non paginée, sans contrôle d'appartenance.",
   })
   @ApiOkResponse({ description: 'Messages épinglés déchiffrés' })
   @ApiNotFoundResponse({ description: 'Groupe introuvable' })
@@ -88,8 +91,9 @@ export class ChatAdminController {
 
   @Get('groups/:group_id/attachments')
   @ApiOperation({
-    summary: 'Fichiers partagés d\'un groupe (modérateur/admin)',
-    description: 'Toutes les pièces jointes des messages non supprimés, sans contrôle d\'appartenance.',
+    summary: "Fichiers partagés d'un groupe (modérateur/admin)",
+    description:
+      "Toutes les pièces jointes des messages non supprimés, sans contrôle d'appartenance.",
   })
   @ApiOkResponse({ description: 'Fichiers partagés du groupe' })
   @ApiNotFoundResponse({ description: 'Groupe introuvable' })
@@ -100,22 +104,31 @@ export class ChatAdminController {
   // ── Messages ────────────────────────────────────────────
 
   @Get('messages/:message_id')
-  @ApiOperation({ summary: 'Lire un message (modérateur/admin) — contourne l\'appartenance au groupe' })
+  @ApiOperation({
+    summary:
+      "Lire un message (modérateur/admin) — contourne l'appartenance au groupe",
+  })
   @ApiOkResponse({ description: 'Message déchiffré' })
-  @ApiForbiddenResponse({ description: 'Réservé aux modérateurs et administrateurs' })
-  @ApiNotFoundResponse({ description: 'Message ou clé de chiffrement introuvable' })
+  @ApiForbiddenResponse({
+    description: 'Réservé aux modérateurs et administrateurs',
+  })
+  @ApiNotFoundResponse({
+    description: 'Message ou clé de chiffrement introuvable',
+  })
   async getMessage(@Param('message_id') messageId: string) {
     return this.chatMessageService.getMessageAsAdmin(messageId);
   }
 
   @Patch('messages/:message_id')
   @ApiOperation({
-    summary: 'Modifier le contenu d\'un message (modérateur/admin)',
+    summary: "Modifier le contenu d'un message (modérateur/admin)",
     description:
-      'Réécrit le texte déchiffré de n\'importe quel message (les deux côtés d\'une conversation), le re-chiffre sous la clé du groupe et notifie les clients connectés.',
+      "Réécrit le texte déchiffré de n'importe quel message (les deux côtés d'une conversation), le re-chiffre sous la clé du groupe et notifie les clients connectés.",
   })
   @ApiOkResponse({ description: 'Message modifié (déchiffré)' })
-  @ApiForbiddenResponse({ description: 'Réservé aux modérateurs et administrateurs' })
+  @ApiForbiddenResponse({
+    description: 'Réservé aux modérateurs et administrateurs',
+  })
   @ApiNotFoundResponse({ description: 'Message introuvable' })
   async editMessage(
     @Param('message_id') messageId: string,
@@ -137,12 +150,11 @@ export class ChatAdminController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Supprimer un message (modérateur/admin)' })
   @ApiOkResponse({ description: 'Message supprimé' })
-  @ApiForbiddenResponse({ description: 'Réservé aux modérateurs et administrateurs' })
+  @ApiForbiddenResponse({
+    description: 'Réservé aux modérateurs et administrateurs',
+  })
   @ApiNotFoundResponse({ description: 'Message introuvable' })
-  async deleteMessage(
-    @Param('message_id') messageId: string,
-    @Req() req: any,
-  ) {
+  async deleteMessage(@Param('message_id') messageId: string, @Req() req: any) {
     // Récupère le groupe avant suppression pour pouvoir notifier sa room.
     const before = await this.chatMessageService.getMessageAsAdmin(messageId);
     const result = await this.chatMessageService.softDeleteMessageAsModerator(
@@ -157,7 +169,10 @@ export class ChatAdminController {
   }
 
   @Post('messages/:message_id/pin')
-  @ApiOperation({ summary: 'Épingler un message (modérateur/admin) — contourne le rôle de groupe' })
+  @ApiOperation({
+    summary:
+      'Épingler un message (modérateur/admin) — contourne le rôle de groupe',
+  })
   @ApiOkResponse({ description: 'Message épinglé' })
   @ApiNotFoundResponse({ description: 'Message introuvable' })
   async pinMessage(
@@ -178,7 +193,8 @@ export class ChatAdminController {
   @ApiOkResponse({ description: 'Message désépinglé' })
   @ApiNotFoundResponse({ description: 'Message introuvable' })
   async unpinMessage(@Param('message_id') messageId: string) {
-    const message = await this.chatMessageService.unpinMessageAsModerator(messageId);
+    const message =
+      await this.chatMessageService.unpinMessageAsModerator(messageId);
     this.chatGateway.emitToGroup(message.group_id, 'message:unpinned', message);
     return message;
   }

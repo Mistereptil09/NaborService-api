@@ -141,7 +141,9 @@ export class GroupKeyService {
     const packed = this.encryptGroupKeyForStorage(newKey);
     await this.groupRepo.update(
       { id: groupId },
-      { encryptedGroupKey: `${packed.iv}:${packed.authTag}:${packed.encrypted}` },
+      {
+        encryptedGroupKey: `${packed.iv}:${packed.authTag}:${packed.encrypted}`,
+      },
     );
     await this.redis.set(
       redisKey,

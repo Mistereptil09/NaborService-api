@@ -567,9 +567,7 @@ export class CallsService {
   ): Promise<void> {
     const durationSeconds =
       log.status === CallStatusEnum.ENDED && log.startedAt && log.endedAt
-        ? Math.round(
-            (log.endedAt.getTime() - log.startedAt.getTime()) / 1000,
-          )
+        ? Math.round((log.endedAt.getTime() - log.startedAt.getTime()) / 1000)
         : undefined;
 
     const event =
