@@ -14,27 +14,12 @@ import { StripeModule } from '../stripe/stripe.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      PointsLedgerEntry,
-      PointsTopup,
-      PointsCashout,
-      User,
-    ]),
+    TypeOrmModule.forFeature([PointsLedgerEntry, PointsTopup, PointsCashout, User]),
     AdminModule,
     StripeModule,
   ],
   controllers: [PointsController],
-  providers: [
-    PointsService,
-    PointsTopupService,
-    PointsConnectService,
-    PointsCashoutService,
-  ],
-  exports: [
-    PointsService,
-    PointsTopupService,
-    PointsConnectService,
-    PointsCashoutService,
-  ],
+  providers: [PointsService, PointsTopupService, PointsConnectService, PointsCashoutService],
+  exports: [PointsService, PointsTopupService, PointsConnectService, PointsCashoutService],
 })
 export class PointsModule {}

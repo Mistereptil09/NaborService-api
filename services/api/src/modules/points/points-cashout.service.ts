@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { PointsCashout } from './entities/points-cashout.entity';
@@ -28,10 +24,7 @@ export class PointsCashoutService {
     private readonly adminConfigService: AdminConfigService,
   ) {}
 
-  async createCashout(
-    userId: string,
-    amountPoints: number,
-  ): Promise<PointsCashout> {
+  async createCashout(userId: string, amountPoints: number): Promise<PointsCashout> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('Utilisateur introuvable');

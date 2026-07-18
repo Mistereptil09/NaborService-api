@@ -38,10 +38,7 @@ export class AdminUserDto {
   @ApiProperty({ nullable: true }) neighbourhoodId: string | null;
   @ApiProperty({ nullable: true }) stripeAccountId: string | null;
   @ApiProperty({ description: 'Solde de points actuel' }) pointsBalance: number;
-  @ApiProperty({
-    description:
-      'Éligible aux virements de cashout (onboarding Stripe Connect terminé)',
-  })
+  @ApiProperty({ description: 'Éligible aux virements de cashout (onboarding Stripe Connect terminé)' })
   payoutsEnabled: boolean;
   @ApiProperty({ nullable: true }) profilePictureMongoId: string | null;
   @ApiProperty({ nullable: true }) bannerMongoId: string | null;

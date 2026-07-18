@@ -36,10 +36,7 @@ describe('StripeService.constructWebhookEvent', () => {
     });
     const signature = sign(payload, webhookSecret);
 
-    const event = stripeService.constructWebhookEvent(
-      Buffer.from(payload),
-      signature,
-    );
+    const event = stripeService.constructWebhookEvent(Buffer.from(payload), signature);
 
     expect(event.id).toBe('evt_test_123');
     expect(event.type).toBe('checkout.session.completed');
@@ -69,10 +66,7 @@ describe('StripeService.constructWebhookEvent', () => {
     });
 
     expect(() =>
-      stripeService.constructWebhookEvent(
-        Buffer.from(tamperedPayload),
-        signature,
-      ),
+      stripeService.constructWebhookEvent(Buffer.from(tamperedPayload), signature),
     ).toThrow();
   });
 
@@ -81,19 +75,12 @@ describe('StripeService.constructWebhookEvent', () => {
       id: 'evt_test_acct_123',
       type: 'account.updated',
       data: {
-        object: {
-          id: 'acct_test_123',
-          charges_enabled: true,
-          payouts_enabled: true,
-        },
+        object: { id: 'acct_test_123', charges_enabled: true, payouts_enabled: true },
       },
     });
     const signature = sign(payload, webhookSecret);
 
-    const event = stripeService.constructWebhookEvent(
-      Buffer.from(payload),
-      signature,
-    );
+    const event = stripeService.constructWebhookEvent(Buffer.from(payload), signature);
 
     expect(event.id).toBe('evt_test_acct_123');
     expect(event.type).toBe('account.updated');

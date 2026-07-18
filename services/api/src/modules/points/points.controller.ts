@@ -64,29 +64,20 @@ export class PointsController {
   }
 
   @Get('connect/status')
-  @ApiOperation({
-    summary: 'Consulter son éligibilité au retrait (Stripe Connect)',
-  })
+  @ApiOperation({ summary: 'Consulter son éligibilité au retrait (Stripe Connect)' })
   async getConnectStatus(@Req() req: any) {
     return this.pointsConnectService.getStatus(req.user.sub);
   }
 
   @Post('connect/onboard')
-  @ApiOperation({
-    summary: "Démarrer l'onboarding Stripe Connect pour recevoir des virements",
-  })
+  @ApiOperation({ summary: "Démarrer l'onboarding Stripe Connect pour recevoir des virements" })
   async createOnboardingLink(@Req() req: any) {
     return this.pointsConnectService.createOnboardingLink(req.user.sub);
   }
 
   @Post('cashout')
-  @ApiOperation({
-    summary: 'Convertir des points en virement bancaire (Stripe Connect)',
-  })
+  @ApiOperation({ summary: 'Convertir des points en virement bancaire (Stripe Connect)' })
   async createCashout(@Body() dto: CreateCashoutDto, @Req() req: any) {
-    return this.pointsCashoutService.createCashout(
-      req.user.sub,
-      dto.amountPoints,
-    );
+    return this.pointsCashoutService.createCashout(req.user.sub, dto.amountPoints);
   }
 }

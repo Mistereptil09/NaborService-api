@@ -99,8 +99,6 @@ describe('StripeWebhookWorker', () => {
     await expect(worker.process(job)).resolves.toBeUndefined();
     expect(mockPointsTopupService.markCompleted).not.toHaveBeenCalled();
     expect(mockPointsTopupService.markFailed).not.toHaveBeenCalled();
-    expect(
-      mockPointsConnectService.handleAccountUpdated,
-    ).not.toHaveBeenCalled();
+    expect(mockPointsConnectService.handleAccountUpdated).not.toHaveBeenCalled();
   });
 });
