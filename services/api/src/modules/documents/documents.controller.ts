@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Req,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, Req, Res, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -60,7 +53,7 @@ export class DocumentsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Télécharger le PDF d\'un document (signataire uniquement)',
+    summary: "Télécharger le PDF d'un document (signataire uniquement)",
   })
   @ApiOkResponse({ description: 'PDF streamé' })
   @ApiForbiddenResponse({ description: 'Non signataire' })
@@ -100,7 +93,8 @@ export class AdminDocumentsController {
   @Get(':document_id')
   @ApiOperation({
     summary: 'Accès admin à tout document',
-    description: 'Lecture seule — documents immuables après signature (eIDAS + SHA-256)',
+    description:
+      'Lecture seule — documents immuables après signature (eIDAS + SHA-256)',
   })
   @ApiOkResponse({ description: 'Document retourné' })
   @ApiNotFoundResponse({ description: 'Document introuvable' })

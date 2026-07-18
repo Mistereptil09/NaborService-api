@@ -65,11 +65,12 @@ export class ListListingsDto {
   type?: string;
 
   @ApiPropertyOptional({
-    description: "Filtrer par statut de l'annonce",
+    description:
+      "Filtrer par statut de l'annonce. Utiliser 'all' ou omettre le paramètre pour ne pas filtrer par statut.",
     example: 'open',
   })
   @IsOptional()
-  @IsIn(['open', 'pending', 'in_progress', 'closed', 'cancelled'])
+  @IsIn(['all', 'open', 'pending', 'in_progress', 'closed', 'cancelled'])
   status?: string;
 }
 
@@ -257,7 +258,10 @@ export class ReportedListingItemDto {
   @ApiProperty({ type: String, format: 'date-time' }) created_at: Date;
   @ApiProperty({ description: 'Nombre de signalements non résolus' })
   reports_count: number;
-  @ApiProperty({ nullable: true, description: 'Motif du dernier signalement non résolu' })
+  @ApiProperty({
+    nullable: true,
+    description: 'Motif du dernier signalement non résolu',
+  })
   last_reason: string | null;
   @ApiProperty({ nullable: true, type: String, format: 'date-time' })
   last_report_at: Date | null;
@@ -270,8 +274,10 @@ export class ListingsPaginationMetaDto {
 }
 
 export class ReportedListingsResponseDto {
-  @ApiProperty({ type: [ReportedListingItemDto] }) data: ReportedListingItemDto[];
-  @ApiProperty({ type: ListingsPaginationMetaDto }) meta: ListingsPaginationMetaDto;
+  @ApiProperty({ type: [ReportedListingItemDto] })
+  data: ReportedListingItemDto[];
+  @ApiProperty({ type: ListingsPaginationMetaDto })
+  meta: ListingsPaginationMetaDto;
 }
 
 export class ModerationActionItemDto {
@@ -284,13 +290,24 @@ export class ModerationActionItemDto {
 }
 
 export class ListModerationActionsResponseDto {
-  @ApiProperty({ type: [ModerationActionItemDto] }) data: ModerationActionItemDto[];
-  @ApiProperty({ type: ListingsPaginationMetaDto }) meta: ListingsPaginationMetaDto;
+  @ApiProperty({ type: [ModerationActionItemDto] })
+  data: ModerationActionItemDto[];
+  @ApiProperty({ type: ListingsPaginationMetaDto })
+  meta: ListingsPaginationMetaDto;
+}
+
+export class ListingCreatorDto {
+  @ApiProperty() id: string;
+  @ApiProperty() firstName: string;
+  @ApiProperty() lastName: string;
+  @ApiProperty({ nullable: true }) profilePictureMongoId: string | null;
 }
 
 export class ListingItemDto {
   @ApiProperty() id: string;
   @ApiProperty() creatorId: string;
+  @ApiProperty({ type: ListingCreatorDto, nullable: true })
+  creator: ListingCreatorDto | null;
   @ApiProperty() title: string;
   @ApiProperty({ nullable: true }) description: string | null;
   @ApiProperty({ nullable: true }) categoryId: number | null;
@@ -298,12 +315,16 @@ export class ListingItemDto {
   @ApiProperty() priceCents: number;
   @ApiProperty({ enum: ListingStatusEnum }) status: ListingStatusEnum;
   @ApiProperty({ nullable: true }) neighbourhoodId: string | null;
+  @ApiProperty({ nullable: true }) coverMediaId: string | null;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt: Date;
-  @ApiProperty({ nullable: true, type: String, format: 'date-time' }) updatedAt: Date | null;
-  @ApiProperty({ nullable: true, type: String, format: 'date-time' }) closedAt: Date | null;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' })
+  updatedAt: Date | null;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' })
+  closedAt: Date | null;
 }
 
 export class ListListingsResponseDto {
   @ApiProperty({ type: [ListingItemDto] }) data: ListingItemDto[];
-  @ApiProperty({ type: ListingsPaginationMetaDto }) meta: ListingsPaginationMetaDto;
+  @ApiProperty({ type: ListingsPaginationMetaDto })
+  meta: ListingsPaginationMetaDto;
 }

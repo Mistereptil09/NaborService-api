@@ -7,9 +7,11 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import * as crypto from 'crypto';
 import {
   Contract,
@@ -19,12 +21,12 @@ import { User } from '../users/entities/user.entity';
 import { ListingTransactionService } from './listing-transaction.service';
 import { TotpService } from '../auth/totp.service';
 import { SignDocumentDto } from './dto/listing-routes.dtos';
-import { MediaService } from '../media/services/media.service';
 import { GridFSService } from '../media/services/gridfs.service';
 import { NotificationsService } from '../messaging/notifications.service';
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { authenticator } = require('otplib');
+import {
+  getSignatureState,
+  getUserRole,
+} from '../documents/contract-signature.util';
 
 @Injectable()
 export class ListingSignatureService {
@@ -37,9 +39,10 @@ export class ListingSignatureService {
     private readonly contractModel: Model<ContractDocument>,
     private readonly transactionService: ListingTransactionService,
     private readonly totpService: TotpService,
-    private readonly mediaService: MediaService,
     private readonly gridfsService: GridFSService,
     private readonly notificationsService: NotificationsService,
+    @InjectQueue('pdf-generation')
+    private readonly pdfGenerationQueue: Queue,
   ) {}
 
   async signDocument(
@@ -52,6 +55,13 @@ export class ListingSignatureService {
     if (!dto.canvas_b64 || dto.canvas_b64.trim() === '') {
       throw new BadRequestException('Le canvas de signature est obligatoire');
     }
+    // pdf-lib embarquera cette image dans le PDF final — refuser d'emblée
+    // tout ce qui n'est pas un PNG en data-URL.
+    if (!dto.canvas_b64.startsWith('data:image/png;base64,')) {
+      throw new BadRequestException(
+        'La signature doit être une image PNG (data URL)',
+      );
+    }
     if (!dto.totp_code || dto.totp_code.length !== 6) {
       throw new BadRequestException('Code TOTP invalide');
     }
@@ -62,48 +72,32 @@ export class ListingSignatureService {
 
     const contract = await this.contractModel.findOne({
       pg_transaction_id: transaction.id,
+      type: 'contract',
     });
     if (!contract) {
       throw new NotFoundException('Contrat introuvable');
     }
 
-    // Enforce signed document immutability
-    if (contract.signed_at !== null) {
+    const role = getUserRole(contract, userId);
+    if (!role) {
+      throw new ForbiddenException("Vous n'êtes pas signataire de ce document");
+    }
+
+    // Immutabilité : document complet ou signature déjà apposée par ce rôle.
+    const state = getSignatureState(contract);
+    if (state.fullySigned) {
       throw new ConflictException('Document déjà signé');
     }
-
-    // Verify TOTP
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw new NotFoundException('Utilisateur introuvable');
-    }
-    if (!user.totpSecret) {
-      throw new ForbiddenException('TOTP non configuré');
+    if (contract.signatures?.[role]) {
+      throw new ConflictException('Vous avez déjà signé ce document');
     }
 
-    let secret: string;
-    try {
-      secret = this.totpService.decryptSecret(user.totpSecret);
-    } catch {
-      throw new ForbiddenException('Erreur de déchiffrement du secret');
-    }
+    // Verify TOTP via the centralized service (same path as login / sensitive actions).
+    await this.totpService.verifyTotp(userId, dto.totp_code);
 
-    const isValid = authenticator.verify({ token: dto.totp_code, secret });
-    if (!isValid) {
-      throw new ForbiddenException('TOTP requis ou invalide');
-    }
-
-    // Verify SHA-256 PDF integrity using the new MediaService & GridFSService
-    const mediaFiles = await this.mediaService.findByOwner(
-      'contract',
-      transaction.id,
-    );
-    const contractFile = mediaFiles.find((m) => m.contract_type === 'contract');
-    if (!contractFile) {
-      throw new NotFoundException('Contrat introuvable');
-    }
+    // Intégrité : re-hachage du PDF original avant d'apposer la signature.
     const gridfsFile = await this.gridfsService.download(
-      contractFile.gridfs_file_id,
+      new Types.ObjectId(contract.pdf.gridfs_file_id),
     );
     const computedHash = crypto
       .createHash('sha256')
@@ -114,38 +108,118 @@ export class ListingSignatureService {
       throw new ConflictException('Intégrité du document compromise');
     }
 
-    // Save signature
-    contract.signature = {
-      canvas_b64: dto.canvas_b64,
-      totp_verified_at: new Date(),
-      signed_ip: ip,
-      user_agent: userAgent,
+    // Enregistrement de la signature de cette partie
+    const now = new Date();
+    contract.signatures = {
+      ...contract.signatures,
+      [role]: {
+        canvas_b64: dto.canvas_b64,
+        totp_verified_at: now,
+        signed_ip: ip,
+        user_agent: userAgent,
+        signed_at: now,
+      },
     };
-    contract.signed_at = new Date();
+
+    const otherRole = role === 'provider' ? 'requester' : 'provider';
+    const otherPartyId =
+      role === 'provider' ? transaction.requesterId : transaction.providerId;
+    const fullySigned = !!contract.signatures[otherRole];
+
+    if (fullySigned) {
+      contract.signed_at = now;
+    }
 
     const savedContract = await contract.save();
 
-    // Notify the OTHER party that the contract was signed (transactional).
-    const otherPartyId =
-      userId === transaction.providerId
-        ? transaction.requesterId
-        : transaction.providerId;
-    try {
-      await this.notificationsService.create({
-        userId: otherPartyId,
-        type: 'contract_signed',
-        payload: { listingId, transactionId: transaction.id },
+    if (fullySigned) {
+      // Génération asynchrone du PDF final (signatures + certificat).
+      await this.pdfGenerationQueue.add('finalize-signed-contract', {
+        transactionId: transaction.id,
       });
-    } catch (error: any) {
-      this.logger.warn(
-        `contract_signed notification failed for ${otherPartyId}: ${error?.message ?? error}`,
-      );
+
+      for (const partyId of [transaction.providerId, transaction.requesterId]) {
+        try {
+          await this.notificationsService.create({
+            userId: partyId,
+            type: 'contract_fully_signed',
+            payload: {
+              listingId,
+              transactionId: transaction.id,
+              documentId: savedContract._id.toString(),
+            },
+          });
+        } catch (error: any) {
+          this.logger.warn(
+            `contract_fully_signed notification failed for ${partyId}: ${error?.message ?? error}`,
+          );
+        }
+      }
+    } else {
+      // L'autre partie est notifiée que c'est à son tour de signer.
+      try {
+        await this.notificationsService.create({
+          userId: otherPartyId,
+          type: 'contract_signed',
+          payload: {
+            listingId,
+            transactionId: transaction.id,
+            documentId: savedContract._id.toString(),
+          },
+        });
+      } catch (error: any) {
+        this.logger.warn(
+          `contract_signed notification failed for ${otherPartyId}: ${error?.message ?? error}`,
+        );
+      }
     }
 
+    const finalState = getSignatureState(savedContract);
     return {
       success: true,
-      signed_at: savedContract.signed_at,
-      sha256_hash: savedContract.sha256_hash,
+      myRole: role,
+      providerSignedAt: finalState.providerSignedAt,
+      requesterSignedAt: finalState.requesterSignedAt,
+      fullySigned: finalState.fullySigned,
+      signedAt: savedContract.signed_at,
+      sha256Hash: savedContract.sha256_hash,
+    };
+  }
+
+  /** État de signature du contrat, pour la page de signature du frontend. */
+  async getSignatureStatus(userId: string, listingId: string): Promise<any> {
+    const transaction =
+      await this.transactionService.findByListingId(listingId);
+    await this.transactionService.verifyPartyAccess(userId, transaction);
+
+    const contract = await this.contractModel.findOne(
+      { pg_transaction_id: transaction.id, type: 'contract' },
+      {
+        'signatures.provider.canvas_b64': 0,
+        'signatures.requester.canvas_b64': 0,
+      },
+    );
+    if (!contract) {
+      throw new NotFoundException('Contrat introuvable');
+    }
+
+    const role = getUserRole(contract, userId);
+    const state = getSignatureState(contract);
+    const mySignedAt =
+      role === 'provider' ? state.providerSignedAt : state.requesterSignedAt;
+
+    return {
+      documentId: contract._id.toString(),
+      myRole: role,
+      iSigned: mySignedAt !== null,
+      providerSignedAt: state.providerSignedAt,
+      requesterSignedAt: state.requesterSignedAt,
+      fullySigned: state.fullySigned,
+      signedAt: contract.signed_at,
+      hasSignedPdf: !!contract.signed_pdf,
+      providerName: contract.parties.provider.full_name,
+      requesterName: contract.parties.requester.full_name,
+      sha256Hash: contract.sha256_hash,
     };
   }
 
@@ -172,47 +246,33 @@ export class ListingSignatureService {
     return doc;
   }
 
+  /**
+   * Flux du PDF : version signée (signatures + certificat) dès qu'elle
+   * existe, sinon l'original ; `original: true` force l'original non signé
+   * (vérification d'empreinte).
+   */
   async getContractStream(
     userId: string,
     listingId: string,
     type: 'contract' | 'receipt',
+    original = false,
   ): Promise<{
     stream: any;
     mimetype: string;
     sizeBytes: number;
   }> {
-    const transaction =
-      await this.transactionService.findByListingId(listingId);
-    await this.transactionService.verifyPartyAccess(userId, transaction);
+    const doc = await this.getContract(userId, listingId, type);
 
-    const doc = await this.contractModel.findOne({
-      pg_transaction_id: transaction.id,
-      type,
-    });
-
-    if (!doc) {
-      throw new NotFoundException(
-        `Aucun ${type === 'contract' ? 'contrat' : 'reçu'} trouvé pour cette annonce`,
-      );
-    }
-
-    const mediaFiles = await this.mediaService.findByOwner(
-      'contract',
-      transaction.id,
-    );
-    const contractFile = mediaFiles.find((m) => m.contract_type === type);
-    if (!contractFile) {
-      throw new NotFoundException('Fichier de contrat introuvable');
-    }
+    const pdf = !original && doc.signed_pdf ? doc.signed_pdf : doc.pdf;
 
     const stream = this.gridfsService.openDownloadStream(
-      contractFile.gridfs_file_id,
+      new Types.ObjectId(pdf.gridfs_file_id),
     );
 
     return {
       stream,
-      mimetype: contractFile.mimetype,
-      sizeBytes: contractFile.size_bytes,
+      mimetype: pdf.mimetype,
+      sizeBytes: pdf.size_bytes,
     };
   }
 }

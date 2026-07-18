@@ -18,10 +18,7 @@ import {
   Contract,
   ContractSchema,
 } from '../../database/mongo-schemas/schemas/contract.schema';
-import {
-  MediaFile,
-  MediaFileSchema,
-} from '../media/schemas/media-file.schema';
+import { MediaFile, MediaFileSchema } from '../media/schemas/media-file.schema';
 
 import { ListingsService } from './listings.service';
 import { ListingContentService } from './listing-content.service';
@@ -42,6 +39,7 @@ import { MediaModule } from '../media/media.module';
 import { AdminModule } from '../admin/admin.module';
 import { MessagingModule } from '../messaging/messaging.module';
 import { PointsModule } from '../points/points.module';
+import { DocumentsModule } from '../documents/documents.module';
 
 @Module({
   imports: [
@@ -65,6 +63,7 @@ import { PointsModule } from '../points/points.module';
     AdminModule,
     MessagingModule,
     PointsModule,
+    DocumentsModule,
   ],
   controllers: [ListingsController],
   providers: [

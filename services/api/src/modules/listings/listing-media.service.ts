@@ -18,6 +18,30 @@ export class ListingMediaService {
   ) {}
 
   /**
+   * List existing photos for a listing (public read, no ownership check).
+   */
+  async listMedia(
+    listingId: string,
+  ): Promise<{ id: string; order: number | null; caption: string | null }[]> {
+    const listing = await this.listingRepository.findOne({
+      where: { id: listingId },
+    });
+    if (!listing) {
+      throw new NotFoundException('Annonce introuvable');
+    }
+
+    const photos = await this.mediaService.findByOwner(
+      'listing_photo',
+      listingId,
+    );
+    return photos.map((p) => ({
+      id: p._id.toString(),
+      order: p.order,
+      caption: p.caption,
+    }));
+  }
+
+  /**
    * Upload media for a listing. Delegates to the new MediaService.
    */
   async uploadMedia(

@@ -22,7 +22,10 @@ export class DocumentsService {
    * Checks that the requesting user is a party to the document.
    * Used by: GET /documents/:document_id
    */
-  async findById(documentId: string, userId?: string): Promise<ContractDocument> {
+  async findById(
+    documentId: string,
+    userId?: string,
+  ): Promise<ContractDocument> {
     const doc = await this.contractModel.findById(documentId);
 
     if (!doc) {
@@ -35,7 +38,7 @@ export class DocumentsService {
       const isRequester = doc.parties?.requester?.pg_user_id === userId;
       if (!isProvider && !isRequester) {
         throw new ForbiddenException(
-          'Vous n\'êtes pas signataire de ce document',
+          "Vous n'êtes pas signataire de ce document",
         );
       }
     }
@@ -78,7 +81,6 @@ export class DocumentsService {
       },
       parties: data.parties,
       listing_snapshot: data.listing_snapshot,
-      signature: null,
       signed_at: null,
       created_at: new Date(),
       anonymised_at: null,
