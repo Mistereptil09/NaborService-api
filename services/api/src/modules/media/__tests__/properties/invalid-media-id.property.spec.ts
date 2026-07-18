@@ -40,7 +40,7 @@ describe('Feature: gridfs-media-storage, Property 8: Invalid Media ID Validation
         const res: any = {};
 
         await expect(
-          mediaController.streamMedia(mediaId, req as any, res as any),
+          mediaController.streamMedia(mediaId, req as any, res),
         ).rejects.toThrow(BadRequestException);
       }),
       { numRuns: 100 },
