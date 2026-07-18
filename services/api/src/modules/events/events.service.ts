@@ -103,7 +103,12 @@ export class EventsService {
     return event;
   }
 
-  async update(userId: string, id: string, dto: UpdateEventDto, userRole?: string) {
+  async update(
+    userId: string,
+    id: string,
+    dto: UpdateEventDto,
+    userRole?: string,
+  ) {
     const event = await this.findOne(id);
 
     if (event.creatorId !== userId && !isModeratorOrAdmin(userRole)) {

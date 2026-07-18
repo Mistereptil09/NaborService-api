@@ -72,8 +72,13 @@ export class EventReportService {
         lastReportedAt: r.lastReportedAt,
       }))
       .filter(
-        (item): item is { event: Evenement; reportCount: number; lastReportedAt: Date } =>
-          item.event !== undefined,
+        (
+          item,
+        ): item is {
+          event: Evenement;
+          reportCount: number;
+          lastReportedAt: Date;
+        } => item.event !== undefined,
       );
 
     const totalCountQuery = await this.reportRepo

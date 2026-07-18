@@ -73,7 +73,9 @@ export class CategoriesService {
     const repo = this.repoFor(domain);
 
     if (dto.parent_category) {
-      const parent = await repo.findOne({ where: { id: dto.parent_category } as any });
+      const parent = await repo.findOne({
+        where: { id: dto.parent_category },
+      });
       if (!parent) {
         throw new BadRequestException(
           `Catégorie parente introuvable : ${dto.parent_category}`,
@@ -97,7 +99,7 @@ export class CategoriesService {
     dto: { category_name?: string; parent_category?: number | null },
   ): Promise<CategoryEntity> {
     const repo = this.repoFor(domain);
-    const entity = await repo.findOne({ where: { id } as any });
+    const entity = await repo.findOne({ where: { id } });
 
     if (!entity) {
       throw new NotFoundException(`Catégorie ${id} introuvable`);
@@ -114,7 +116,7 @@ export class CategoriesService {
       }
       if (dto.parent_category !== null) {
         const parent = await repo.findOne({
-          where: { id: dto.parent_category } as any,
+          where: { id: dto.parent_category },
         });
         if (!parent) {
           throw new BadRequestException(
@@ -126,14 +128,14 @@ export class CategoriesService {
     }
 
     (entity as any).updatedAt = new Date();
-    return repo.save(entity) as unknown as Promise<CategoryEntity>;
+    return repo.save(entity);
   }
 
   // ── DELETE (cascade manuelle, pas de relation TypeORM) ──
 
   async delete(domain: CategoryDomain, id: number): Promise<void> {
     const repo = this.repoFor(domain);
-    const entity = await repo.findOne({ where: { id } as any });
+    const entity = await repo.findOne({ where: { id } });
 
     if (!entity) {
       throw new NotFoundException(`Catégorie ${id} introuvable`);
@@ -141,7 +143,7 @@ export class CategoriesService {
 
     // Cascade : trouver et supprimer les enfants récursivement
     const children = await repo.find({
-      where: { parentCategoryId: id } as any,
+      where: { parentCategoryId: id },
     });
 
     for (const child of children) {

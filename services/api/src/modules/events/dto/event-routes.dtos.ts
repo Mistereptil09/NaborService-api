@@ -327,7 +327,7 @@ export class ReportedEventItemDto {
   @ApiProperty({
     type: 'object',
     additionalProperties: true,
-    description: "Entité évènement complète (Evenement)",
+    description: 'Entité évènement complète (Evenement)',
   })
   event: Evenement;
   @ApiProperty({ description: 'Nombre de signalements sur cet évènement' })
@@ -372,8 +372,10 @@ export class EventItemDto {
   @ApiProperty({ enum: EventStatusEnum }) status: EventStatusEnum;
   @ApiProperty({ nullable: true }) inviteCode: string | null;
   @ApiProperty() costCents: number;
-  @ApiProperty({ nullable: true, type: String, format: 'date-time' }) startsAt: Date | null;
-  @ApiProperty({ nullable: true, type: String, format: 'date-time' }) endsAt: Date | null;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' })
+  startsAt: Date | null;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' })
+  endsAt: Date | null;
   @ApiProperty({ nullable: true }) maxParticipants: number | null;
   @ApiProperty() refundDeadlineHours: number;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt: Date;

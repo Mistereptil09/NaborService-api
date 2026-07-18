@@ -37,8 +37,7 @@ export class GeoController {
   @Get('autocomplete')
   @ApiOperation({ summary: 'Autocompléter une adresse via la BAN' })
   @ApiOkResponse({
-    description:
-      "Liste d'adresses BAN qui sont proche de la valeur d'entrée",
+    description: "Liste d'adresses BAN qui sont proche de la valeur d'entrée",
   })
   @ApiBadRequestResponse({ description: 'Paramètres de recherche invalides' })
   async autocomplete(@Query() query: GeoAutocompleteQueryDto) {

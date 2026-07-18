@@ -1,8 +1,25 @@
 import {
-  Body, Controller, Delete, ForbiddenException, Get, HttpCode, HttpStatus,
-  Param, Patch, Post, Put, Query, Req, UseGuards,
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/auth.interfaces';
 import { GroupRoleEnum } from '../../common/enums';
@@ -34,7 +51,10 @@ export class PollsController {
   // ── Polls ───────────────────────────────────────────────
 
   @Get()
-  @ApiOperation({ summary: 'Sondages d\'un quartier ou d\'un groupe (clôturés inclus, supprimés exclus)' })
+  @ApiOperation({
+    summary:
+      "Sondages d'un quartier ou d'un groupe (clôturés inclus, supprimés exclus)",
+  })
   @ApiQuery({ name: 'neighbourhood_id', required: false })
   @ApiQuery({ name: 'group_id', required: false })
   async getPolls(
@@ -50,7 +70,10 @@ export class PollsController {
       'Créer un sondage — rôle plateforme ≥ neighbourhood_rep (sondage de quartier), ' +
       'ou rôle groupe actions/admin quand group_id est fourni (sondage de conversation)',
   })
-  async createPoll(@Req() req: { user: JwtPayload }, @Body() dto: CreatePollDto) {
+  async createPoll(
+    @Req() req: { user: JwtPayload },
+    @Body() dto: CreatePollDto,
+  ) {
     if (dto.group_id) {
       await this.chatService.assertGroupRole(dto.group_id, req.user.sub, [
         GroupRoleEnum.ACTIONS,
@@ -105,20 +128,39 @@ export class PollsController {
     @Req() req: { user: JwtPayload },
     @Body() dto: UpdatePollDto,
   ) {
-    return this.pollsService.updatePoll(pollId, req.user.sub, dto, req.user.role);
+    return this.pollsService.updatePoll(
+      pollId,
+      req.user.sub,
+      dto,
+      req.user.role,
+    );
   }
 
   @Delete(':poll_id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Supprimer (créateur)' })
-  async deletePoll(@Param('poll_id') pollId: string, @Req() req: { user: JwtPayload }) {
-    return this.pollsService.softDeletePoll(pollId, req.user.sub, req.user.role);
+  async deletePoll(
+    @Param('poll_id') pollId: string,
+    @Req() req: { user: JwtPayload },
+  ) {
+    return this.pollsService.softDeletePoll(
+      pollId,
+      req.user.sub,
+      req.user.role,
+    );
   }
 
   @Post(':poll_id/close')
   @ApiOperation({ summary: 'Clôturer manuellement (créateur)' })
-  async closePoll(@Param('poll_id') pollId: string, @Req() req: { user: JwtPayload }) {
-    const result = await this.pollsService.closePoll(pollId, req.user.sub, req.user.role);
+  async closePoll(
+    @Param('poll_id') pollId: string,
+    @Req() req: { user: JwtPayload },
+  ) {
+    const result = await this.pollsService.closePoll(
+      pollId,
+      req.user.sub,
+      req.user.role,
+    );
     const poll = await this.pollsService.getPoll(pollId);
     this.pollsGateway.emitPollClosed(pollId, (poll as any).results);
     return result;
@@ -133,8 +175,18 @@ export class PollsController {
     @Req() req: { user: JwtPayload },
     @Body() dto: AddOptionDto,
   ) {
-    const option = await this.pollsService.addOption(pollId, req.user.sub, dto.label, req.user.role, dto.weight);
-    this.pollsGateway.emitOptionAdded(pollId, { id: option.id, label: option.label, weight: option.weight });
+    const option = await this.pollsService.addOption(
+      pollId,
+      req.user.sub,
+      dto.label,
+      req.user.role,
+      dto.weight,
+    );
+    this.pollsGateway.emitOptionAdded(pollId, {
+      id: option.id,
+      label: option.label,
+      weight: option.weight,
+    });
     return option;
   }
 
@@ -146,14 +198,22 @@ export class PollsController {
     @Param('option_id') optionId: string,
     @Req() req: { user: JwtPayload },
   ) {
-    return this.pollsService.deleteOption(pollId, optionId, req.user.sub, req.user.role);
+    return this.pollsService.deleteOption(
+      pollId,
+      optionId,
+      req.user.sub,
+      req.user.role,
+    );
   }
 
   // ── Vote ────────────────────────────────────────────────
 
   @Get(':poll_id/vote')
   @ApiOperation({ summary: 'Consulter son vote' })
-  async getMyVote(@Param('poll_id') pollId: string, @Req() req: { user: JwtPayload }) {
+  async getMyVote(
+    @Param('poll_id') pollId: string,
+    @Req() req: { user: JwtPayload },
+  ) {
     return this.pollsService.getMyVote(pollId, req.user.sub);
   }
 
@@ -164,7 +224,11 @@ export class PollsController {
     @Req() req: { user: JwtPayload },
     @Body() dto: VoteDto,
   ) {
-    const result = await this.pollsService.vote(pollId, req.user.sub, dto.option_id);
+    const result = await this.pollsService.vote(
+      pollId,
+      req.user.sub,
+      dto.option_id,
+    );
     const poll = await this.pollsService.getPoll(pollId);
     this.pollsGateway.emitPollUpdated(pollId, (poll as any).results);
     return result;
@@ -177,7 +241,11 @@ export class PollsController {
     @Req() req: { user: JwtPayload },
     @Body() dto: VoteDto,
   ) {
-    const result = await this.pollsService.updateVote(pollId, req.user.sub, dto.option_id);
+    const result = await this.pollsService.updateVote(
+      pollId,
+      req.user.sub,
+      dto.option_id,
+    );
     const poll = await this.pollsService.getPoll(pollId);
     this.pollsGateway.emitPollUpdated(pollId, (poll as any).results);
     return result;
@@ -185,13 +253,19 @@ export class PollsController {
 
   @Delete(':poll_id/vote')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Retirer son vote (ou un vote spécifique si option_id fourni)' })
+  @ApiOperation({
+    summary: 'Retirer son vote (ou un vote spécifique si option_id fourni)',
+  })
   async deleteVote(
     @Param('poll_id') pollId: string,
     @Req() req: { user: JwtPayload },
     @Body('option_id') optionId?: string,
   ) {
-    const result = await this.pollsService.deleteVote(pollId, req.user.sub, optionId);
+    const result = await this.pollsService.deleteVote(
+      pollId,
+      req.user.sub,
+      optionId,
+    );
     const poll = await this.pollsService.getPoll(pollId);
     this.pollsGateway.emitPollUpdated(pollId, (poll as any).results);
     return result;

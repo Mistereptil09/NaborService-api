@@ -71,7 +71,10 @@ export class PollsGateway {
       .emit('poll:closed', { poll_id: pollId, final_results: finalResults });
   }
 
-  emitOptionAdded(pollId: string, option: { id: string; label: string; weight?: number }) {
+  emitOptionAdded(
+    pollId: string,
+    option: { id: string; label: string; weight?: number },
+  ) {
     this.server
       .to(`polls:poll:${pollId}`)
       .emit('poll:option_added', { poll_id: pollId, option });

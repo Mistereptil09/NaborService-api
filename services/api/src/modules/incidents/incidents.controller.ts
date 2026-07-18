@@ -41,9 +41,7 @@ import {
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class IncidentsController {
-  constructor(
-    private readonly incidentsService: IncidentsService,
-  ) {}
+  constructor(private readonly incidentsService: IncidentsService) {}
 
   // ── List ─────────────────────────────────────────────────
 
@@ -78,7 +76,7 @@ export class IncidentsController {
   @Get(':incident_id')
   @ApiOperation({ summary: "Détail d'un incident" })
   @ApiOkResponse({
-    description: 'Détail de l\'incident',
+    description: "Détail de l'incident",
     type: IncidentResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Incident introuvable' })
@@ -90,7 +88,9 @@ export class IncidentsController {
   // ── Update ───────────────────────────────────────────────
 
   @Patch(':incident_id')
-  @ApiOperation({ summary: 'Modifier un incident (signalant, assigné, ou modérateur)' })
+  @ApiOperation({
+    summary: 'Modifier un incident (signalant, assigné, ou modérateur)',
+  })
   @ApiOkResponse({ description: 'Incident mis à jour' })
   @ApiBadRequestResponse({ description: 'Données invalides' })
   @ApiForbiddenResponse({ description: 'Non autorisé à modifier cet incident' })
@@ -111,7 +111,9 @@ export class IncidentsController {
   @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Assigner un incident (modérateur/admin)' })
   @ApiOkResponse({ description: 'Incident assigné' })
-  @ApiForbiddenResponse({ description: 'Action réservée aux modérateurs et administrateurs' })
+  @ApiForbiddenResponse({
+    description: 'Action réservée aux modérateurs et administrateurs',
+  })
   @ApiNotFoundResponse({ description: 'Incident ou assigné introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async assign(
@@ -129,7 +131,9 @@ export class IncidentsController {
   @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Résoudre un incident (modérateur/admin)' })
   @ApiOkResponse({ description: 'Incident résolu' })
-  @ApiForbiddenResponse({ description: 'Action réservée aux modérateurs et administrateurs' })
+  @ApiForbiddenResponse({
+    description: 'Action réservée aux modérateurs et administrateurs',
+  })
   @ApiNotFoundResponse({ description: 'Incident introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async resolve(@Param('incident_id') id: string) {
@@ -140,14 +144,17 @@ export class IncidentsController {
 
   @Delete(':incident_id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Supprimer un incident (signalant ou modérateur/admin)' })
+  @ApiOperation({
+    summary: 'Supprimer un incident (signalant ou modérateur/admin)',
+  })
   @ApiOkResponse({ description: 'Incident supprimé' })
-  @ApiForbiddenResponse({ description: 'Non autorisé à supprimer cet incident' })
+  @ApiForbiddenResponse({
+    description: 'Non autorisé à supprimer cet incident',
+  })
   @ApiNotFoundResponse({ description: 'Incident introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async delete(@Param('incident_id') id: string, @Req() req: any) {
     await this.incidentsService.delete(id, req.user.sub, req.user.role);
     return { success: true };
   }
-
 }

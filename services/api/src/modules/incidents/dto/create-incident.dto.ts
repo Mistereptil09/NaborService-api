@@ -1,10 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsIn,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { IncidentSeverityEnum } from '../../../common/enums';
 
 export class CreateIncidentDto {
@@ -13,7 +8,9 @@ export class CreateIncidentDto {
   @MaxLength(200)
   title: string;
 
-  @ApiPropertyOptional({ example: 'Le lampadaire ne fonctionne plus depuis 3 jours.' })
+  @ApiPropertyOptional({
+    example: 'Le lampadaire ne fonctionne plus depuis 3 jours.',
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -23,8 +20,16 @@ export class CreateIncidentDto {
   @IsString()
   neighbourhood_id?: string;
 
-  @ApiPropertyOptional({ enum: IncidentSeverityEnum, default: IncidentSeverityEnum.MEDIUM })
+  @ApiPropertyOptional({
+    enum: IncidentSeverityEnum,
+    default: IncidentSeverityEnum.MEDIUM,
+  })
   @IsOptional()
-  @IsIn([IncidentSeverityEnum.LOW, IncidentSeverityEnum.MEDIUM, IncidentSeverityEnum.HIGH, IncidentSeverityEnum.CRITICAL])
+  @IsIn([
+    IncidentSeverityEnum.LOW,
+    IncidentSeverityEnum.MEDIUM,
+    IncidentSeverityEnum.HIGH,
+    IncidentSeverityEnum.CRITICAL,
+  ])
   severity?: IncidentSeverityEnum;
 }

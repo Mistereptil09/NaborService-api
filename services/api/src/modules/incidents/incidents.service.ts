@@ -9,7 +9,11 @@ import { Repository } from 'typeorm';
 import { Incident } from './entities/incident.entity';
 import { User } from '../users/entities/user.entity';
 import { NotificationsService } from '../messaging/notifications.service';
-import { IncidentSeverityEnum, IncidentStatusEnum, UserRoleEnum } from '../../common/enums';
+import {
+  IncidentSeverityEnum,
+  IncidentStatusEnum,
+  UserRoleEnum,
+} from '../../common/enums';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { ListIncidentsDto } from './dto/list-incidents.dto';
@@ -83,7 +87,7 @@ export class IncidentsService {
       severity: dto.severity ?? IncidentSeverityEnum.MEDIUM,
       status: IncidentStatusEnum.OPEN,
     } as Partial<Incident>);
-    return this.incidentRepository.save(incident as Incident);
+    return this.incidentRepository.save(incident);
   }
 
   // ── Update ───────────────────────────────────────────────
@@ -116,7 +120,9 @@ export class IncidentsService {
     const targetId = assigneeId ?? moderatorId;
 
     // Verify the assignee exists
-    const assignee = await this.userRepository.findOne({ where: { id: targetId } });
+    const assignee = await this.userRepository.findOne({
+      where: { id: targetId },
+    });
     if (!assignee) {
       throw new NotFoundException('Assigné introuvable');
     }
@@ -161,7 +167,11 @@ export class IncidentsService {
 
   // ── Delete (hard) ────────────────────────────────────────
 
-  async delete(incidentId: string, userId: string, userRole: UserRoleEnum): Promise<void> {
+  async delete(
+    incidentId: string,
+    userId: string,
+    userRole: UserRoleEnum,
+  ): Promise<void> {
     const incident = await this.findOne(incidentId);
 
     const isModeratorOrAdmin =
@@ -191,7 +201,7 @@ export class IncidentsService {
 
     if (!isReporter && !isAssignee && !isModeratorOrAdmin) {
       throw new ForbiddenException(
-        'Seul le signalant, l\'assigné, ou un modérateur peut modifier cet incident',
+        "Seul le signalant, l'assigné, ou un modérateur peut modifier cet incident",
       );
     }
   }

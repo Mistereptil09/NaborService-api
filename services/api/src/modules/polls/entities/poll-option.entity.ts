@@ -22,7 +22,13 @@ export class PollOption {
   label: string;
 
   /** Poids fixe attribué par le créateur du sondage (sondages de type "weighted"). Un vote pour cette option compte pour ce poids, quel que soit le votant. */
-  @Column({ type: 'numeric', precision: 10, scale: 2, nullable: false, default: 1 })
+  @Column({
+    type: 'numeric',
+    precision: 10,
+    scale: 2,
+    nullable: false,
+    default: 1,
+  })
   weight: number;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

@@ -69,7 +69,12 @@ export class EventContentService {
     };
   }
 
-  async updateContent(userId: string, eventId: string, dto: EventUpdateContentDto, userRole?: string) {
+  async updateContent(
+    userId: string,
+    eventId: string,
+    dto: EventUpdateContentDto,
+    userRole?: string,
+  ) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) {
       throw new NotFoundException('Event not found');
