@@ -216,4 +216,64 @@ describe('TotpService', () => {
       expect(redisClient.del).toHaveBeenCalledWith('totp:setup:user-id');
     });
   });
+
+  describe('verifyTotp', () => {
+    it('should throw if TOTP is not configured', async () => {
+      mockUserRepository.findOne.mockResolvedValueOnce({
+        id: 'user-id',
+        totpSecret: null,
+      });
+
+      await expect(service.verifyTotp('user-id', '123456')).rejects.toThrow(
+        'TOTP non configuré',
+      );
+    });
+
+    it('should verify a valid code', async () => {
+      const encrypted = service.encryptSecret('JBSWY3DPEHPK3PXP');
+      mockUserRepository.findOne.mockResolvedValueOnce({
+        id: 'user-id',
+        totpSecret: encrypted,
+      });
+      mockRedisClient.exists.mockResolvedValueOnce(0);
+      (otp.verifySync as jest.Mock).mockReturnValueOnce({ valid: true });
+
+      await expect(
+        service.verifyTotp('user-id', '123456'),
+      ).resolves.toBeUndefined();
+      expect(otp.verifySync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          token: '123456',
+          secret: 'JBSWY3DPEHPK3PXP',
+        }),
+      );
+    });
+
+    it('should throw if code is invalid', async () => {
+      const encrypted = service.encryptSecret('JBSWY3DPEHPK3PXP');
+      mockUserRepository.findOne.mockResolvedValueOnce({
+        id: 'user-id',
+        totpSecret: encrypted,
+      });
+      mockRedisClient.exists.mockResolvedValueOnce(0);
+      (otp.verifySync as jest.Mock).mockReturnValueOnce({ valid: false });
+
+      await expect(service.verifyTotp('user-id', '111111')).rejects.toThrow(
+        'TOTP requis ou invalide',
+      );
+    });
+
+    it('should throw if user is temporarily blocked', async () => {
+      const encrypted = service.encryptSecret('JBSWY3DPEHPK3PXP');
+      mockUserRepository.findOne.mockResolvedValueOnce({
+        id: 'user-id',
+        totpSecret: encrypted,
+      });
+      mockRedisClient.exists.mockResolvedValueOnce(1);
+
+      await expect(service.verifyTotp('user-id', '123456')).rejects.toThrow(
+        'Trop de tentatives, compte temporairement bloqué',
+      );
+    });
+  });
 });

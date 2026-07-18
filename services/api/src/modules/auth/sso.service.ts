@@ -18,7 +18,6 @@ import { SessionService } from './session.service';
 import { TokenService } from './token.service';
 import { SsoGateway } from './sso.gateway';
 
-
 interface SsoSessionPayload {
   status: 'pending' | 'validated';
   user_id: string | null;
@@ -30,7 +29,7 @@ interface SsoSessionPayload {
 }
 
 interface GenerateQrResult {
-  qr: string;      // base64 PNG data URI
+  qr: string; // base64 PNG data URI
   scanUrl: string; // full URL encoded in the QR, usable as a fallback link
 }
 
@@ -46,8 +45,7 @@ export class SsoService {
     private readonly tokenService: TokenService,
     private readonly sessionService: SessionService,
     private readonly ssoGateway: SsoGateway,
-  ) { }
-
+  ) {}
 
   /**
    * Generates a new SSO QR code session.
@@ -131,7 +129,6 @@ export class SsoService {
     }
   }
 
-
   /**
    * Validates an SSO session from the authenticated web client.
    * Generates long-lived tokens for the Java Desktop client.
@@ -193,7 +190,6 @@ export class SsoService {
 
     this.ssoGateway.emitQrValidated(tokenUuid, accessToken, refreshToken);
   }
-
 
   /**
    * Checks the status of an SSO session. Used by the Java Desktop client.

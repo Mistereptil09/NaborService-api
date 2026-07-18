@@ -1,12 +1,10 @@
 import {
-  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
   Logger,
   NotFoundException,
-  UnauthorizedException,
   InternalServerErrorException,
   Optional,
 } from '@nestjs/common';
@@ -14,7 +12,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { Follow } from '../social/entities/follow.entity';
-import { Friendship } from '../social/entities/friendship.entity';
 import { UpdateProfileDto } from './dto/user-routes.dtos';
 import { TotpService } from '../auth/totp.service';
 import { SessionService } from '../auth/session.service';
@@ -24,9 +21,6 @@ import { UserSocialService } from './user-social.service';
 import { ChatService } from '../messaging/chat.service';
 import { isModeratorOrAdmin } from '../../common/ownership';
 import { neighbourhoodGroupRoleFor } from '../../common/group-role.util';
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { authenticator } = require('otplib');
 
 @Injectable()
 export class UsersService {
@@ -100,25 +94,7 @@ export class UsersService {
   }
 
   private async verifyUserTotp(userId: string, code: string): Promise<void> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw new NotFoundException('Utilisateur introuvable');
-    }
-    if (!user.totpSecret) {
-      throw new ForbiddenException('TOTP non configuré');
-    }
-
-    let secret: string;
-    try {
-      secret = this.totpService.decryptSecret(user.totpSecret);
-    } catch {
-      throw new ForbiddenException('Erreur de déchiffrement du secret');
-    }
-
-    const isValid = authenticator.verify({ token: code, secret });
-    if (!isValid) {
-      throw new ForbiddenException('TOTP requis ou invalide');
-    }
+    return this.totpService.verifyTotp(userId, code);
   }
 
   async updateProfile(
@@ -358,7 +334,7 @@ export class UsersService {
       throw new NotFoundException('Utilisateur introuvable');
     }
 
-    // Check block relationship
+    // Check block relationship in either direction
     const isBlocked = await this.userSocialService.isBlocked(
       requesterId,
       targetId,
@@ -367,12 +343,25 @@ export class UsersService {
       throw new NotFoundException('Utilisateur introuvable'); // Masking block relationship
     }
 
+    // Relationship from the requester's point of view
+    const [follow, blockByMe] = await Promise.all([
+      this.followRepository.findOne({
+        where: { followerId: requesterId, followedId: targetId },
+      }),
+      this.userSocialService.hasBlocked(requesterId, targetId),
+    ]);
+    const relationship = {
+      isFollowing: !!follow,
+      isBlockedByMe: blockByMe,
+    };
+
     if (target.visibility === VisibilityEnum.PRIVATE) {
       return {
         id: target.id,
         firstName: target.firstName,
         lastName: target.lastName,
         visibility: target.visibility,
+        ...relationship,
       };
     }
 
@@ -392,6 +381,7 @@ export class UsersService {
           firstName: target.firstName,
           lastName: target.lastName,
           visibility: target.visibility,
+          ...relationship,
         };
       }
     }
@@ -408,6 +398,7 @@ export class UsersService {
       bannerMongoId: target.bannerMongoId,
       role: target.role,
       createdAt: target.createdAt,
+      ...relationship,
     };
   }
 
@@ -421,7 +412,9 @@ export class UsersService {
     data: User[];
     meta: { total: number; offset: number; limit: number };
   }> {
-    const queryBuilder = this.userRepository.createQueryBuilder('user').withDeleted();
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('user')
+      .withDeleted();
 
     if (query.role) {
       queryBuilder.andWhere('user.role = :role', { role: query.role });

@@ -254,9 +254,10 @@ describe('API Module Fixes Spec Verification', () => {
         add: jest.fn().mockResolvedValue({}),
       };
       const mockConfigService = {
-        getConfig: jest
-          .fn()
-          .mockResolvedValue({ commissionPercent: 5, contractExpirationHours: 24 }),
+        getConfig: jest.fn().mockResolvedValue({
+          commissionPercent: 5,
+          contractExpirationHours: 24,
+        }),
       };
       const mockNotificationsService = {
         create: jest.fn().mockResolvedValue({}),

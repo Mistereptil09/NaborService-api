@@ -14,7 +14,7 @@ export class AdminListUsersDto extends PaginationDto {
   @IsEnum(UserRoleEnum)
   role?: UserRoleEnum;
 
-  @ApiPropertyOptional({ description: "Filtrer par identifiant de quartier" })
+  @ApiPropertyOptional({ description: 'Filtrer par identifiant de quartier' })
   @IsOptional()
   @IsString()
   neighbourhood_id?: string;
@@ -38,11 +38,16 @@ export class AdminUserDto {
   @ApiProperty({ nullable: true }) neighbourhoodId: string | null;
   @ApiProperty({ nullable: true }) stripeAccountId: string | null;
   @ApiProperty({ description: 'Solde de points actuel' }) pointsBalance: number;
-  @ApiProperty({ description: 'Éligible aux virements de cashout (onboarding Stripe Connect terminé)' })
+  @ApiProperty({
+    description:
+      'Éligible aux virements de cashout (onboarding Stripe Connect terminé)',
+  })
   payoutsEnabled: boolean;
   @ApiProperty({ nullable: true }) profilePictureMongoId: string | null;
   @ApiProperty({ nullable: true }) bannerMongoId: string | null;
-  @ApiProperty({ description: 'Indique si la MFA TOTP est activée, sans exposer le secret' })
+  @ApiProperty({
+    description: 'Indique si la MFA TOTP est activée, sans exposer le secret',
+  })
   mfaEnabled: boolean;
   @ApiProperty({ nullable: true, type: String, format: 'date-time' })
   lastLoginAt: Date | null;
@@ -66,7 +71,8 @@ export class AdminUsersPaginationMetaDto {
 
 export class AdminUsersListDto {
   @ApiProperty({ type: [AdminUserDto] }) data: AdminUserDto[];
-  @ApiProperty({ type: AdminUsersPaginationMetaDto }) meta: AdminUsersPaginationMetaDto;
+  @ApiProperty({ type: AdminUsersPaginationMetaDto })
+  meta: AdminUsersPaginationMetaDto;
 }
 
 export function toAdminUserDto(user: User): AdminUserDto {

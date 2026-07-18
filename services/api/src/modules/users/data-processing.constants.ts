@@ -23,4 +23,5 @@ export const ESSENTIAL_EMAILS = [
   'password_reset',
   'payment_confirmation',
   'contract_signed',
+  'contract_fully_signed',
 ] as const;

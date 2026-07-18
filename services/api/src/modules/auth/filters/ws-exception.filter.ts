@@ -21,7 +21,9 @@ export class WsHttpExceptionFilter extends BaseWsExceptionFilter {
       const client = host.switchToWs().getClient<Socket>();
       const body = exception.getResponse();
       const message =
-        typeof body === 'string' ? body : ((body as any)?.message ?? exception.message);
+        typeof body === 'string'
+          ? body
+          : ((body as any)?.message ?? exception.message);
       client.emit('exception', { status: 'error', message });
       return;
     }

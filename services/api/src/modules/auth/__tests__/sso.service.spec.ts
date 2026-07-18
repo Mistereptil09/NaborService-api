@@ -87,7 +87,9 @@ describe('SsoService', () => {
       const result = await service.generateQr(ip, deviceName);
 
       expect(result.qr).toContain('data:image/png;base64,');
-      expect(result.scanUrl).toContain(`device=${encodeURIComponent(deviceName)}`);
+      expect(result.scanUrl).toContain(
+        `device=${encodeURIComponent(deviceName)}`,
+      );
       expect(mockRedisClient.incr).toHaveBeenCalledWith(
         `rate:sso:generate:${ip}`,
       );

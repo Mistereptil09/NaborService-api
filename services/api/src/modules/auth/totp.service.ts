@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Inject,
@@ -353,6 +354,40 @@ export class TotpService {
     await this.redis.set(setupKey, JSON.stringify(payload), 'EX', 600);
 
     throw new UnauthorizedException('Code TOTP invalide');
+  }
+
+  /**
+   * Verifies a TOTP code directly against the user's stored secret.
+   * Used for sensitive action confirmation (signing, password change, etc.)
+   */
+  async verifyTotp(userId: string, code: string): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId, deletedAt: IsNull() },
+    });
+    if (!user || !user.totpSecret) {
+      throw new ForbiddenException('TOTP non configuré');
+    }
+
+    await this.rateLimitService.incrementTotpAttempt(userId);
+
+    if (await this.isUserBlocked(userId)) {
+      throw new HttpException(
+        'Trop de tentatives, compte temporairement bloqué',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    let secret: string;
+    try {
+      secret = this.decryptSecret(user.totpSecret);
+    } catch {
+      throw new ForbiddenException('Erreur de déchiffrement du secret');
+    }
+
+    const result = otp.verifySync({ token: code, secret });
+    if (result?.valid !== true) {
+      throw new ForbiddenException('TOTP requis ou invalide');
+    }
   }
 
   /**

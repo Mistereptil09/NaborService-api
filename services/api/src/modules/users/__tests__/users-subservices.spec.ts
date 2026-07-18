@@ -336,13 +336,11 @@ describe('Users Module Services Unit Tests', () => {
       mockUserRepo.findOne.mockResolvedValue(mockUser);
       // First call: "already swiped?" check → no. Second call: "did they
       // like me back?" check → yes, target already liked user-1.
-      mockSwipeRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({
-          swiperId: 'target-user',
-          swipedId: 'user-1',
-          direction: 'like',
-        } as any);
+      mockSwipeRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        swiperId: 'target-user',
+        swipedId: 'user-1',
+        direction: 'like',
+      } as any);
       mockSwipeRepo.create.mockReturnValue({} as any);
 
       await discoveryService.swipe('user-1', 'target-user', {
@@ -363,13 +361,11 @@ describe('Users Module Services Unit Tests', () => {
       const mockUser = new User();
       mockUser.id = 'target-user';
       mockUserRepo.findOne.mockResolvedValue(mockUser);
-      mockSwipeRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({
-          swiperId: 'target-user',
-          swipedId: 'user-1',
-          direction: 'like',
-        } as any);
+      mockSwipeRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        swiperId: 'target-user',
+        swipedId: 'user-1',
+        direction: 'like',
+      } as any);
       mockSwipeRepo.create.mockReturnValue({} as any);
       (mockUserSocialService.follow as jest.Mock).mockRejectedValueOnce(
         new ConflictException('Vous suivez déjà cet utilisateur'),
@@ -393,7 +389,7 @@ describe('Users Module Services Unit Tests', () => {
         const result = await discoveryService.getDiscoverFeed('user-1', {
           offset: 0,
           limit: 10,
-        } as any);
+        });
 
         expect(result.data).toHaveLength(1);
         expect(result.data[0].id).toBe('candidate-1');
@@ -416,7 +412,7 @@ describe('Users Module Services Unit Tests', () => {
         const result = await discoveryService.getDiscoverFeed('user-1', {
           offset: 1,
           limit: 10,
-        } as any);
+        });
 
         expect(result.data).toEqual([{ id: 'b', score: 1 }]);
         expect(result.meta.total).toBe(2);
@@ -559,9 +555,9 @@ describe('Users Module Services Unit Tests', () => {
     describe('isBlocked', () => {
       it('returns true when either user has blocked the other, in either direction', async () => {
         mockBlockRepo.findOne.mockResolvedValueOnce({} as any);
-        await expect(
-          socialService.isBlocked('user-1', 'user-2'),
-        ).resolves.toBe(true);
+        await expect(socialService.isBlocked('user-1', 'user-2')).resolves.toBe(
+          true,
+        );
         expect(mockBlockRepo.findOne).toHaveBeenCalledWith({
           where: [
             { blockerId: 'user-1', blockedId: 'user-2' },
@@ -572,9 +568,9 @@ describe('Users Module Services Unit Tests', () => {
 
       it('returns false when no block relationship exists', async () => {
         mockBlockRepo.findOne.mockResolvedValueOnce(null);
-        await expect(
-          socialService.isBlocked('user-1', 'user-2'),
-        ).resolves.toBe(false);
+        await expect(socialService.isBlocked('user-1', 'user-2')).resolves.toBe(
+          false,
+        );
       });
     });
   });
