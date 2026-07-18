@@ -126,10 +126,17 @@ export class UserSocialService {
 
     // Notify the followed user (in-app + email relay if offline).
     try {
+      // Le nom affiché doit être celui de la personne qui suit (followerId),
+      // pas celui du destinataire (followedUser) — sinon la notification
+      // affiche systématiquement le propre prénom du destinataire.
+      const followerUser = await this.userRepository.findOne({
+        where: { id: followerId, deletedAt: IsNull() },
+        select: ['firstName'],
+      });
       await this.notificationsService.create({
         userId: followedId,
         type: 'new_follower',
-        payload: { firstName: followedUser.firstName, followerId },
+        payload: { firstName: followerUser?.firstName ?? null, followerId },
       });
     } catch (error: any) {
       this.logger.warn(

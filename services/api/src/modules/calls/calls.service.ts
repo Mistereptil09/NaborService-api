@@ -104,6 +104,10 @@ export class CallsService {
     return `call:${callId}:participants`;
   }
 
+  private resolvingKey(callId: string): string {
+    return `call:${callId}:resolving`;
+  }
+
   private async touchTtl(callId: string): Promise<void> {
     await Promise.all([
       this.redis.expire(this.metaKey(callId), LIVE_CALL_TTL_SECONDS),
@@ -478,6 +482,23 @@ export class CallsService {
   ): Promise<void> {
     if (!RESOLVED_STATUSES.has(status)) return;
 
+    // Plusieurs chemins peuvent tenter de résoudre le même appel à quelques
+    // ms d'écart (ex. côté 1:1, l'appelant raccroche : `endCallPrivileged`
+    // (HTTP) ET l'émission socket `leave_call` du même client démarrent en
+    // parallèle ; ou les deux participants raccrochent presque en même temps).
+    // Sans verrou, chacun lirait `meta` non-nul avant que l'autre n'ait eu le
+    // temps de le supprimer (le `del` n'intervient qu'après plusieurs await),
+    // doublant le CallLog, le message système et les notifications. Ce verrou
+    // atomique (NX) garantit qu'un seul appelant gagne la course.
+    const claimed = await this.redis.set(
+      this.resolvingKey(callId),
+      '1',
+      'EX',
+      30,
+      'NX',
+    );
+    if (claimed !== 'OK') return;
+
     const meta = await this.getMeta(callId);
     if (!meta) return; // already resolved by a concurrent path
     const participants = await this.getParticipants(callId);
@@ -515,7 +536,11 @@ export class CallsService {
       await this.callLogParticipantRepo.save(participantRows);
     }
 
-    await this.redis.del(this.metaKey(callId), this.participantsKey(callId));
+    await this.redis.del(
+      this.metaKey(callId),
+      this.participantsKey(callId),
+      this.resolvingKey(callId),
+    );
 
     const reason =
       status === CallStatusEnum.ENDED
@@ -581,13 +606,26 @@ export class CallsService {
         });
       }
     } else if (log.status === CallStatusEnum.ENDED) {
+      // Les appels sont strictement à deux — l'autre participant est donc
+      // toujours désignable sans ambiguïté.
+      const nameCache = new Map<string, string | null>();
+      const resolveCachedName = async (userId: string) => {
+        if (!nameCache.has(userId)) {
+          nameCache.set(userId, await this.resolveDisplayName(userId));
+        }
+        return nameCache.get(userId) ?? null;
+      };
+
       for (const p of participantRows) {
         if (!p.joinedAt) continue;
+        const other = participantRows.find((o) => o.userId !== p.userId) ?? null;
+        const otherName = other ? await resolveCachedName(other.userId) : null;
         await this.safeNotify(p.userId, 'call_summary', {
           callId: log.callId,
           groupId: log.groupId,
           callType: log.type,
           durationSeconds,
+          otherName,
         });
       }
     }
