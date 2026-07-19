@@ -11,7 +11,12 @@ import { Queue } from 'bullmq';
 import { Evenement } from './entities/evenement.entity';
 import { EventParticipant } from './entities/event-participant.entity';
 import { EventSwipe } from './entities/event-swipe.entity';
-import { EventStatusEnum, ParticipantStatusEnum } from '../../common/enums';
+import {
+  EventStatusEnum,
+  ParticipantStatusEnum,
+  PaymentStatusEnum,
+  PointsLedgerEntryTypeEnum,
+} from '../../common/enums';
 import { isModeratorOrAdmin } from '../../common/ownership';
 import {
   CreateEventDto,
@@ -355,11 +360,14 @@ export class EventsService {
       }
     }
 
+    // Pas de jobId déterministe : BullMQ déduplique sur jobId, ce qui
+    // empêchait toute ré-inscription après une désinscription (le job
+    // complété gardait le même identifiant et le nouveau n'était jamais
+    // enfilé). Le worker reste idempotent grâce au verrou pessimiste.
     await this.registerQueue.add(
       'register',
       { eventId: id, userId },
       {
-        jobId: `${id}_${userId}`,
         attempts: 3,
         backoff: { type: 'exponential', delay: 500 },
       },
@@ -390,9 +398,40 @@ export class EventsService {
       );
     }
 
-    participant.status = ParticipantStatusEnum.CANCELLED;
-    participant.cancelledAt = new Date();
-    await this.participantRepo.save(participant);
+    const event = await this.eventRepo.findOne({ where: { id } });
+
+    // Remboursement des points débités à l'inscription, dans la même fenêtre
+    // que pour une annulation d'événement (refund_deadline_hours depuis
+    // l'inscription). Gratuit ou hors délai → rien à recréditer.
+    const refundable =
+      participant.paymentStatus === PaymentStatusEnum.COMPLETED &&
+      participant.amountPoints > 0 &&
+      event != null &&
+      (Date.now() - participant.registeredAt.getTime()) / 3_600_000 <=
+        event.refundDeadlineHours;
+
+    await this.participantRepo.manager.transaction(async (manager) => {
+      participant.status = ParticipantStatusEnum.CANCELLED;
+      participant.cancelledAt = new Date();
+      if (refundable) {
+        participant.paymentStatus = PaymentStatusEnum.REFUNDED;
+        participant.refundedAt = new Date();
+      }
+      await manager.save(participant);
+
+      if (refundable) {
+        await this.pointsService.credit(
+          {
+            userId,
+            amountPoints: participant.amountPoints,
+            type: PointsLedgerEntryTypeEnum.EVENT_REFUND,
+            referenceType: 'evenement',
+            referenceId: id,
+          },
+          manager,
+        );
+      }
+    });
 
     // Trigger waitlist promotion
     await this.promoteQueue.add('promote', { eventId: id });

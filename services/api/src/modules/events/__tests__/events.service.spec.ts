@@ -42,10 +42,18 @@ describe('EventsService', () => {
       find: jest.fn(),
       findAndCount: jest.fn().mockResolvedValue([[], 0]),
       count: jest.fn().mockResolvedValue(0),
+      manager: {
+        transaction: jest.fn((cb: (m: unknown) => unknown) =>
+          cb({ save: jest.fn((e: unknown) => Promise.resolve(e)) }),
+        ),
+      },
     };
     mockBlockRepo = { find: jest.fn().mockResolvedValue([]) };
     mockRegisterQueue = { add: jest.fn().mockResolvedValue({}) };
-    mockPointsService = { getBalance: jest.fn().mockResolvedValue(1000) };
+    mockPointsService = {
+      getBalance: jest.fn().mockResolvedValue(1000),
+      credit: jest.fn().mockResolvedValue({}),
+    };
     mockEventMediaService = {
       findCoverMediaIds: jest.fn().mockResolvedValue(new Map()),
     };
@@ -325,6 +333,73 @@ describe('EventsService', () => {
       expect(result.data[0].participationStatus).toBe('waitlisted');
       expect(result.data[0].costPoints).toBe(300);
       expect(result.data[0].coverMediaId).toBe('6a5d254b65960338addcfe74');
+    });
+  });
+
+  describe('cancelRegistration', () => {
+    it('should refund paid points within the refund deadline', async () => {
+      mockParticipantRepo.findOne.mockResolvedValue({
+        eventId: 'evt-1',
+        userId: 'usr-1',
+        status: 'registered',
+        paymentStatus: 'completed',
+        amountPoints: 50,
+        registeredAt: new Date(Date.now() - 60_000),
+      });
+      mockEventRepo.findOne.mockResolvedValue({
+        id: 'evt-1',
+        refundDeadlineHours: 48,
+      });
+
+      await service.cancelRegistration('evt-1', 'usr-1');
+
+      expect(mockPointsService.credit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'usr-1',
+          amountPoints: 50,
+          type: 'event_refund',
+          referenceId: 'evt-1',
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('should not refund after the refund deadline', async () => {
+      mockParticipantRepo.findOne.mockResolvedValue({
+        eventId: 'evt-1',
+        userId: 'usr-1',
+        status: 'registered',
+        paymentStatus: 'completed',
+        amountPoints: 50,
+        registeredAt: new Date(Date.now() - 72 * 3_600_000),
+      });
+      mockEventRepo.findOne.mockResolvedValue({
+        id: 'evt-1',
+        refundDeadlineHours: 48,
+      });
+
+      await service.cancelRegistration('evt-1', 'usr-1');
+
+      expect(mockPointsService.credit).not.toHaveBeenCalled();
+    });
+
+    it('should not refund a free registration', async () => {
+      mockParticipantRepo.findOne.mockResolvedValue({
+        eventId: 'evt-1',
+        userId: 'usr-1',
+        status: 'registered',
+        paymentStatus: 'free',
+        amountPoints: 0,
+        registeredAt: new Date(),
+      });
+      mockEventRepo.findOne.mockResolvedValue({
+        id: 'evt-1',
+        refundDeadlineHours: 48,
+      });
+
+      await service.cancelRegistration('evt-1', 'usr-1');
+
+      expect(mockPointsService.credit).not.toHaveBeenCalled();
     });
   });
 });
