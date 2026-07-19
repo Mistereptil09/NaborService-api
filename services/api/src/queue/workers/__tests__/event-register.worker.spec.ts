@@ -85,6 +85,21 @@ describe('EventRegisterWorker', () => {
     );
   });
 
+  it('should throw UnrecoverableError if the event has already started', async () => {
+    mockManager.findOne.mockResolvedValueOnce({
+      id: 'evt-1',
+      status: EventStatusEnum.OPEN,
+      maxParticipants: 10,
+      startsAt: new Date(Date.now() - 60_000),
+    });
+
+    await expect(
+      worker.process({ data: { eventId: 'evt-1', userId: 'usr-1' } } as any),
+    ).rejects.toThrow(UnrecoverableError);
+
+    expect(mockManager.save).not.toHaveBeenCalled();
+  });
+
   it('should throw UnrecoverableError if already registered', async () => {
     mockManager.findOne
       .mockResolvedValueOnce({
