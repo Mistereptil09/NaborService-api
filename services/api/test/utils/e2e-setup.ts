@@ -4,7 +4,7 @@ import { AppModule } from '../../src/app.module';
 import cookieParser from 'cookie-parser';
 import { DataSource } from 'typeorm';
 import { getQueueToken } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
+import { Job, Queue } from 'bullmq';
 
 // To be called in beforeAll of each test suite
 export async function createTestingApp(): Promise<INestApplication> {
@@ -99,6 +99,33 @@ export async function clearRedis(app: INestApplication) {
   } catch {
     // Ignore if Redis client not found
   }
+}
+
+/**
+ * Waits for a specific BullMQ job to reach a terminal state.
+ * Useful in e2e tests that enqueue async workers.
+ */
+export async function waitForQueueJob(
+  app: INestApplication,
+  queueName: string,
+  jobId: string,
+  timeoutMs = 5000,
+): Promise<Job | undefined> {
+  const queue = app.get<Queue>(getQueueToken(queueName), { strict: false });
+  if (!queue) return undefined;
+
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const job = await queue.getJob(jobId);
+    if (job && (await job.isCompleted())) {
+      return job;
+    }
+    if (job && (await job.isFailed())) {
+      return job;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return queue.getJob(jobId);
 }
 
 /**

@@ -17,6 +17,7 @@ import { ChatGroup } from '../../messaging/entities/chat-group.entity';
 @Entity('evenements')
 @Check('chk_event_dates', '"ends_at" IS NULL OR "ends_at" > "starts_at"')
 @Check('chk_event_cost', '"cost_cents" >= 0')
+@Check('chk_event_reward', '"reward_points" >= 0')
 @Check(
   'chk_event_participants',
   '"max_participants" IS NULL OR "max_participants" >= 1',
@@ -57,6 +58,9 @@ export class Evenement {
 
   @Column({ name: 'cost_cents', type: 'int', nullable: false, default: 0 })
   costCents: number;
+
+  @Column({ name: 'reward_points', type: 'int', nullable: false, default: 0 })
+  rewardPoints: number;
 
   @Column({ name: 'starts_at', type: 'timestamptz', nullable: true })
   startsAt: Date | null;

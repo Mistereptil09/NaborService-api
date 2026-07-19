@@ -84,6 +84,34 @@ export class PointsService {
     });
   }
 
+  /**
+   * Admin-only signed adjustment. Positive amounts add points, negative amounts
+   * remove points. The resulting balance cannot drop below zero.
+   */
+  async adminAdjust(
+    params: MutationParams & { description?: string | null },
+    manager?: EntityManager,
+  ): Promise<{ entry: PointsLedgerEntry; balanceAfterPoints: number }> {
+    return this.runInTx(manager, async (m) => {
+      const user = await this.lockUser(m, params.userId);
+      const nextBalance = user.pointsBalance + params.amountPoints;
+      if (nextBalance < 0) {
+        throw new ConflictException(
+          "Le solde de l'utilisateur ne peut pas devenir négatif",
+        );
+      }
+      user.pointsBalance = nextBalance;
+      await m.save(user);
+      const entry = await this.insertEntry(m, {
+        ...params,
+        amountPoints: params.amountPoints,
+        balanceAfterPoints: user.pointsBalance,
+        description: params.description ?? null,
+      });
+      return { entry, balanceAfterPoints: user.pointsBalance };
+    });
+  }
+
   // Platform-side bookkeeping entry (e.g. commission) that isn't credited to
   // any user's wallet — kept purely for ledger/audit completeness.
   async recordCommission(

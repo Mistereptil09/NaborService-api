@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PointsLedgerEntry } from './entities/points-ledger-entry.entity';
 import { PointsTopup } from './entities/points-topup.entity';
@@ -15,7 +15,7 @@ import { StripeModule } from '../stripe/stripe.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([PointsLedgerEntry, PointsTopup, PointsCashout, User]),
-    AdminModule,
+    forwardRef(() => AdminModule),
     StripeModule,
   ],
   controllers: [PointsController],

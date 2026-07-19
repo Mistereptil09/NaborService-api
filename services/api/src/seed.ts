@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { INestApplication } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { getModelToken } from '@nestjs/mongoose';
@@ -22,6 +23,7 @@ import { EventStateMachineService } from './modules/events/event-state-machine.s
 import { EventReportService } from './modules/events/event-report.service';
 import { Neo4jGeoService } from './modules/geo/neo4j-geo.service';
 import { Neo4jService } from './database/neo4j/neo4j.service';
+import { PointsService } from './modules/points/points.service';
 
 // Enums
 import {
@@ -34,6 +36,7 @@ import {
   EventStatusEnum,
   ParticipantStatusEnum,
   PaymentStatusEnum,
+  PointsLedgerEntryTypeEnum,
   IncidentSeverityEnum,
   IncidentStatusEnum,
   PollTypeEnum,
@@ -46,6 +49,7 @@ import {
 import { User } from './modules/users/entities/user.entity';
 import { Listing } from './modules/listings/entities/listing.entity';
 import { Evenement } from './modules/events/entities/evenement.entity';
+import { EventParticipant } from './modules/events/entities/event-participant.entity';
 import { Incident } from './modules/incidents/entities/incident.entity';
 import { ListingCategory } from './modules/listings/entities/listing-category.entity';
 import { EvenementsCategory } from './modules/events/entities/evenements-category.entity';
@@ -70,6 +74,19 @@ import { Message } from './database/mongo-schemas/schemas/message.schema';
 import { EventDocument } from './database/mongo-schemas/schemas/event-document.schema';
 import { EventTicket } from './database/mongo-schemas/schemas/event-ticket.schema';
 import { IncidentDocument } from './database/mongo-schemas/schemas/incident-document.schema';
+
+async function waitForQueueDrain(app: INestApplication, queueName: string) {
+  const queue = app.get<Queue>(getQueueToken(queueName));
+  let attempts = 0;
+  while (attempts < 120) {
+    const waiting = await queue.getWaitingCount();
+    const active = await queue.getActiveCount();
+    if (waiting === 0 && active === 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    attempts++;
+  }
+  console.warn(`Queue ${queueName} did not drain within 30s`);
+}
 
 async function bootstrap() {
   console.log('=== Start Database Seeding ===');
@@ -829,6 +846,11 @@ async function bootstrap() {
     const eventsService = app.get(EventsService);
     const eventContentService = app.get(EventContentService);
     const stateMachineService = app.get(EventStateMachineService);
+    const pointsService = app.get(PointsService);
+    const eventRepo = app.get<Repository<Evenement>>(getRepositoryToken(Evenement));
+    const eventParticipantRepo = app.get<Repository<EventParticipant>>(
+      getRepositoryToken(EventParticipant),
+    );
 
     // Event 1: Downtown BBQ (future, open)
     const e1 = await eventsService.create(uAlice.id, {
@@ -861,6 +883,7 @@ async function bootstrap() {
       title: 'Nettoyage du parc - opération écocitoyenne',
       description: 'Gants et sacs fournis. Goûter offert aux participants !',
       cost_cents: 500,
+      reward_points: 50,
       max_participants: 15,
       refund_deadline_hours: 48,
       category_id: cleanUpEventCat.id,
@@ -875,6 +898,21 @@ async function bootstrap() {
     });
     await stateMachineService.publish(e2.id, uEmma.id);
     await stateMachineService.open(e2.id, uEmma.id);
+
+    // Credit participants with enough points for paid event registrations
+    await pointsService.adminAdjust({
+      userId: uAlice.id,
+      amountPoints: 500,
+      type: PointsLedgerEntryTypeEnum.ADMIN_ADJUSTMENT,
+      description: 'Seed: credit for paid event registration',
+    });
+    await pointsService.adminAdjust({
+      userId: uFelix.id,
+      amountPoints: 500,
+      type: PointsLedgerEntryTypeEnum.ADMIN_ADJUSTMENT,
+      description: 'Seed: credit for paid event registration',
+    });
+
     await eventsService.register(e2.id, uAlice.id);
     await eventsService.register(e2.id, uFelix.id);
 
@@ -896,13 +934,24 @@ async function bootstrap() {
     });
     await stateMachineService.publish(e3.id, uCharlie.id);
     await stateMachineService.open(e3.id, uCharlie.id);
-    await eventsService.register(e3.id, uAlice.id);
+    // e3 is intentionally in the past; registration is rejected by the API,
+    // so insert the historical participant record directly for seed data.
+    await eventParticipantRepo.save(
+      eventParticipantRepo.create({
+        eventId: e3.id,
+        userId: uAlice.id,
+        status: ParticipantStatusEnum.REGISTERED,
+        paymentStatus: PaymentStatusEnum.FREE,
+        registeredAt: new Date(Date.now() - 3 * 86400000),
+      }),
+    );
 
     // Event 4: Bike repair workshop (Villette)
     const e4 = await eventsService.create(uGabriel.id, {
       title: 'Atelier réparation de vélos',
       description: 'Apportez votre vélo, on répare ensemble.',
       cost_cents: 0,
+      reward_points: 25,
       max_participants: 12,
       refund_deadline_hours: 24,
       category_id: workshopEventCat.id,
@@ -927,6 +976,7 @@ async function bootstrap() {
       title: 'Tournoi de pétanque amical',
       description: 'Équipes de 2, inscriptions sur place.',
       cost_cents: 300,
+      reward_points: 15,
       max_participants: 24,
       refund_deadline_hours: 24,
       category_id: sportsEventCat.id,
@@ -940,6 +990,27 @@ async function bootstrap() {
     });
     await stateMachineService.publish(e5.id, uKarim.id);
     await stateMachineService.open(e5.id, uKarim.id);
+
+    // Alice spent her 500 points on e2; credit her again for e5
+    await pointsService.adminAdjust({
+      userId: uAlice.id,
+      amountPoints: 300,
+      type: PointsLedgerEntryTypeEnum.ADMIN_ADJUSTMENT,
+      description: 'Seed: credit for paid event registration',
+    });
+    await pointsService.adminAdjust({
+      userId: uHelene.id,
+      amountPoints: 300,
+      type: PointsLedgerEntryTypeEnum.ADMIN_ADJUSTMENT,
+      description: 'Seed: credit for paid event registration',
+    });
+    await pointsService.adminAdjust({
+      userId: uNora.id,
+      amountPoints: 300,
+      type: PointsLedgerEntryTypeEnum.ADMIN_ADJUSTMENT,
+      description: 'Seed: credit for paid event registration',
+    });
+
     await eventsService.register(e5.id, uAlice.id);
     await eventsService.register(e5.id, uHelene.id);
     await eventsService.register(e5.id, uNora.id);
@@ -967,6 +1038,187 @@ async function bootstrap() {
     await eventsService.register(e6.id, uIsmael.id);
     await eventsService.register(e6.id, uOscar.id);
 
+    // Event 7: Free concert (published but not yet open)
+    const e7 = await eventsService.create(uDavid.id, {
+      title: 'Concert jazz en plein air',
+      description: 'Groupe local et ambiance conviviale.',
+      cost_cents: 0,
+      reward_points: 0,
+      max_participants: 80,
+      refund_deadline_hours: 24,
+      category_id: cultureEventCat.id,
+      neighbourhood_id: 'nb-villette',
+      starts_at: new Date(Date.now() + 14 * 86400000).toISOString(),
+      ends_at: new Date(Date.now() + 14 * 86400000 + 3 * 3600000).toISOString(),
+    });
+    await eventContentService.updateContent(uDavid.id, e7.id, {
+      body_html: '<p>Apportez votre chaise et votre bonne humeur.</p>',
+      location: { address: 'Parc de la Villette, Paris', geocode: '48.867,2.358' },
+    });
+    await stateMachineService.publish(e7.id, uDavid.id);
+    // intentionally not opened — tests the "published" state
+
+    // Event 8: Paid cooking class with reward
+    const e8 = await eventsService.create(uLea.id, {
+      title: 'Atelier pâtisserie française',
+      description: 'Apprenez à faire des macarons maison.',
+      cost_cents: 400,
+      reward_points: 30,
+      max_participants: 8,
+      refund_deadline_hours: 48,
+      category_id: cultureEventCat.id,
+      neighbourhood_id: 'nb-marais',
+      starts_at: new Date(Date.now() + 6 * 86400000).toISOString(),
+      ends_at: new Date(Date.now() + 6 * 86400000 + 2 * 3600000).toISOString(),
+    });
+    await eventContentService.updateContent(uLea.id, e8.id, {
+      body_html: '<p>Ingrédients fournis, repartez avec vos créations.</p>',
+      location: { address: 'Atelier Léa, Paris', geocode: '48.859,2.363' },
+    });
+    await stateMachineService.publish(e8.id, uLea.id);
+    await stateMachineService.open(e8.id, uLea.id);
+    await pointsService.adminAdjust({
+      userId: uBob.id,
+      amountPoints: 400,
+      type: PointsLedgerEntryTypeEnum.ADMIN_ADJUSTMENT,
+      description: 'Seed: credit for paid event registration',
+    });
+    await pointsService.adminAdjust({
+      userId: uJulie.id,
+      amountPoints: 400,
+      type: PointsLedgerEntryTypeEnum.ADMIN_ADJUSTMENT,
+      description: 'Seed: credit for paid event registration',
+    });
+    await eventsService.register(e8.id, uBob.id);
+    await eventsService.register(e8.id, uJulie.id);
+
+    // Event 9: Free outdoor cinema
+    const e9 = await eventsService.create(uOscar.id, {
+      title: 'Cinéma en plein air',
+      description: 'Projection d\'un film classique sous les étoiles.',
+      cost_cents: 0,
+      reward_points: 10,
+      max_participants: 50,
+      refund_deadline_hours: 24,
+      category_id: cultureEventCat.id,
+      neighbourhood_id: 'nb-marais',
+      starts_at: new Date(Date.now() + 9 * 86400000).toISOString(),
+      ends_at: new Date(Date.now() + 9 * 86400000 + 2 * 3600000).toISOString(),
+    });
+    await eventContentService.updateContent(uOscar.id, e9.id, {
+      body_html: '<p>Chaises et couvertures recommandées.</p>',
+      location: { address: 'Square Oscar, Paris', geocode: '48.858,2.365' },
+    });
+    await stateMachineService.publish(e9.id, uOscar.id);
+    await stateMachineService.open(e9.id, uOscar.id);
+    await eventsService.register(e9.id, uAlice.id);
+    await eventsService.register(e9.id, uEmma.id);
+    await eventsService.register(e9.id, uGabriel.id);
+
+    // Event 10: Paid tech meetup
+    const e10 = await eventsService.create(uFelix.id, {
+      title: 'Meetup IA et société',
+      description: 'Discussions autour de l\'intelligence artificielle locale.',
+      cost_cents: 600,
+      reward_points: 40,
+      max_participants: 30,
+      refund_deadline_hours: 48,
+      category_id: workshopEventCat.id,
+      neighbourhood_id: 'nb-downtown',
+      starts_at: new Date(Date.now() + 11 * 86400000).toISOString(),
+      ends_at: new Date(Date.now() + 11 * 86400000 + 3 * 3600000).toISOString(),
+    });
+    await eventContentService.updateContent(uFelix.id, e10.id, {
+      body_html: '<p>Intervenants passionnés et buffet networking.</p>',
+      location: { address: 'Espace coworking downtown, Paris', geocode: '48.854,2.344' },
+    });
+    await stateMachineService.publish(e10.id, uFelix.id);
+    await stateMachineService.open(e10.id, uFelix.id);
+    await pointsService.adminAdjust({
+      userId: uAlice.id,
+      amountPoints: 600,
+      type: PointsLedgerEntryTypeEnum.ADMIN_ADJUSTMENT,
+      description: 'Seed: credit for paid event registration',
+    });
+    await pointsService.adminAdjust({
+      userId: uMathis.id,
+      amountPoints: 600,
+      type: PointsLedgerEntryTypeEnum.ADMIN_ADJUSTMENT,
+      description: 'Seed: credit for paid event registration',
+    });
+    await eventsService.register(e10.id, uAlice.id);
+    await eventsService.register(e10.id, uMathis.id);
+
+    // Event 11: Cancelled event
+    const e11 = await eventsService.create(uHelene.id, {
+      title: 'Randonnée urbaine (annulée)',
+      description: 'Départ depuis le centre-ville.',
+      cost_cents: 0,
+      reward_points: 0,
+      max_participants: 20,
+      refund_deadline_hours: 24,
+      category_id: sportsEventCat.id,
+      neighbourhood_id: 'nb-downtown',
+      starts_at: new Date(Date.now() + 4 * 86400000).toISOString(),
+      ends_at: new Date(Date.now() + 4 * 86400000 + 5 * 3600000).toISOString(),
+    });
+    await stateMachineService.publish(e11.id, uHelene.id);
+    await stateMachineService.open(e11.id, uHelene.id);
+    await eventsService.register(e11.id, uBob.id);
+    await stateMachineService.cancel(
+      e11.id,
+      uHelene.id,
+      'Météo défavorable',
+    );
+
+    // Event 12: Completed event (past, with direct participant seeding)
+    const e12 = await eventsService.create(uCharlie.id, {
+      title: 'Atelier poterie (terminé)',
+      description: 'Initiation à la poterie.',
+      cost_cents: 200,
+      reward_points: 20,
+      max_participants: 10,
+      refund_deadline_hours: 24,
+      category_id: workshopEventCat.id,
+      neighbourhood_id: 'nb-marais',
+      starts_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+      ends_at: new Date(Date.now() - 5 * 86400000 + 2 * 3600000).toISOString(),
+    });
+    await eventContentService.updateContent(uCharlie.id, e12.id, {
+      body_html: '<p>Atelier terminé, merci aux participants.</p>',
+      location: { address: 'Atelier Charlie, Paris', geocode: '48.860,2.361' },
+    });
+    await stateMachineService.publish(e12.id, uCharlie.id);
+    await stateMachineService.open(e12.id, uCharlie.id);
+    await eventParticipantRepo.save(
+      eventParticipantRepo.create({
+        eventId: e12.id,
+        userId: uDavid.id,
+        status: ParticipantStatusEnum.REGISTERED,
+        paymentStatus: PaymentStatusEnum.COMPLETED,
+        amountPoints: 200,
+        paidAt: new Date(Date.now() - 6 * 86400000),
+        registeredAt: new Date(Date.now() - 6 * 86400000),
+      }),
+    );
+    // Mark as completed directly to bypass the state-machine check
+    const completedEvent = await eventRepo.findOne({ where: { id: e12.id } });
+    if (completedEvent) {
+      completedEvent.status = EventStatusEnum.COMPLETED;
+      completedEvent.completedAt = new Date(Date.now() - 4 * 86400000);
+      await eventRepo.save(completedEvent);
+    }
+
+    // Swipe data for discovery cards
+    await eventsService.swipe(uAlice.id, e5.id, 'like');
+    await eventsService.swipe(uBob.id, e5.id, 'like');
+    await eventsService.swipe(uFelix.id, e5.id, 'dislike');
+    await eventsService.swipe(uAlice.id, e7.id, 'like');
+    await eventsService.swipe(uEmma.id, e7.id, 'like');
+    await eventsService.swipe(uOscar.id, e8.id, 'like');
+    await eventsService.swipe(uIsmael.id, e9.id, 'dislike');
+    await eventsService.swipe(uGabriel.id, e10.id, 'like');
+
     // Event reports (moderation queue data)
     const eventReportService = app.get(EventReportService);
     await eventReportService.createReport(
@@ -980,7 +1232,7 @@ async function bootstrap() {
       'Contenu à caractère commercial déguisé en événement communautaire.',
     );
 
-    console.log('6 events seeded. 2 event reports created.');
+    console.log('12 events seeded. 2 event reports created.');
 
     // ==========================================
     // STEP 9: SEED EVENT TICKETS (MONGODB)
@@ -998,8 +1250,18 @@ async function bootstrap() {
       [e4.id, uMathis.id, 'Mathis'],
       [e5.id, uAlice.id, 'Alice'],
       [e5.id, uHelene.id, 'Hélène'],
+      [e5.id, uNora.id, 'Nora'],
       [e6.id, uBob.id, 'Bob'],
       [e6.id, uIsmael.id, 'Ismaël'],
+      [e6.id, uOscar.id, 'Oscar'],
+      [e8.id, uBob.id, 'Bob'],
+      [e8.id, uJulie.id, 'Julie'],
+      [e9.id, uAlice.id, 'Alice'],
+      [e9.id, uEmma.id, 'Emma'],
+      [e9.id, uGabriel.id, 'Gabriel'],
+      [e10.id, uAlice.id, 'Alice'],
+      [e10.id, uMathis.id, 'Mathis'],
+      [e12.id, uDavid.id, 'David'],
     ]) {
       const hmac = crypto
         .createHmac('sha256', 'seed-secret')
@@ -1020,7 +1282,7 @@ async function bootstrap() {
       }).save();
     }
 
-    console.log('10 event tickets seeded.');
+    console.log('20 event tickets seeded.');
 
     // ==========================================
     // STEP 10: SEED INCIDENTS

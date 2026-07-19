@@ -136,7 +136,9 @@ export enum PointsLedgerEntryTypeEnum {
   EVENT_PAYOUT = 'event_payout',
   EVENT_REFUND = 'event_refund',
   EVENT_COMMISSION = 'event_commission',
+  EVENT_REWARD = 'event_reward',
   ADJUSTMENT = 'adjustment',
+  ADMIN_ADJUSTMENT = 'admin_adjustment',
   CASHOUT = 'cashout',
   CASHOUT_REVERSED = 'cashout_reversed',
 }

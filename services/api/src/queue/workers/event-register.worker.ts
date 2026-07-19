@@ -141,6 +141,11 @@ export class EventRegisterWorker extends WorkerHost {
         job.data.eventId,
         job.data.userId,
       );
+      this.eventsGateway.emitRegistrationResult(
+        job.data.userId,
+        job.data.eventId,
+        'registered',
+      );
     } catch (error: any) {
       if (error instanceof UnrecoverableError) {
         throw error;

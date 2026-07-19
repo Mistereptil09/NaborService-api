@@ -178,6 +178,105 @@ describe('Admin Module (e2e)', () => {
     });
   });
 
+  // ── Points adjustments ─────────────────────────────────────
+
+  describe('POST /v1/admin/points/adjust', () => {
+    it('should credit points to a user as admin', async () => {
+      const admin = await createAdminUser(app, 'pointsadmin');
+      const user = await createTestUser(app, 'pointsuser');
+
+      const res = await request(app.getHttpServer())
+        .post('/v1/admin/points/adjust')
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({
+          userId: user.user.id,
+          amountPoints: 500,
+          description: 'Manual credit',
+        })
+        .expect(200);
+
+      expect(res.body).toMatchObject({
+        success: true,
+        userId: user.user.id,
+        amountPoints: 500,
+        balanceAfterPoints: 500,
+      });
+      expect(res.body).toHaveProperty('entryId');
+    });
+
+    it('should debit points from a user as admin', async () => {
+      const admin = await createAdminUser(app, 'pointsadmin2');
+      const user = await createTestUser(app, 'pointsuser2');
+
+      // Credit first
+      await request(app.getHttpServer())
+        .post('/v1/admin/points/adjust')
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ userId: user.user.id, amountPoints: 500 })
+        .expect(200);
+
+      // Then debit
+      const res = await request(app.getHttpServer())
+        .post('/v1/admin/points/adjust')
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ userId: user.user.id, amountPoints: -200 })
+        .expect(200);
+
+      expect(res.body.balanceAfterPoints).toBe(300);
+    });
+
+    it('should reject adjustment that would make balance negative', async () => {
+      const admin = await createAdminUser(app, 'pointsadmin3');
+      const user = await createTestUser(app, 'pointsuser3');
+
+      await request(app.getHttpServer())
+        .post('/v1/admin/points/adjust')
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ userId: user.user.id, amountPoints: -100 })
+        .expect(409);
+    });
+
+    it('should return 403 for non-admin users', async () => {
+      const { email, password } = await createTestUser(app, 'regularpoints');
+      const { token } = await loginAndGetToken(app, email, password);
+      const target = await createTestUser(app, 'targetpoints');
+
+      await request(app.getHttpServer())
+        .post('/v1/admin/points/adjust')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ userId: target.user.id, amountPoints: 100 })
+        .expect(403);
+    });
+
+    it('should create an admin_adjustment ledger entry', async () => {
+      const admin = await createAdminUser(app, 'ledgeradmin');
+      const user = await createTestUser(app, 'ledgeruser');
+
+      await request(app.getHttpServer())
+        .post('/v1/admin/points/adjust')
+        .set('Authorization', `Bearer ${admin.token}`)
+        .send({ userId: user.user.id, amountPoints: 123, description: 'Test' })
+        .expect(200);
+
+      const ledgerRes = await request(app.getHttpServer())
+        .get('/v1/admin/points/ledger')
+        .set('Authorization', `Bearer ${admin.token}`)
+        .query({ userId: user.user.id })
+        .expect(200);
+
+      expect(ledgerRes.body.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            userId: user.user.id,
+            amountPoints: 123,
+            type: 'admin_adjustment',
+            description: 'Test',
+          }),
+        ]),
+      );
+    });
+  });
+
   // ── Config ──────────────────────────────────────────────────
 
   describe('GET/PATCH /v1/admin/config', () => {
