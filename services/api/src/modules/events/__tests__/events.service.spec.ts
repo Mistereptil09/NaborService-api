@@ -25,6 +25,8 @@ describe('EventsService', () => {
 
   beforeEach(async () => {
     queryBuilder = {
+      leftJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
@@ -38,6 +40,7 @@ describe('EventsService', () => {
     mockParticipantRepo = {
       findOne: jest.fn(),
       find: jest.fn(),
+      findAndCount: jest.fn().mockResolvedValue([[], 0]),
       count: jest.fn().mockResolvedValue(0),
     };
     mockBlockRepo = { find: jest.fn().mockResolvedValue([]) };
@@ -232,6 +235,78 @@ describe('EventsService', () => {
       const result = await service.findOneWithCover('evt-1');
 
       expect(result.coverMediaId).toBeNull();
+    });
+  });
+
+  describe('findUserOperations', () => {
+    it('should filter on creator or active participant and enrich the results', async () => {
+      queryBuilder.getManyAndCount.mockResolvedValue([
+        [
+          { id: 'evt-1', title: 'A', costCents: 200 },
+          { id: 'evt-2', title: 'B', costCents: 0 },
+        ],
+        2,
+      ]);
+      mockEventMediaService.findCoverMediaIds.mockResolvedValue(
+        new Map([['evt-1', '6a5d254b65960338addcfe74']]),
+      );
+
+      const result = await service.findUserOperations('usr-1', {
+        offset: 0,
+        limit: 20,
+      });
+
+      expect(queryBuilder.leftJoin).toHaveBeenCalledWith(
+        EventParticipant,
+        'participant',
+        expect.stringContaining('participant.user_id = :userId'),
+        expect.objectContaining({ userId: 'usr-1' }),
+      );
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        '(event.creatorId = :userId OR participant.user_id IS NOT NULL)',
+        { userId: 'usr-1' },
+      );
+      expect(result.meta.total).toBe(2);
+      expect(result.data[0].costPoints).toBe(200);
+      expect(result.data[0].coverMediaId).toBe('6a5d254b65960338addcfe74');
+      expect(result.data[1].coverMediaId).toBeNull();
+    });
+  });
+
+  describe('findUserRegistrations', () => {
+    it('should return participations enriched with event, cover and status', async () => {
+      mockParticipantRepo.findAndCount.mockResolvedValue([
+        [
+          {
+            eventId: 'evt-1',
+            userId: 'usr-1',
+            status: 'waitlisted',
+            registeredAt: new Date('2026-07-01T00:00:00Z'),
+            event: { id: 'evt-1', title: 'A', costCents: 300 },
+          },
+        ],
+        1,
+      ]);
+      mockEventMediaService.findCoverMediaIds.mockResolvedValue(
+        new Map([['evt-1', '6a5d254b65960338addcfe74']]),
+      );
+
+      const result = await service.findUserRegistrations('usr-1', {
+        offset: 0,
+        limit: 20,
+      });
+
+      expect(mockParticipantRepo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          relations: ['event'],
+          skip: 0,
+          take: 20,
+        }),
+      );
+      expect(result.meta.total).toBe(1);
+      expect(result.data[0].participationStatus).toBe('waitlisted');
+      expect(result.data[0].costPoints).toBe(300);
+      expect(result.data[0].coverMediaId).toBe('6a5d254b65960338addcfe74');
     });
   });
 });

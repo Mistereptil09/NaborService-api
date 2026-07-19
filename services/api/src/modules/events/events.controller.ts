@@ -161,6 +161,47 @@ export class EventsController {
     return this.eventsService.create(req.user.sub, dto);
   }
 
+  @Get('me/operations')
+  @ApiOperation({
+    summary: "Lister les évènements impliquant l'utilisateur connecté",
+  })
+  @ApiOkResponse({
+    description:
+      "Liste paginée des évènements créés ou rejoints par l'utilisateur retournée",
+    type: ListEventsResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Paramètres de filtre ou de pagination invalides',
+  })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
+  async listMyOperations(
+    @Query() query: ListEventsDto,
+    @Req() req: any,
+  ): Promise<ListEventsResponseDto> {
+    return this.eventsService.findUserOperations(req.user.sub, query);
+  }
+
+  @Get('me/registrations')
+  @ApiOperation({
+    summary:
+      "Lister les inscriptions de l'utilisateur connecté (y compris liste d'attente)",
+  })
+  @ApiOkResponse({
+    description:
+      "Liste paginée des évènements auxquels l'utilisateur est inscrit ou en liste d'attente retournée",
+    type: ListEventsResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Paramètres de filtre ou de pagination invalides',
+  })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
+  async listMyRegistrations(
+    @Query() query: ListEventsDto,
+    @Req() req: any,
+  ): Promise<ListEventsResponseDto> {
+    return this.eventsService.findUserRegistrations(req.user.sub, query);
+  }
+
   @Get(':event_id')
   @ApiOperation({ summary: "Consulter les détails d'un évènement" })
   @ApiOkResponse({

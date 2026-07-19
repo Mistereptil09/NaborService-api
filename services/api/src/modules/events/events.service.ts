@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Evenement } from './entities/evenement.entity';
@@ -112,6 +112,95 @@ export class EventsService {
       costPoints: Math.floor(event.costCents / centsPerPoint),
       userSwipe: swipeByEventId.get(event.id) ?? null,
       coverMediaId: covers.get(event.id) ?? null,
+    }));
+
+    return { data, meta: { total, offset: query.offset, limit: query.limit } };
+  }
+
+  /**
+   * Events the current user is involved in: either as creator or as a
+   * registered/waitlisted participant (cancelled registrations excluded).
+   * Mirrors listings' findUserOperations.
+   */
+  async findUserOperations(
+    userId: string,
+    query: ListEventsDto,
+  ): Promise<{
+    data: any[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
+    const qb = this.eventRepo
+      .createQueryBuilder('event')
+      .leftJoin(
+        EventParticipant,
+        'participant',
+        'participant.event_id = event.id AND participant.user_id = :userId AND participant.status != :cancelledStatus',
+        { userId, cancelledStatus: ParticipantStatusEnum.CANCELLED },
+      )
+      .where('(event.creatorId = :userId OR participant.user_id IS NOT NULL)', {
+        userId,
+      });
+
+    if (query.status) {
+      qb.andWhere('event.status = :status', { status: query.status });
+    }
+
+    qb.orderBy('event.createdAt', 'DESC').skip(query.offset).take(query.limit);
+
+    const [events, total] = await qb.getManyAndCount();
+
+    const centsPerPoint = await this.getCentsPerPoint();
+    const eventIds = events.map((e) => e.id);
+    const swipes = eventIds.length
+      ? await this.swipeRepo.find({
+          where: { eventId: In(eventIds), userId },
+        })
+      : [];
+    const swipeByEventId = new Map(
+      swipes.map((s) => [s.eventId, s.direction]),
+    );
+    const covers = await this.eventMediaService.findCoverMediaIds(eventIds);
+
+    const data = events.map((event) => ({
+      ...event,
+      costPoints: Math.floor(event.costCents / centsPerPoint),
+      userSwipe: swipeByEventId.get(event.id) ?? null,
+      coverMediaId: covers.get(event.id) ?? null,
+    }));
+
+    return { data, meta: { total, offset: query.offset, limit: query.limit } };
+  }
+
+  /**
+   * Current user's registrations (registered or waitlisted, cancelled
+   * excluded), each enriched with the event, its cover and the participation
+   * status — feeds the "my registrations" tracking page.
+   */
+  async findUserRegistrations(
+    userId: string,
+    query: ListEventsDto,
+  ): Promise<{
+    data: any[];
+    meta: { total: number; offset: number; limit: number };
+  }> {
+    const [participations, total] = await this.participantRepo.findAndCount({
+      where: { userId, status: Not(ParticipantStatusEnum.CANCELLED) },
+      relations: ['event'],
+      order: { registeredAt: 'DESC' },
+      skip: query.offset,
+      take: query.limit,
+    });
+
+    const centsPerPoint = await this.getCentsPerPoint();
+    const eventIds = participations.map((p) => p.eventId);
+    const covers = await this.eventMediaService.findCoverMediaIds(eventIds);
+
+    const data = participations.map((p) => ({
+      ...p.event,
+      costPoints: Math.floor(p.event.costCents / centsPerPoint),
+      coverMediaId: covers.get(p.eventId) ?? null,
+      participationStatus: p.status,
+      registeredAt: p.registeredAt,
     }));
 
     return { data, meta: { total, offset: query.offset, limit: query.limit } };
