@@ -412,8 +412,17 @@ export class EventItemDto {
   @ApiProperty({ nullable: true }) maxParticipants: number | null;
   @ApiProperty() refundDeadlineHours: number;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt: Date;
-  @ApiPropertyOptional({ description: "Current user's swipe direction for this event", enum: ['like', 'dislike', null] })
+  @ApiPropertyOptional({
+    description: "Current user's swipe direction for this event",
+    enum: ['like', 'dislike', null],
+  })
   userSwipe?: 'like' | 'dislike' | null;
+  @ApiProperty({
+    nullable: true,
+    description:
+      "Identifiant du média de couverture ('cover' si présent, sinon null)",
+  })
+  coverMediaId: string | null;
 }
 
 export class ListEventsResponseDto {

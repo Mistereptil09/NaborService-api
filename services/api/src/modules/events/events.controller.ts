@@ -163,8 +163,13 @@ export class EventsController {
 
   @Get(':event_id')
   @ApiOperation({ summary: "Consulter les détails d'un évènement" })
+  @ApiOkResponse({
+    description: "Détails de l'évènement retournés avec succès",
+  })
+  @ApiNotFoundResponse({ description: 'Évènement introuvable' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
   async getEvent(@Param('event_id') id: string) {
-    return this.eventsService.findOne(id);
+    return this.eventsService.findOneWithCover(id);
   }
 
   @Patch(':event_id')
@@ -205,6 +210,15 @@ export class EventsController {
       dto,
       req.user.role,
     );
+  }
+
+  @Get(':event_id/media')
+  @ApiOperation({ summary: "Lister les médias d'un évènement" })
+  @ApiOkResponse({ description: "Liste des médias de l'évènement retournée" })
+  @ApiNotFoundResponse({ description: 'Évènement introuvable' })
+  @ApiUnauthorizedResponse({ description: 'Non authentifié' })
+  async listMedia(@Param('event_id') id: string) {
+    return this.mediaService.listMedia(id);
   }
 
   @Post(':event_id/media')

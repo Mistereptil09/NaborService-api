@@ -151,6 +151,67 @@ export class EventMediaService {
     }
   }
 
+  /**
+   * List existing media for an event (public read, no ownership check),
+   * mirroring the listings media contract ({ id, order, caption }).
+   *
+   * Event media live embedded in the EventDocument (a single `cover` plus
+   * `attachments[]`), so the returned `id` is the identifier understood by
+   * the event media routes: the literal `'cover'` or the attachment `name`.
+   */
+  async listMedia(
+    eventId: string,
+  ): Promise<{ id: string; order: number | null; caption: string | null }[]> {
+    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    const document = await this.eventDocumentModel.findOne({
+      pg_event_id: eventId,
+    });
+    if (!document) {
+      return [];
+    }
+
+    const media: {
+      id: string;
+      order: number | null;
+      caption: string | null;
+    }[] = [];
+    if (document.cover && document.cover.data) {
+      media.push({ id: 'cover', order: 0, caption: null });
+    }
+    document.attachments.forEach((a, index) => {
+      media.push({ id: a.name, order: index + 1, caption: null });
+    });
+    return media;
+  }
+
+  /**
+   * Cover identifier per event, batched for a page of events — one query for
+   * the whole feed instead of one media call per card. Returns `'cover'` for
+   * events whose document has a cover, mirroring listings' findCoverImages.
+   */
+  async findCoverMediaIds(eventIds: string[]): Promise<Map<string, string>> {
+    if (eventIds.length === 0) return new Map();
+
+    // Project only `cover.size_bytes` to detect presence without loading the
+    // cover's binary payload for every event on the page.
+    const docs = await this.eventDocumentModel
+      .find({ pg_event_id: { $in: eventIds } })
+      .select('pg_event_id cover.size_bytes')
+      .lean();
+
+    const covers = new Map<string, string>();
+    for (const doc of docs) {
+      if (doc.cover) {
+        covers.set(doc.pg_event_id, 'cover');
+      }
+    }
+    return covers;
+  }
+
   async getMedia(
     eventId: string,
     mediaId: string,
