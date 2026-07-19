@@ -209,8 +209,8 @@ export class EventsController {
   })
   @ApiNotFoundResponse({ description: 'Évènement introuvable' })
   @ApiUnauthorizedResponse({ description: 'Non authentifié' })
-  async getEvent(@Param('event_id') id: string) {
-    return this.eventsService.findOneWithCover(id);
+  async getEvent(@Param('event_id') id: string, @Req() req: any) {
+    return this.eventsService.findOneWithCover(id, req.user.sub);
   }
 
   @Patch(':event_id')

@@ -236,6 +236,24 @@ describe('EventsService', () => {
 
       expect(result.coverMediaId).toBeNull();
     });
+
+    it('should expose the caller participation status when userId is given', async () => {
+      mockEventRepo.findOne.mockResolvedValue({ id: 'evt-1', title: 'A' });
+      mockParticipantRepo.findOne.mockResolvedValue({ status: 'registered' });
+
+      const result = await service.findOneWithCover('evt-1', 'usr-1');
+
+      expect(result.participationStatus).toBe('registered');
+    });
+
+    it('should return participationStatus null when the caller has no active participation', async () => {
+      mockEventRepo.findOne.mockResolvedValue({ id: 'evt-1', title: 'A' });
+      mockParticipantRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.findOneWithCover('evt-1', 'usr-1');
+
+      expect(result.participationStatus).toBeNull();
+    });
   });
 
   describe('findUserOperations', () => {

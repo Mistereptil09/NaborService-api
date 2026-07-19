@@ -235,11 +235,26 @@ export class EventsService {
    * Same as findOne but also enriched with the cover identifier, for the event
    * detail response. Kept separate so the many internal callers of findOne
    * (register, swipe, update…) don't incur the extra media lookup.
+   * When `userId` is given, also exposes the caller's participation status so
+   * the detail page survives a reload (registered / waitlisted / null).
    */
-  async findOneWithCover(id: string) {
+  async findOneWithCover(id: string, userId?: string) {
     const event = await this.findOne(id);
     const covers = await this.eventMediaService.findCoverMediaIds([id]);
-    return { ...event, coverMediaId: covers.get(id) ?? null };
+
+    let participationStatus: ParticipantStatusEnum | null = null;
+    if (userId) {
+      const participation = await this.participantRepo.findOne({
+        where: { eventId: id, userId, status: Not(ParticipantStatusEnum.CANCELLED) },
+      });
+      participationStatus = participation?.status ?? null;
+    }
+
+    return {
+      ...event,
+      coverMediaId: covers.get(id) ?? null,
+      participationStatus,
+    };
   }
 
   async update(
