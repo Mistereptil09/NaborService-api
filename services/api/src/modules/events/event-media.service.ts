@@ -8,7 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Evenement } from './entities/evenement.entity';
 import { MediaService } from '../media/services/media.service';
-import { GridFSService } from '../media/services/gridfs.service';
 import { isModeratorOrAdmin } from '../../common/ownership';
 
 @Injectable()
@@ -17,7 +16,6 @@ export class EventMediaService {
     @InjectRepository(Evenement)
     private readonly eventRepo: Repository<Evenement>,
     private readonly mediaService: MediaService,
-    private readonly gridfsService: GridFSService,
   ) {}
 
   async uploadMedia(
@@ -87,22 +85,6 @@ export class EventMediaService {
       media.push({ id: a._id.toString(), order: index + 1, caption: null });
     });
     return media;
-  }
-
-  async getMedia(eventId: string, mediaId: string) {
-    const doc = await this.mediaService.findById(mediaId);
-    if (
-      (doc.owner_type !== 'event_cover' &&
-        doc.owner_type !== 'event_attachment') ||
-      doc.owner_id !== eventId
-    ) {
-      throw new NotFoundException('Media not found');
-    }
-    const { buffer } = await this.gridfsService.download(doc.gridfs_file_id);
-    return {
-      data: buffer,
-      mimetype: doc.mimetype,
-    };
   }
 
   async deleteMedia(

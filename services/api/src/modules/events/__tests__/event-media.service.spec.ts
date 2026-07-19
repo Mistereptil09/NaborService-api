@@ -4,13 +4,11 @@ import { NotFoundException } from '@nestjs/common';
 import { EventMediaService } from '../event-media.service';
 import { Evenement } from '../entities/evenement.entity';
 import { MediaService } from '../../media/services/media.service';
-import { GridFSService } from '../../media/services/gridfs.service';
 
 describe('EventMediaService', () => {
   let service: EventMediaService;
   let mockEventRepo: any;
   let mockMediaService: any;
-  let mockGridfsService: any;
 
   beforeEach(async () => {
     mockEventRepo = { findOne: jest.fn() };
@@ -21,16 +19,12 @@ describe('EventMediaService', () => {
       findCoverImages: jest.fn(),
       delete: jest.fn(),
     };
-    mockGridfsService = {
-      download: jest.fn(),
-    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EventMediaService,
         { provide: getRepositoryToken(Evenement), useValue: mockEventRepo },
         { provide: MediaService, useValue: mockMediaService },
-        { provide: GridFSService, useValue: mockGridfsService },
       ],
     }).compile();
 
@@ -164,38 +158,6 @@ describe('EventMediaService', () => {
 
       expect(result.size).toBe(0);
       expect(mockMediaService.findCoverImages).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('getMedia', () => {
-    it('should return buffer and mimetype for event media', async () => {
-      mockMediaService.findById.mockResolvedValue({
-        owner_type: 'event_cover',
-        owner_id: 'evt-1',
-        mimetype: 'image/webp',
-        gridfs_file_id: 'gridfs-1',
-      });
-      mockGridfsService.download.mockResolvedValue({
-        buffer: Buffer.from('image-data'),
-      });
-
-      const result = await service.getMedia('evt-1', 'media-1');
-
-      expect(result.data).toEqual(Buffer.from('image-data'));
-      expect(result.mimetype).toBe('image/webp');
-    });
-
-    it('should throw NotFoundException when media does not belong to event', async () => {
-      mockMediaService.findById.mockResolvedValue({
-        owner_type: 'event_cover',
-        owner_id: 'evt-2',
-        mimetype: 'image/webp',
-        gridfs_file_id: 'gridfs-1',
-      });
-
-      await expect(service.getMedia('evt-1', 'media-1')).rejects.toThrow(
-        NotFoundException,
-      );
     });
   });
 

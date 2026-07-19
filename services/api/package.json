@@ -21,6 +21,7 @@
     "test:e2e:fails": "jest --config ./test/jest-e2e.json --forceExit --onlyFailures",
     "db:seed": "ts-node src/seed.ts",
     "db:migrate:contracts": "ts-node src/scripts/migrate-contracts-dual-signature.ts",
+    "db:migrate:event-media": "ts-node src/scripts/migrate-event-media.ts",
     "mail:test": "ts-node src/scripts/test-smtp.ts"
   },
   "dependencies": {

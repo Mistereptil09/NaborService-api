@@ -233,21 +233,6 @@ export class EventsController {
     return this.mediaService.uploadMedia(req.user.sub, id, file, req.user.role);
   }
 
-  @Get(':event_id/media/:media_id')
-  @ApiOperation({
-    summary: "Streamer un média d'évènement (cover ou pièce jointe)",
-  })
-  async streamMedia(
-    @Param('event_id') id: string,
-    @Param('media_id') mediaId: string,
-    @Res() res: any,
-  ) {
-    const media = await this.mediaService.getMedia(id, mediaId);
-    res.setHeader('Content-Type', media.mimetype);
-    res.setHeader('Cache-Control', 'max-age=31536000, immutable');
-    res.send(media.data);
-  }
-
   @Delete(':event_id/media/:media_id')
   @ApiOperation({ summary: "Supprimer un média d'un évènement" })
   async deleteMedia(

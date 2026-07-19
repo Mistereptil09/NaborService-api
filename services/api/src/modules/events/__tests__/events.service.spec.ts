@@ -198,7 +198,7 @@ describe('EventsService', () => {
         2,
       ]);
       mockEventMediaService.findCoverMediaIds.mockResolvedValue(
-        new Map([['evt-with-cover', 'cover']]),
+        new Map([['evt-with-cover', '6a5d254b65960338addcfe74']]),
       );
 
       const result = await service.findAll('usr-1', { offset: 0, limit: 20 });
@@ -207,7 +207,7 @@ describe('EventsService', () => {
         'evt-with-cover',
         'evt-no-cover',
       ]);
-      expect(result.data[0].coverMediaId).toBe('cover');
+      expect(result.data[0].coverMediaId).toBe('6a5d254b65960338addcfe74');
       expect(result.data[1].coverMediaId).toBeNull();
     });
   });
@@ -216,12 +216,12 @@ describe('EventsService', () => {
     it('should return the event enriched with its coverMediaId', async () => {
       mockEventRepo.findOne.mockResolvedValue({ id: 'evt-1', title: 'A' });
       mockEventMediaService.findCoverMediaIds.mockResolvedValue(
-        new Map([['evt-1', 'cover']]),
+        new Map([['evt-1', '6a5d254b65960338addcfe74']]),
       );
 
       const result = await service.findOneWithCover('evt-1');
 
-      expect(result.coverMediaId).toBe('cover');
+      expect(result.coverMediaId).toBe('6a5d254b65960338addcfe74');
       expect(result.id).toBe('evt-1');
     });
 

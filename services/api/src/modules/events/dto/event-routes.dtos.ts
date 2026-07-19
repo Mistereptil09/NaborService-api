@@ -419,8 +419,7 @@ export class EventItemDto {
   userSwipe?: 'like' | 'dislike' | null;
   @ApiProperty({
     nullable: true,
-    description:
-      "Identifiant du média de couverture ('cover' si présent, sinon null)",
+    description: "Identifiant du média de couverture (ObjectId, sinon null)",
   })
   coverMediaId: string | null;
 }
