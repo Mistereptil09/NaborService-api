@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PlatformConfig } from './entities/platform-config.entity';
 import { User } from '../users/entities/user.entity';
@@ -8,6 +8,7 @@ import { ListingTransaction } from '../listings/entities/listing-transaction.ent
 import { Incident } from '../incidents/entities/incident.entity';
 import { EventParticipant } from '../events/entities/event-participant.entity';
 import { PointsLedgerEntry } from '../points/entities/points-ledger-entry.entity';
+import { PointsModule } from '../points/points.module';
 
 import { AdminConfigService } from './admin-config.service';
 import { AdminConfigController } from './admin-config.controller';
@@ -29,6 +30,7 @@ import { AdminPointsController } from './admin-points.controller';
       EventParticipant,
       PointsLedgerEntry,
     ]),
+    forwardRef(() => PointsModule),
   ],
   controllers: [
     AdminConfigController,

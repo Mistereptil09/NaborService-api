@@ -5,6 +5,7 @@ import {
   clearDatabase,
   clearRedis,
   clearQueueJobs,
+  waitForQueueJob,
 } from './utils/e2e-setup';
 import {
   createTestUser,
@@ -63,7 +64,8 @@ describe('Events Module (e2e)', () => {
         .get('/v1/events')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
-      expect(res.body).toHaveProperty('items');
+      expect(res.body).toHaveProperty('data');
+      expect(res.body).toHaveProperty('meta');
     });
 
     it('GET /v1/events/:id should return single event', async () => {
@@ -188,12 +190,12 @@ describe('Events Module (e2e)', () => {
   // ── Registration ───────────────────────────────────────────
 
   describe('Registration', () => {
-    it('POST /v1/events/:id/register should return 202 for open event', async () => {
+    it('POST /v1/events/:id/register should register participant for a free open event', async () => {
       const u1 = await createTestUser(app, 'creator');
       const u2 = await createTestUser(app, 'joiner');
       const { token: t1 } = await loginAndGetToken(app, u1.email, u1.password);
       const { token: t2 } = await loginAndGetToken(app, u2.email, u2.password);
-      const event = await createEvent(app, t1);
+      const event = await createEvent(app, t1, { cost_cents: 0 });
       await request(app.getHttpServer())
         .post(`/v1/events/${event.id}/publish`)
         .set('Authorization', `Bearer ${t1}`)
@@ -208,6 +210,43 @@ describe('Events Module (e2e)', () => {
         .set('Authorization', `Bearer ${t2}`)
         .expect(202);
       expect(res.body).toHaveProperty('success', true);
+
+      // Wait for the async worker to persist the registration
+      const job = await waitForQueueJob(app, 'event-register', `${event.id}_${u2.user.id}`);
+      expect(job).toBeDefined();
+      expect(await job!.isCompleted()).toBe(true);
+
+      // Verify the participant is actually persisted
+      const participantsRes = await request(app.getHttpServer())
+        .get(`/v1/events/${event.id}/participants`)
+        .set('Authorization', `Bearer ${t1}`)
+        .expect(200);
+      expect(participantsRes.body).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ userId: u2.user.id }),
+        ]),
+      );
+    });
+
+    it('POST /v1/events/:id/register should return 409 when user has insufficient points', async () => {
+      const u1 = await createTestUser(app, 'creator');
+      const u2 = await createTestUser(app, 'joiner');
+      const { token: t1 } = await loginAndGetToken(app, u1.email, u1.password);
+      const { token: t2 } = await loginAndGetToken(app, u2.email, u2.password);
+      const event = await createEvent(app, t1, { cost_cents: 500 });
+      await request(app.getHttpServer())
+        .post(`/v1/events/${event.id}/publish`)
+        .set('Authorization', `Bearer ${t1}`)
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/v1/events/${event.id}/open`)
+        .set('Authorization', `Bearer ${t1}`)
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post(`/v1/events/${event.id}/register`)
+        .set('Authorization', `Bearer ${t2}`)
+        .expect(409);
     });
 
     it('POST /v1/events/:id/register should return 409 for draft event', async () => {

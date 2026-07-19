@@ -8,6 +8,8 @@ import { EventParticipant } from '../entities/event-participant.entity';
 import { EventSwipe } from '../entities/event-swipe.entity';
 import { ChatGroup } from '../../messaging/entities/chat-group.entity';
 import { UserBlock } from '../../social/entities/user-block.entity';
+import { PointsService } from '../../points/points.service';
+import { AdminConfigService } from '../../admin/admin-config.service';
 import { EventStatusEnum } from '../../../common/enums';
 
 describe('EventsService', () => {
@@ -16,6 +18,7 @@ describe('EventsService', () => {
   let mockParticipantRepo: any;
   let mockBlockRepo: any;
   let mockRegisterQueue: any;
+  let mockPointsService: any;
   let queryBuilder: any;
 
   beforeEach(async () => {
@@ -30,9 +33,14 @@ describe('EventsService', () => {
       findOne: jest.fn(),
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
     };
-    mockParticipantRepo = { findOne: jest.fn(), find: jest.fn() };
+    mockParticipantRepo = {
+      findOne: jest.fn(),
+      find: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
+    };
     mockBlockRepo = { find: jest.fn().mockResolvedValue([]) };
     mockRegisterQueue = { add: jest.fn().mockResolvedValue({}) };
+    mockPointsService = { getBalance: jest.fn().mockResolvedValue(1000) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -52,6 +60,14 @@ describe('EventsService', () => {
         {
           provide: getQueueToken('waitlist-promote'),
           useValue: { add: jest.fn() },
+        },
+        {
+          provide: PointsService,
+          useValue: mockPointsService,
+        },
+        {
+          provide: AdminConfigService,
+          useValue: { getConfig: jest.fn().mockResolvedValue({ centsPerPoint: 1 }) },
         },
       ],
     }).compile();
@@ -99,6 +115,36 @@ describe('EventsService', () => {
         success: true,
       });
       expect(mockRegisterQueue.add).toHaveBeenCalled();
+    });
+
+    it('should reject registration when user has insufficient points', async () => {
+      mockEventRepo.findOne.mockResolvedValue({
+        id: 'evt-1',
+        status: EventStatusEnum.OPEN,
+        startsAt: null,
+        costCents: 500,
+      });
+      mockPointsService.getBalance.mockResolvedValueOnce(0);
+
+      await expect(service.register('evt-1', 'usr-1')).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockRegisterQueue.add).not.toHaveBeenCalled();
+    });
+
+    it('should reject registration when event is full', async () => {
+      mockEventRepo.findOne.mockResolvedValue({
+        id: 'evt-1',
+        status: EventStatusEnum.OPEN,
+        startsAt: null,
+        maxParticipants: 1,
+      });
+      mockParticipantRepo.count.mockResolvedValueOnce(1);
+
+      await expect(service.register('evt-1', 'usr-1')).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockRegisterQueue.add).not.toHaveBeenCalled();
     });
   });
 

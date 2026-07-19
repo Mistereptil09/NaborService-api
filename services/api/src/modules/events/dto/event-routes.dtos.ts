@@ -110,6 +110,15 @@ export class CreateEventDto {
   cost_cents?: number;
 
   @ApiPropertyOptional({
+    description: 'Points rewarded to each registered participant on completion (0 for none)',
+    example: 50,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  reward_points?: number;
+
+  @ApiPropertyOptional({
     description: 'Maximum number of participants',
     example: 50,
   })
@@ -192,6 +201,15 @@ export class UpdateEventDto {
   @IsInt()
   @Min(0)
   cost_cents?: number;
+
+  @ApiPropertyOptional({
+    description: 'Points rewarded to each registered participant on completion (0 for none)',
+    example: 50,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  reward_points?: number;
 
   @ApiPropertyOptional({
     description: 'Maximum number of participants',
@@ -383,6 +401,10 @@ export class EventItemDto {
   @ApiProperty({ enum: EventStatusEnum }) status: EventStatusEnum;
   @ApiProperty({ nullable: true }) inviteCode: string | null;
   @ApiProperty() costCents: number;
+  @ApiProperty({ description: 'Cost converted to points using the current platform rate' })
+  costPoints: number;
+  @ApiProperty({ description: 'Points rewarded to each registered participant on completion' })
+  rewardPoints: number;
   @ApiProperty({ nullable: true, type: String, format: 'date-time' })
   startsAt: Date | null;
   @ApiProperty({ nullable: true, type: String, format: 'date-time' })
@@ -390,6 +412,8 @@ export class EventItemDto {
   @ApiProperty({ nullable: true }) maxParticipants: number | null;
   @ApiProperty() refundDeadlineHours: number;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt: Date;
+  @ApiPropertyOptional({ description: "Current user's swipe direction for this event", enum: ['like', 'dislike', null] })
+  userSwipe?: 'like' | 'dislike' | null;
 }
 
 export class ListEventsResponseDto {

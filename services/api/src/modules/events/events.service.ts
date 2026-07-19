@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Evenement } from './entities/evenement.entity';
@@ -20,6 +20,8 @@ import {
 } from './dto/event-routes.dtos';
 import { ChatGroup } from '../messaging/entities/chat-group.entity';
 import { UserBlock } from '../social/entities/user-block.entity';
+import { PointsService } from '../points/points.service';
+import { AdminConfigService } from '../admin/admin-config.service';
 
 @Injectable()
 export class EventsService {
@@ -36,13 +38,15 @@ export class EventsService {
     private readonly blockRepo: Repository<UserBlock>,
     @InjectQueue('event-register') private readonly registerQueue: Queue,
     @InjectQueue('waitlist-promote') private readonly promoteQueue: Queue,
+    private readonly pointsService: PointsService,
+    private readonly adminConfigService: AdminConfigService,
   ) {}
 
   async findAll(
     userId: string,
     query: ListEventsDto,
   ): Promise<{
-    data: Evenement[];
+    data: any[];
     meta: { total: number; offset: number; limit: number };
   }> {
     const qb = this.eventRepo.createQueryBuilder('event');
@@ -83,9 +87,26 @@ export class EventsService {
       qb.orderBy('event.createdAt', 'DESC');
     }
 
-    const [data, total] = await qb.getManyAndCount();
-    // { data, meta: { total, offset, limit } } — same pagination envelope
-    // used across the rest of the API (incidents, listings, users social/discovery).
+    const [events, total] = await qb.getManyAndCount();
+
+    // Enrich events with point conversion and current user's swipe state
+    const centsPerPoint = await this.getCentsPerPoint();
+    const eventIds = events.map((e) => e.id);
+    const swipes = eventIds.length
+      ? await this.swipeRepo.find({
+          where: { eventId: In(eventIds), userId },
+        })
+      : [];
+    const swipeByEventId = new Map(
+      swipes.map((s) => [s.eventId, s.direction]),
+    );
+
+    const data = events.map((event) => ({
+      ...event,
+      costPoints: Math.floor(event.costCents / centsPerPoint),
+      userSwipe: swipeByEventId.get(event.id) ?? null,
+    }));
+
     return { data, meta: { total, offset: query.offset, limit: query.limit } };
   }
 
@@ -95,6 +116,7 @@ export class EventsService {
       creatorId: userId,
       status: EventStatusEnum.DRAFT,
       costCents: dto.cost_cents ?? 0,
+      rewardPoints: dto.reward_points ?? 0,
       refundDeadlineHours: dto.refund_deadline_hours ?? 48,
       inviteCode: dto.invite_code || null,
       categoryId: dto.category_id || null,
@@ -109,7 +131,8 @@ export class EventsService {
   async findOne(id: string) {
     const event = await this.eventRepo.findOne({ where: { id } });
     if (!event) throw new NotFoundException('Event not found');
-    return event;
+    const centsPerPoint = await this.getCentsPerPoint();
+    return { ...event, costPoints: Math.floor(event.costCents / centsPerPoint) };
   }
 
   async update(
@@ -136,6 +159,7 @@ export class EventsService {
     Object.assign(event, {
       ...dto,
       ...(dto.cost_cents !== undefined && { costCents: dto.cost_cents }),
+      ...(dto.reward_points !== undefined && { rewardPoints: dto.reward_points }),
       ...(dto.refund_deadline_hours !== undefined && {
         refundDeadlineHours: dto.refund_deadline_hours,
       }),
@@ -181,6 +205,34 @@ export class EventsService {
       throw new ConflictException('Event has already started');
     }
 
+    // Best-effort synchronous pre-validation so callers get immediate feedback
+    // for the most common failure modes. The worker still performs the
+    // authoritative checks under a pessimistic lock.
+    const existing = await this.participantRepo.findOne({
+      where: { eventId: id, userId },
+    });
+    if (existing?.status === ParticipantStatusEnum.REGISTERED) {
+      throw new ConflictException('Already registered for this event');
+    }
+
+    if (event.maxParticipants) {
+      const registeredCount = await this.participantRepo.count({
+        where: { eventId: id, status: ParticipantStatusEnum.REGISTERED },
+      });
+      if (registeredCount >= event.maxParticipants) {
+        throw new ConflictException('Event is full');
+      }
+    }
+
+    if (event.costCents > 0) {
+      const balance = await this.pointsService.getBalance(userId);
+      const centsPerPoint = await this.getCentsPerPoint();
+      const costPoints = Math.floor(event.costCents / centsPerPoint);
+      if (balance < costPoints) {
+        throw new ConflictException('Insufficient points for this event');
+      }
+    }
+
     await this.registerQueue.add(
       'register',
       { eventId: id, userId },
@@ -191,6 +243,15 @@ export class EventsService {
       },
     );
     return { success: true };
+  }
+
+  private async getCentsPerPoint(): Promise<number> {
+    try {
+      const config = await this.adminConfigService.getConfig();
+      return config.centsPerPoint ?? 1;
+    } catch {
+      return 1;
+    }
   }
 
   async cancelRegistration(id: string, userId: string) {

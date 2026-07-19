@@ -21,6 +21,7 @@ describe('EventRegisterWorker', () => {
   const mockEventsGateway = {
     emitParticipantAdded: jest.fn(),
     emitRegistrationFailed: jest.fn(),
+    emitRegistrationResult: jest.fn(),
   };
   const mockPointsService = {
     debit: jest.fn().mockResolvedValue({}),
@@ -63,6 +64,11 @@ describe('EventRegisterWorker', () => {
     expect(mockEventsGateway.emitParticipantAdded).toHaveBeenCalledWith(
       'evt-1',
       'usr-1',
+    );
+    expect(mockEventsGateway.emitRegistrationResult).toHaveBeenCalledWith(
+      'usr-1',
+      'evt-1',
+      'registered',
     );
   });
 

@@ -154,6 +154,29 @@ export class EventStateMachineService {
           );
         }
       }
+
+      // Distribute completion rewards to all registered participants
+      if (event.rewardPoints > 0) {
+        const registeredParticipants = await manager.find(EventParticipant, {
+          where: {
+            eventId,
+            status: ParticipantStatusEnum.REGISTERED,
+          },
+        });
+
+        for (const participant of registeredParticipants) {
+          await this.pointsService.credit(
+            {
+              userId: participant.userId,
+              amountPoints: event.rewardPoints,
+              type: PointsLedgerEntryTypeEnum.EVENT_REWARD,
+              referenceType: 'evenement',
+              referenceId: eventId,
+            },
+            manager,
+          );
+        }
+      }
     });
 
     return { success: true };
