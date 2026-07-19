@@ -24,6 +24,7 @@ import { EventsService } from './events.service';
 import { EventContentService } from './event-content.service';
 import { EventMediaService } from './event-media.service';
 import { EventStateMachineService } from './event-state-machine.service';
+import { EventAutoCompleteService } from './event-auto-complete.service';
 import { EventTicketService } from './event-ticket.service';
 import { EventReportService } from './event-report.service';
 import { EventModerationService } from './event-moderation.service';
@@ -73,6 +74,7 @@ import { BullModule } from '@nestjs/bullmq';
     EventContentService,
     EventMediaService,
     EventStateMachineService,
+    EventAutoCompleteService,
     EventTicketService,
     EventReportService,
     EventModerationService,

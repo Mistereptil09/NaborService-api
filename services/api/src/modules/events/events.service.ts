@@ -72,7 +72,16 @@ export class EventsService {
     }
 
     qb.skip(query.offset).take(query.limit);
-    qb.orderBy('event.createdAt', 'DESC');
+
+    if (query.upcoming) {
+      // Keep only events yet to start (or with no scheduled date), soonest first.
+      qb.andWhere('(event.startsAt IS NULL OR event.startsAt >= :now)', {
+        now: new Date(),
+      });
+      qb.orderBy('event.startsAt', 'ASC');
+    } else {
+      qb.orderBy('event.createdAt', 'DESC');
+    }
 
     const [data, total] = await qb.getManyAndCount();
     // { data, meta: { total, offset, limit } } — same pagination envelope
@@ -167,6 +176,9 @@ export class EventsService {
     const event = await this.findOne(id);
     if (event.status !== EventStatusEnum.OPEN) {
       throw new ConflictException('Event is not open for registration');
+    }
+    if (event.startsAt && event.startsAt.getTime() < Date.now()) {
+      throw new ConflictException('Event has already started');
     }
 
     await this.registerQueue.add(

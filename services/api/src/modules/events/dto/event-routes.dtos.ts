@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -56,6 +57,16 @@ export class ListEventsDto {
   @IsOptional()
   @IsIn(['draft', 'published', 'open', 'completed', 'cancelled'])
   status?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Only return upcoming events (starts_at in the future or unset), ordered soonest first',
+    example: true,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  upcoming?: boolean;
 }
 
 export class CreateEventDto {

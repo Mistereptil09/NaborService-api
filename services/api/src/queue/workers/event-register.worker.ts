@@ -67,6 +67,10 @@ export class EventRegisterWorker extends WorkerHost {
           );
         }
 
+        if (event.startsAt && event.startsAt.getTime() < Date.now()) {
+          throw new UnrecoverableError(`Event ${eventId} has already started`);
+        }
+
         const participantCount = await manager.count(EventParticipant, {
           where: { eventId, status: ParticipantStatusEnum.REGISTERED },
         });
