@@ -10,6 +10,7 @@ import { ChatGroup } from '../../messaging/entities/chat-group.entity';
 import { UserBlock } from '../../social/entities/user-block.entity';
 import { PointsService } from '../../points/points.service';
 import { AdminConfigService } from '../../admin/admin-config.service';
+import { EventMediaService } from '../event-media.service';
 import { EventStatusEnum } from '../../../common/enums';
 
 describe('EventsService', () => {
@@ -19,6 +20,7 @@ describe('EventsService', () => {
   let mockBlockRepo: any;
   let mockRegisterQueue: any;
   let mockPointsService: any;
+  let mockEventMediaService: any;
   let queryBuilder: any;
 
   beforeEach(async () => {
@@ -41,6 +43,9 @@ describe('EventsService', () => {
     mockBlockRepo = { find: jest.fn().mockResolvedValue([]) };
     mockRegisterQueue = { add: jest.fn().mockResolvedValue({}) };
     mockPointsService = { getBalance: jest.fn().mockResolvedValue(1000) };
+    mockEventMediaService = {
+      findCoverMediaIds: jest.fn().mockResolvedValue(new Map()),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -50,9 +55,13 @@ describe('EventsService', () => {
           provide: getRepositoryToken(EventParticipant),
           useValue: mockParticipantRepo,
         },
-        { provide: getRepositoryToken(EventSwipe), useValue: {} },
+        {
+          provide: getRepositoryToken(EventSwipe),
+          useValue: { find: jest.fn().mockResolvedValue([]) },
+        },
         { provide: getRepositoryToken(ChatGroup), useValue: {} },
         { provide: getRepositoryToken(UserBlock), useValue: mockBlockRepo },
+        { provide: EventMediaService, useValue: mockEventMediaService },
         {
           provide: getQueueToken('event-register'),
           useValue: mockRegisterQueue,
@@ -75,6 +84,7 @@ describe('EventsService', () => {
     service = module.get<EventsService>(EventsService);
     jest.clearAllMocks();
     mockBlockRepo.find.mockResolvedValue([]);
+    mockEventMediaService.findCoverMediaIds.mockResolvedValue(new Map());
   });
 
   describe('register', () => {
@@ -177,6 +187,51 @@ describe('EventsService', () => {
         '(event.startsAt IS NULL OR event.startsAt >= :now)',
         expect.anything(),
       );
+    });
+
+    it('should enrich each event with its coverMediaId (present or null)', async () => {
+      queryBuilder.getManyAndCount.mockResolvedValue([
+        [
+          { id: 'evt-with-cover', title: 'A' },
+          { id: 'evt-no-cover', title: 'B' },
+        ],
+        2,
+      ]);
+      mockEventMediaService.findCoverMediaIds.mockResolvedValue(
+        new Map([['evt-with-cover', 'cover']]),
+      );
+
+      const result = await service.findAll('usr-1', { offset: 0, limit: 20 });
+
+      expect(mockEventMediaService.findCoverMediaIds).toHaveBeenCalledWith([
+        'evt-with-cover',
+        'evt-no-cover',
+      ]);
+      expect(result.data[0].coverMediaId).toBe('cover');
+      expect(result.data[1].coverMediaId).toBeNull();
+    });
+  });
+
+  describe('findOneWithCover', () => {
+    it('should return the event enriched with its coverMediaId', async () => {
+      mockEventRepo.findOne.mockResolvedValue({ id: 'evt-1', title: 'A' });
+      mockEventMediaService.findCoverMediaIds.mockResolvedValue(
+        new Map([['evt-1', 'cover']]),
+      );
+
+      const result = await service.findOneWithCover('evt-1');
+
+      expect(result.coverMediaId).toBe('cover');
+      expect(result.id).toBe('evt-1');
+    });
+
+    it('should return coverMediaId null when the event has no media', async () => {
+      mockEventRepo.findOne.mockResolvedValue({ id: 'evt-1', title: 'A' });
+      mockEventMediaService.findCoverMediaIds.mockResolvedValue(new Map());
+
+      const result = await service.findOneWithCover('evt-1');
+
+      expect(result.coverMediaId).toBeNull();
     });
   });
 });

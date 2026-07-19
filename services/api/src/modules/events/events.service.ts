@@ -22,6 +22,7 @@ import { ChatGroup } from '../messaging/entities/chat-group.entity';
 import { UserBlock } from '../social/entities/user-block.entity';
 import { PointsService } from '../points/points.service';
 import { AdminConfigService } from '../admin/admin-config.service';
+import { EventMediaService } from './event-media.service';
 
 @Injectable()
 export class EventsService {
@@ -36,6 +37,7 @@ export class EventsService {
     private readonly chatGroupRepo: Repository<ChatGroup>,
     @InjectRepository(UserBlock)
     private readonly blockRepo: Repository<UserBlock>,
+    private readonly eventMediaService: EventMediaService,
     @InjectQueue('event-register') private readonly registerQueue: Queue,
     @InjectQueue('waitlist-promote') private readonly promoteQueue: Queue,
     private readonly pointsService: PointsService,
@@ -101,10 +103,15 @@ export class EventsService {
       swipes.map((s) => [s.eventId, s.direction]),
     );
 
+    // Batch the cover lookup for the whole page (one Mongo query) so the feed
+    // can show a thumbnail without a media call per card — mirrors listings.
+    const covers = await this.eventMediaService.findCoverMediaIds(eventIds);
+
     const data = events.map((event) => ({
       ...event,
       costPoints: Math.floor(event.costCents / centsPerPoint),
       userSwipe: swipeByEventId.get(event.id) ?? null,
+      coverMediaId: covers.get(event.id) ?? null,
     }));
 
     return { data, meta: { total, offset: query.offset, limit: query.limit } };
@@ -133,6 +140,17 @@ export class EventsService {
     if (!event) throw new NotFoundException('Event not found');
     const centsPerPoint = await this.getCentsPerPoint();
     return { ...event, costPoints: Math.floor(event.costCents / centsPerPoint) };
+  }
+
+  /**
+   * Same as findOne but also enriched with the cover identifier, for the event
+   * detail response. Kept separate so the many internal callers of findOne
+   * (register, swipe, update…) don't incur the extra media lookup.
+   */
+  async findOneWithCover(id: string) {
+    const event = await this.findOne(id);
+    const covers = await this.eventMediaService.findCoverMediaIds([id]);
+    return { ...event, coverMediaId: covers.get(id) ?? null };
   }
 
   async update(
