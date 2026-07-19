@@ -66,7 +66,7 @@ export class EventDocument {
   @Prop({ required: true })
   pg_event_id: string;
 
-  @Prop({ required: true })
+  @Prop({ default: '' })
   body_html: string;
 
   @Prop({ type: CoverSchema, default: null })
