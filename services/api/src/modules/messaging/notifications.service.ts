@@ -82,6 +82,7 @@ export class NotificationsService {
       const emailPayload: EmailJobPayload = {
         recipient: user.email,
         subject: route.subject,
+        subjectEn: route.subjectEn,
         templateName: route.templateName,
         // `firstName` must always be the RECIPIENT's name (used by the
         // template greeting). In-app payloads may carry the actor's name

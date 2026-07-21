@@ -66,7 +66,10 @@ export class EmailWorker extends WorkerHost {
       // 4. Render + send for real (errors propagate so BullMQ retries).
       await this.mailService.sendTemplated({
         to: payload.recipient,
-        subject: payload.subject,
+        subject:
+          locale === 'en' && payload.subjectEn
+            ? payload.subjectEn
+            : payload.subject,
         templateName: payload.templateName,
         locale,
         variables: payload.templateVariables ?? {},

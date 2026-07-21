@@ -121,6 +121,7 @@ export class ListingModerationService {
       await this.emailQueue.add('send-email', {
         recipient: creator.email,
         subject: 'Votre annonce a été modérée',
+        subjectEn: 'Your listing has been moderated',
         templateName: 'listing-moderated',
         templateVariables: {
           firstName: creator.firstName,

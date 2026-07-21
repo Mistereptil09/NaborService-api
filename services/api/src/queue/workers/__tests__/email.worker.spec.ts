@@ -104,6 +104,30 @@ describe('EmailWorker', () => {
     );
   });
 
+  it('uses subjectEn when the resolved locale is en', async () => {
+    mockUserRepo.findOne.mockResolvedValue({ id: 'u1', locale: 'en' });
+
+    await worker.process(
+      asJob({ ...basePayload, subject: 'Bonjour', subjectEn: 'Hello' }),
+    );
+
+    expect(mockMailService.sendTemplated).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: 'Hello', locale: 'en' }),
+    );
+  });
+
+  it('falls back to the French subject when locale is fr or subjectEn is missing', async () => {
+    mockUserRepo.findOne.mockResolvedValue({ id: 'u1', locale: 'fr' });
+
+    await worker.process(
+      asJob({ ...basePayload, subject: 'Bonjour', subjectEn: 'Hello' }),
+    );
+
+    expect(mockMailService.sendTemplated).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: 'Bonjour', locale: 'fr' }),
+    );
+  });
+
   it('throws on an invalid payload', async () => {
     await expect(
       worker.process(asJob({ recipient: 'not-an-email' })),

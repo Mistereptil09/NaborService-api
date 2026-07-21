@@ -89,7 +89,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (user && user.email) {
         await this.emailQueue.add('send-email', {
           recipient: user.email,
-          subject: `Notification: ${eventName}`,
+          subject: 'Un nouvel événement dans votre quartier',
+          subjectEn: 'A new event in your neighbourhood',
           templateName: eventName,
           templateVariables: payload,
           preferenceKey: 'notifNewEvent',

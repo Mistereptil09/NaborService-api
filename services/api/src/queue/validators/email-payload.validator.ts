@@ -3,7 +3,8 @@ import { EmailJobPayload } from '../interfaces/job-payloads';
 export function validateEmailPayload(payload: any): payload is EmailJobPayload {
   if (!payload || typeof payload !== 'object') return false;
 
-  const { recipient, subject, templateName, templateVariables } = payload;
+  const { recipient, subject, subjectEn, templateName, templateVariables } =
+    payload;
 
   if (
     typeof recipient !== 'string' ||
@@ -17,6 +18,15 @@ export function validateEmailPayload(payload: any): payload is EmailJobPayload {
     typeof subject !== 'string' ||
     subject.trim() === '' ||
     subject.length > 200
+  ) {
+    return false;
+  }
+
+  if (
+    subjectEn !== undefined &&
+    (typeof subjectEn !== 'string' ||
+      subjectEn.trim() === '' ||
+      subjectEn.length > 200)
   ) {
     return false;
   }
