@@ -32,6 +32,8 @@ describe('Feature: gridfs-media-storage, Property 7: Range Header Partial Conten
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
     );
   });
 

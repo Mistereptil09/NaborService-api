@@ -9,6 +9,8 @@ describe('MediaController — message_attachment authorization', () => {
   let mockUserRepo: any;
   let mockMessageMetadataRepo: any;
   let mockUsersInGroupRepo: any;
+  let mockChatMessageService: any;
+  let mockChatGateway: any;
 
   const req = (userId = 'u1', role = 'resident') => ({
     user: { sub: userId, email: 'a@b.c', role },
@@ -25,6 +27,10 @@ describe('MediaController — message_attachment authorization', () => {
     mockUserRepo = {};
     mockMessageMetadataRepo = { findOne: jest.fn() };
     mockUsersInGroupRepo = { findOne: jest.fn() };
+    mockChatMessageService = {
+      getMessage: jest.fn().mockResolvedValue({ id: 'msg1', group_id: 'g1' }),
+    };
+    mockChatGateway = { emitToGroup: jest.fn() };
 
     controller = new MediaController(
       mockMediaService,
@@ -37,6 +43,8 @@ describe('MediaController — message_attachment authorization', () => {
       {} as any,
       {} as any,
       {} as any,
+      mockChatMessageService,
+      mockChatGateway,
     );
   });
 
@@ -64,6 +72,17 @@ describe('MediaController — message_attachment authorization', () => {
         file,
         'message_attachment',
         'msg1',
+      );
+      // Régression : les autres membres du groupe doivent être notifiés en
+      // temps réel (sinon la pièce jointe n'apparaît qu'après rechargement).
+      expect(mockChatMessageService.getMessage).toHaveBeenCalledWith(
+        'msg1',
+        'u1',
+      );
+      expect(mockChatGateway.emitToGroup).toHaveBeenCalledWith(
+        'g1',
+        'message:received',
+        { id: 'msg1', group_id: 'g1' },
       );
     });
 

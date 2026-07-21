@@ -46,6 +46,8 @@ describe('MediaController — assertCanReadMedia (stream authorization)', () => 
       mockIncidentRepo,
       mockEvenementRepo,
       mockEventParticipantRepo,
+      {} as any,
+      {} as any,
     );
   });
 

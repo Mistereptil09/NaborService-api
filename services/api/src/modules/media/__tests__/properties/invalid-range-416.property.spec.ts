@@ -30,6 +30,8 @@ describe('Feature: gridfs-media-storage, Property 18: Invalid Range Returns 416'
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
     );
   });
 

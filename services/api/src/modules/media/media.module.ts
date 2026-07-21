@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MediaFile, MediaFileSchema } from './schemas/media-file.schema';
@@ -14,6 +14,7 @@ import { GridFSService } from './services/gridfs.service';
 import { UploadPipeline } from './services/upload-pipeline.service';
 import { MediaService } from './services/media.service';
 import { MediaController } from './media.controller';
+import { MessagingModule } from '../messaging/messaging.module';
 
 @Module({
   imports: [
@@ -30,6 +31,10 @@ import { MediaController } from './media.controller';
       Evenement,
       EventParticipant,
     ]),
+    // Cycle avec MessagingModule (qui importe MediaModule pour les pièces
+    // jointes de message) — nécessaire pour notifier le groupe en temps réel
+    // (socket) une fois l'upload d'une pièce jointe terminé.
+    forwardRef(() => MessagingModule),
   ],
   providers: [GridFSService, UploadPipeline, MediaService],
   controllers: [MediaController],
