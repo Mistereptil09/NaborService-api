@@ -20,6 +20,7 @@ describe('NotificationsService', () => {
     mockUserRepo.findOne.mockResolvedValue({
       id: 'u1',
       email: 'u1@example.com',
+      firstName: 'Alice',
     });
     service = new NotificationsService(
       mockRepo as any,
@@ -64,9 +65,26 @@ describe('NotificationsService', () => {
         templateName: 'notification',
         essential: false,
         preferenceKey: 'notifNewFollower',
-        templateVariables: { x: 1 },
+        templateVariables: expect.objectContaining({ x: 1 }),
       }),
     );
+  });
+
+  it('greets the recipient, not the actor, in the follow email', async () => {
+    mockRedis.exists.mockResolvedValue(0); // offline
+
+    // In-app payload carries the FOLLOWER's firstName (shown in the bell);
+    // the email greeting must use the recipient's own firstName instead.
+    await service.create({
+      userId: 'u1',
+      type: 'new_follower',
+      payload: { firstName: 'Bob', followerId: 'u2' },
+    });
+
+    const [, payload] = mockEmailQueue.add.mock.calls[0];
+    expect(payload.templateVariables.firstName).toBe('Alice');
+    expect(payload.templateVariables.actorFirstName).toBe('Bob');
+    expect(payload.templateVariables.followerId).toBe('u2');
   });
 
   it('relays an essential email (no preferenceKey) when offline', async () => {

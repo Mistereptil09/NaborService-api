@@ -47,6 +47,8 @@ import { GroupRoleEnum, ParticipantStatusEnum } from '../../common/enums';
 import { MediaFileDocument } from './schemas/media-file.schema';
 import { ReorderPhotosDto } from './dto/reorder-photos.dto';
 import { UpdateCaptionDto } from './dto/update-caption.dto';
+import { ChatMessageService } from '../messaging/chat-message.service';
+import { ChatGateway } from '../messaging/chat.gateway';
 
 interface JwtPayload {
   sub: string;
@@ -76,6 +78,8 @@ export class MediaController {
     private readonly evenementRepository: Repository<Evenement>,
     @InjectRepository(EventParticipant)
     private readonly eventParticipantRepository: Repository<EventParticipant>,
+    private readonly chatMessageService: ChatMessageService,
+    private readonly chatGateway: ChatGateway,
   ) {}
 
   /** Vérifie que `userId` est membre actif du groupe du message. */
@@ -471,7 +475,26 @@ export class MediaController {
     if (!(await this.isMessageGroupMember(message.groupId, req.user.sub))) {
       throw new ForbiddenException('Action non autorisée');
     }
-    return this.mediaService.upload(file, 'message_attachment', messageId);
+    const uploaded = await this.mediaService.upload(
+      file,
+      'message_attachment',
+      messageId,
+    );
+    // L'upload se fait après la création du message (contrainte de l'API
+    // media) et ne passe pas par le gateway — sans cette diffusion, les
+    // autres membres du groupe ne voient la pièce jointe qu'au rechargement
+    // de la page (le panneau "fichiers partagés" comme l'aperçu inline dans
+    // le fil restent basés sur ce même événement `message:received`).
+    const enrichedMessage = await this.chatMessageService.getMessage(
+      messageId,
+      req.user.sub,
+    );
+    this.chatGateway.emitToGroup(
+      message.groupId,
+      'message:received',
+      enrichedMessage,
+    );
+    return uploaded;
   }
 
   @Post('contracts/:transactionId')

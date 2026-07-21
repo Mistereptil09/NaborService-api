@@ -22,7 +22,10 @@ export type NotifPreferenceKey =
 
 export interface EmailJobPayload {
   recipient: string;
+  /** French subject (default). */
   subject: string;
+  /** English subject, used by the worker when the resolved locale is 'en'. */
+  subjectEn?: string;
   /** Selects the Handlebars template file only — NOT used for opt-out. */
   templateName: string;
   templateVariables: Record<string, any>;

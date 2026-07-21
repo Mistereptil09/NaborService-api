@@ -78,9 +78,15 @@ export class EventsService {
     if (query.category) {
       qb.andWhere('event.categoryId = :category', { category: query.category });
     }
+    // Le feed public ne doit jamais exposer les brouillons d'autrui, même si
+    // on demande explicitement status=draft — seul /events/me/operations
+    // (scopé au créateur) a le droit de les lister.
     if (query.status) {
       qb.andWhere('event.status = :status', { status: query.status });
     }
+    qb.andWhere('event.status != :draft', {
+      draft: EventStatusEnum.DRAFT,
+    });
 
     qb.skip(query.offset).take(query.limit);
 
@@ -243,8 +249,18 @@ export class EventsService {
    * When `userId` is given, also exposes the caller's participation status so
    * the detail page survives a reload (registered / waitlisted / null).
    */
-  async findOneWithCover(id: string, userId?: string) {
+  async findOneWithCover(id: string, userId?: string, userRole?: string) {
     const event = await this.findOne(id);
+    // Un brouillon n'est visible que de son créateur (ou d'un modérateur/
+    // admin) — même règle que le feed public, mais ici on masque l'existence
+    // même de l'évènement (404) plutôt que de le filtrer d'une liste.
+    if (
+      event.status === EventStatusEnum.DRAFT &&
+      event.creatorId !== userId &&
+      !isModeratorOrAdmin(userRole)
+    ) {
+      throw new NotFoundException('Event not found');
+    }
     const covers = await this.eventMediaService.findCoverMediaIds([id]);
 
     let participationStatus: ParticipantStatusEnum | null = null;

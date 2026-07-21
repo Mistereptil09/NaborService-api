@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ChatGroup } from './entities/chat-group.entity';
@@ -39,7 +39,7 @@ import { NotificationsController } from './notifications.controller';
       { name: MediaFile.name, schema: MediaFileSchema },
     ]),
     AuthModule,
-    MediaModule,
+    forwardRef(() => MediaModule),
   ],
   controllers: [ChatController, ChatAdminController, NotificationsController],
   providers: [

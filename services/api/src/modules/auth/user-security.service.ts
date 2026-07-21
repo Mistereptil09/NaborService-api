@@ -62,6 +62,7 @@ export class UserSecurityService {
         await this.emailQueue.add('send-email', {
           recipient: user.email,
           subject: 'Réinitialisation de votre mot de passe',
+          subjectEn: 'Reset your password',
           templateName: 'reset-password',
           templateVariables: {
             resetLink,

@@ -26,6 +26,8 @@ describe('Feature: gridfs-media-storage, Property 8: Invalid Media ID Validation
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
     );
   });
 

@@ -75,15 +75,24 @@ export class NotificationsService {
 
       const user = await this.userRepo.findOne({
         where: { id: userId },
-        select: ['id', 'email'],
+        select: ['id', 'email', 'firstName'],
       });
       if (!user?.email) return;
 
       const emailPayload: EmailJobPayload = {
         recipient: user.email,
         subject: route.subject,
+        subjectEn: route.subjectEn,
         templateName: route.templateName,
-        templateVariables: payload ?? {},
+        // `firstName` must always be the RECIPIENT's name (used by the
+        // template greeting). In-app payloads may carry the actor's name
+        // instead (e.g. new_follower carries the follower's firstName), so
+        // it is kept under `actorFirstName` and never greets the email.
+        templateVariables: {
+          ...payload,
+          actorFirstName: payload?.firstName,
+          firstName: user.firstName,
+        },
         essential: route.essential,
         preferenceKey: route.preferenceKey,
       };
