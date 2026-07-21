@@ -343,15 +343,23 @@ export class UsersService {
       throw new NotFoundException('Utilisateur introuvable'); // Masking block relationship
     }
 
-    // Relationship from the requester's point of view
-    const [follow, blockByMe] = await Promise.all([
+    // Relationship from the requester's point of view. isFriend (mutual
+    // follow) tells the front whether a direct_message group already
+    // exists — it's only auto-created between mutual follows (see
+    // UserSocialService.follow).
+    const [follow, followBack, blockByMe] = await Promise.all([
       this.followRepository.findOne({
         where: { followerId: requesterId, followedId: targetId },
       }),
+      this.followRepository.findOne({
+        where: { followerId: targetId, followedId: requesterId },
+      }),
       this.userSocialService.hasBlocked(requesterId, targetId),
     ]);
+    const isFriend = !!follow && !!followBack;
     const relationship = {
       isFollowing: !!follow,
+      isFriend,
       isBlockedByMe: blockByMe,
     };
 
@@ -365,25 +373,14 @@ export class UsersService {
       };
     }
 
-    if (target.visibility === VisibilityEnum.FRIENDS) {
-      // Check mutual follow
-      const f1 = await this.followRepository.findOne({
-        where: { followerId: requesterId, followedId: targetId },
-      });
-      const f2 = await this.followRepository.findOne({
-        where: { followerId: targetId, followedId: requesterId },
-      });
-      const isMutual = f1 && f2;
-
-      if (!isMutual) {
-        return {
-          id: target.id,
-          firstName: target.firstName,
-          lastName: target.lastName,
-          visibility: target.visibility,
-          ...relationship,
-        };
-      }
+    if (target.visibility === VisibilityEnum.FRIENDS && !isFriend) {
+      return {
+        id: target.id,
+        firstName: target.firstName,
+        lastName: target.lastName,
+        visibility: target.visibility,
+        ...relationship,
+      };
     }
 
     // Otherwise return full public profile
