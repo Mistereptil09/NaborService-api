@@ -180,6 +180,22 @@ describe('PollsService', () => {
       await expect(service.getPoll('p99')).rejects.toThrow(NotFoundException);
     });
 
+    it('should sum vote_count numerically even though pg returns the numeric weight column as a string (e.g. "1.00")', async () => {
+      pollRepo.findOne.mockResolvedValue({
+        ...makePoll(),
+        options: [{ id: 'o1', label: 'Yes', pollId: 'p1', weight: '1.00' }],
+      });
+      voteRepo.find.mockResolvedValue([
+        { userId: 'u1', optionId: 'o1', weight: '1.00', option: { pollId: 'p1' } },
+        { userId: 'u2', optionId: 'o1', weight: '1.00', option: { pollId: 'p1' } },
+      ]);
+      const p = await service.getPoll('p1');
+      // Bug regression: string concatenation ("0" + "1.00" + "1.00") would
+      // have produced the non-numeric "01.001.00" instead of 2.
+      expect(p.results[0].vote_count).toBe(2);
+      expect(typeof p.results[0].vote_count).toBe('number');
+    });
+
     it('should attach voter identities for a non-anonymous poll', async () => {
       pollRepo.findOne.mockResolvedValue({
         ...makePoll({ isAnonymous: false }),

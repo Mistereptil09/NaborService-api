@@ -292,7 +292,11 @@ export class PollsService {
         return {
           option_id: opt.id,
           label: opt.label,
-          vote_count: optionVotes.reduce((s, v) => s + v.weight, 0),
+          // `weight` est une colonne `numeric` : pg/TypeORM la renvoie en
+          // string ("1.00") pour ne pas perdre de précision — sans Number(),
+          // le reduce fait de la concaténation de chaînes ("0" + "1.00" +
+          // "1.00" = "01.001.00") au lieu d'une somme.
+          vote_count: optionVotes.reduce((s, v) => s + Number(v.weight), 0),
           ...(includeVoters && {
             voters: optionVotes
               .map((v) => votersMap.get(v.userId))
