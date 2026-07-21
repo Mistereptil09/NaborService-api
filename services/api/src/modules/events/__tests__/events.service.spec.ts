@@ -200,6 +200,31 @@ describe('EventsService', () => {
       );
     });
 
+    it('should always exclude draft events, even without an explicit status filter', async () => {
+      await service.findAll('usr-1', { offset: 0, limit: 20 });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'event.status != :draft',
+        { draft: EventStatusEnum.DRAFT },
+      );
+    });
+
+    it('should still exclude drafts even if status=draft is explicitly requested', async () => {
+      await service.findAll('usr-1', {
+        offset: 0,
+        limit: 20,
+        status: 'draft',
+      });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('event.status = :status', {
+        status: 'draft',
+      });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'event.status != :draft',
+        { draft: EventStatusEnum.DRAFT },
+      );
+    });
+
     it('should enrich each event with its coverMediaId (present or null)', async () => {
       queryBuilder.getManyAndCount.mockResolvedValue([
         [
@@ -261,6 +286,47 @@ describe('EventsService', () => {
       const result = await service.findOneWithCover('evt-1', 'usr-1');
 
       expect(result.participationStatus).toBeNull();
+    });
+
+    it("should hide another user's draft (404) from a regular caller", async () => {
+      mockEventRepo.findOne.mockResolvedValue({
+        id: 'evt-1',
+        title: 'A',
+        status: EventStatusEnum.DRAFT,
+        creatorId: 'owner-1',
+      });
+
+      await expect(
+        service.findOneWithCover('evt-1', 'usr-1', 'resident'),
+      ).rejects.toThrow('Event not found');
+    });
+
+    it('should let the creator see their own draft', async () => {
+      mockEventRepo.findOne.mockResolvedValue({
+        id: 'evt-1',
+        title: 'A',
+        status: EventStatusEnum.DRAFT,
+        creatorId: 'usr-1',
+      });
+      mockEventMediaService.findCoverMediaIds.mockResolvedValue(new Map());
+
+      const result = await service.findOneWithCover('evt-1', 'usr-1', 'resident');
+
+      expect(result.id).toBe('evt-1');
+    });
+
+    it("should let a moderator see another user's draft", async () => {
+      mockEventRepo.findOne.mockResolvedValue({
+        id: 'evt-1',
+        title: 'A',
+        status: EventStatusEnum.DRAFT,
+        creatorId: 'owner-1',
+      });
+      mockEventMediaService.findCoverMediaIds.mockResolvedValue(new Map());
+
+      const result = await service.findOneWithCover('evt-1', 'usr-2', 'moderator');
+
+      expect(result.id).toBe('evt-1');
     });
   });
 
