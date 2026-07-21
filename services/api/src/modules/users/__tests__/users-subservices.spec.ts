@@ -208,6 +208,7 @@ describe('Users Module Services Unit Tests', () => {
 
       mockTotpService = {
         decryptSecret: jest.fn().mockReturnValue('secret'),
+        verifyTotp: jest.fn().mockResolvedValue(undefined),
       } as unknown as jest.Mocked<TotpService>;
 
       rgpdService = new UserRgpdService(

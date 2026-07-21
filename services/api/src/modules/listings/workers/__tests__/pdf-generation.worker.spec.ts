@@ -5,9 +5,11 @@ import { Job } from 'bullmq';
 import { PdfGenerationWorker } from '../pdf-generation.worker';
 import { ListingTransaction } from '../../entities/listing-transaction.entity';
 import { Listing } from '../../entities/listing.entity';
+import { ListingCategory } from '../../entities/listing-category.entity';
 import { Contract } from '../../../../database/mongo-schemas/schemas/contract.schema';
 import { MediaFile } from '../../../media/schemas/media-file.schema';
 import { GridFSService } from '../../../media/services/gridfs.service';
+import { DocumentTemplateService } from '../../../documents/document-template.service';
 import { NotificationsService } from '../../../messaging/notifications.service';
 import { UnrecoverableError } from 'bullmq';
 
@@ -15,6 +17,7 @@ describe('PdfGenerationWorker', () => {
   let worker: PdfGenerationWorker;
   const mockTransactionRepo = { findOne: jest.fn(), save: jest.fn() };
   const mockListingRepo = { findOne: jest.fn() };
+  const mockCategoryRepo = { findOne: jest.fn().mockResolvedValue(null) };
   const mockContractModel = jest.fn().mockImplementation((data) => ({
     ...data,
     save: jest.fn().mockResolvedValue({ _id: 'mongo-id-123', ...data }),
@@ -27,6 +30,12 @@ describe('PdfGenerationWorker', () => {
     upload: jest.fn().mockResolvedValue('gridfs-id-123'),
     findById: jest.fn(),
   };
+  const mockTemplateService = {
+    resolveTemplateKey: jest.fn().mockReturnValue('generic'),
+    renderContract: jest.fn().mockResolvedValue(Buffer.from('pdf-contract')),
+    renderReceipt: jest.fn().mockResolvedValue(Buffer.from('pdf-receipt')),
+    renderSignedContract: jest.fn().mockResolvedValue(Buffer.from('pdf-signed')),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -37,12 +46,17 @@ describe('PdfGenerationWorker', () => {
           useValue: mockTransactionRepo,
         },
         { provide: getRepositoryToken(Listing), useValue: mockListingRepo },
+        {
+          provide: getRepositoryToken(ListingCategory),
+          useValue: mockCategoryRepo,
+        },
         { provide: getModelToken(Contract.name), useValue: mockContractModel },
         {
           provide: getModelToken(MediaFile.name),
           useValue: mockMediaFileModel,
         },
         { provide: GridFSService, useValue: mockGridfsService },
+        { provide: DocumentTemplateService, useValue: mockTemplateService },
         { provide: NotificationsService, useValue: { create: jest.fn() } },
       ],
     }).compile();

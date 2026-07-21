@@ -59,11 +59,15 @@ describe('Contract Schema', () => {
         listing_type: 'offer',
         neighbourhood_name: 'Green Hills',
       },
-      signature: {
-        canvas_b64: 'base64sig',
-        totp_verified_at: new Date(),
-        signed_ip: '192.168.1.1',
-        user_agent: 'Chrome',
+      signatures: {
+        provider: {
+          canvas_b64: 'base64sig',
+          totp_verified_at: new Date(),
+          signed_ip: '192.168.1.1',
+          user_agent: 'Chrome',
+          signed_at: new Date(),
+        },
+        requester: null,
       },
       signed_at: new Date(),
       created_at: new Date(),
@@ -77,7 +81,7 @@ describe('Contract Schema', () => {
       pg_transaction_id: 'tx_123',
       type: 'contract',
       sha256_hash: 'abc123hash',
-      // missing pdf, parties, listing_snapshot, signature
+      // missing pdf, parties, listing_snapshot
       created_at: new Date(),
     });
     const err = doc.validateSync();
@@ -85,7 +89,42 @@ describe('Contract Schema', () => {
     expect(err?.errors.pdf).toBeDefined();
     expect(err?.errors.parties).toBeDefined();
     expect(err?.errors.listing_snapshot).toBeDefined();
-    expect(err?.errors.signature).toBeDefined();
+  });
+
+  it('should default signatures to unsigned when omitted', () => {
+    const doc = new ContractModel({
+      pg_transaction_id: 'tx_123',
+      type: 'contract',
+      sha256_hash: 'abc123hash',
+      pdf: {
+        gridfs_file_id: 'test-gridfs-id',
+        mimetype: 'application/pdf',
+        size_bytes: 50000,
+      },
+      parties: {
+        provider: {
+          pg_user_id: 'usr_provider',
+          full_name: 'Jane Doe',
+          email: 'jane@example.com',
+        },
+        requester: {
+          pg_user_id: 'usr_requester',
+          full_name: 'John Doe',
+          email: 'john@example.com',
+        },
+      },
+      listing_snapshot: {
+        title: 'Lawn Mowing',
+        price_cents: 2500,
+        listing_type: 'offer',
+        neighbourhood_name: 'Green Hills',
+      },
+      created_at: new Date(),
+    });
+    const err = doc.validateSync();
+    expect(err).toBeUndefined();
+    expect(doc.signatures.provider).toBeNull();
+    expect(doc.signatures.requester).toBeNull();
   });
 
   it('should reject invalid types and enums', () => {
@@ -115,10 +154,6 @@ describe('Contract Schema', () => {
         price_cents: 2500,
         listing_type: 'invalid_listing_type', // enum error
         neighbourhood_name: 'Green Hills',
-      },
-      signature: {
-        canvas_b64: 'base64sig',
-        totp_verified_at: new Date(),
       },
       created_at: new Date(),
     });
