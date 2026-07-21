@@ -420,6 +420,21 @@ export class UserSocialService {
         userId1: u1,
         userId2: u2,
       });
+
+      // Un blocage doit couper la messagerie directe immédiatement : sans
+      // ça, les deux restent membres actifs du groupe direct_message
+      // auto-créé au moment du follow mutuel, et assertCanParticipate
+      // (chat.service.ts) continue de les laisser s'envoyer des messages.
+      if (friendship.groupId) {
+        await this.usersInGroupRepository.update(
+          {
+            groupId: friendship.groupId,
+            userId: In([blockerId, blockedId]),
+            kickedAt: IsNull(),
+          },
+          { kickedAt: new Date() },
+        );
+      }
     }
   }
 

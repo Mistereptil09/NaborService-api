@@ -1,5 +1,5 @@
 import { ConflictException } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Model } from 'mongoose';
 import Redis from 'ioredis';
 import { UsersService } from '../users.service';
@@ -435,6 +435,7 @@ describe('Users Module Services Unit Tests', () => {
     let mockReportRepo: jest.Mocked<Repository<UserReport>>;
     let mockQueue: any;
     let mockRedis: any;
+    let mockUsersInGroupRepo: any;
 
     beforeEach(() => {
       mockUserRepo = {
@@ -474,6 +475,12 @@ describe('Users Module Services Unit Tests', () => {
         del: jest.fn(),
       };
 
+      mockUsersInGroupRepo = {
+        create: jest.fn(),
+        save: jest.fn(),
+        update: jest.fn(),
+      };
+
       socialService = new UserSocialService(
         mockUserRepo,
         mockFollowRepo,
@@ -488,7 +495,7 @@ describe('Users Module Services Unit Tests', () => {
               Promise.resolve({ ...g, id: 'group-id' }),
             ),
         } as any, // chatGroupRepo
-        { create: jest.fn(), save: jest.fn() } as any, // usersInGroupRepo
+        mockUsersInGroupRepo, // usersInGroupRepo
         mockQueue,
         { create: jest.fn() } as any, // notificationsService
         mockRedis,
@@ -540,6 +547,34 @@ describe('Users Module Services Unit Tests', () => {
         followedId: 'user-1',
       });
       expect(mockRedis.del).toHaveBeenCalledWith('discover:user-1');
+    });
+
+    it('should kick both users from their shared direct_message group when blocking a friend (messaging must stop immediately)', async () => {
+      const mockTarget = new User();
+      mockTarget.id = 'user-2';
+      mockUserRepo.findOne.mockResolvedValue(mockTarget);
+      mockBlockRepo.findOne.mockResolvedValue(null);
+      mockBlockRepo.create.mockReturnValue({} as any);
+
+      mockFriendshipRepo.findOne.mockResolvedValue({
+        user1Id: 'user-1',
+        user2Id: 'user-2',
+        groupId: 'dm-group-1',
+        unfriendedAt: null,
+      } as any);
+
+      await socialService.block('user-1', 'user-2');
+
+      expect(mockFriendshipRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ unfriendedAt: expect.any(Date) }),
+      );
+      expect(mockUsersInGroupRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          groupId: 'dm-group-1',
+          userId: In(['user-1', 'user-2']),
+        }),
+        expect.objectContaining({ kickedAt: expect.any(Date) }),
+      );
     });
 
     it('should report user successfully with reason', async () => {
