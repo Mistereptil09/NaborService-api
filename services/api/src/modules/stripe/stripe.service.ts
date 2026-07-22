@@ -23,6 +23,7 @@ export type StripeWebhookEvent = ReturnType<
 export class StripeService {
   private stripe: Stripe.Stripe;
   private webhookSecret: string;
+  private connectWebhookSecret?: string;
 
   constructor(private configService: ConfigService) {
     const stripeKey = this.configService.get<string>('STRIPE_SECRET_KEY');
@@ -36,6 +37,17 @@ export class StripeService {
     );
     if (!webhookSecret) throw new Error('STRIPE_WEBHOOK_SECRET is not defined');
     this.webhookSecret = webhookSecret;
+    this.connectWebhookSecret = this.configService.get<string>(
+        'STRIPE_CONNECT_WEBHOOK_SECRET',
+    );
+  }
+  constructWebhookEvent(rawBody: Buffer, signature: string): StripeWebhookEvent {
+    try {
+      return this.stripe.webhooks.constructEvent(rawBody, signature, this.webhookSecret)
+    } catch (err) {
+      if (!this.connectWebhookSecret) throw err;
+      return this.stripe.webhooks.constructEvent(rawBody, signature, this.connectWebhookSecret)
+    }
   }
 
   async createCheckoutSession({
@@ -64,17 +76,6 @@ export class StripeService {
       success_url: successUrl,
       cancel_url: cancelUrl,
     });
-  }
-
-  constructWebhookEvent(
-    rawBody: Buffer,
-    signature: string,
-  ): StripeWebhookEvent {
-    return this.stripe.webhooks.constructEvent(
-      rawBody,
-      signature,
-      this.webhookSecret,
-    );
   }
 
   /** Crée le compte connecté (Express) recevant les virements de cashout. */
