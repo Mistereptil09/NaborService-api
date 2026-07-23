@@ -3,7 +3,9 @@ import {
   ApiOperation,
   ApiTags,
   ApiOkResponse,
+  ApiFoundResponse,
   ApiNotFoundResponse,
+  ApiServiceUnavailableResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { UpdatesService } from './updates.service';
@@ -17,10 +19,10 @@ export class UpdatesController {
   @ApiOperation({
     summary: 'Dernière version disponible du client Java Desktop',
     description:
-      'Retourne la version, le hash SHA-256 et le nom du fichier JAR. ' +
-      'Le client Java compare avec sa version locale stockée dans SQLite. ' +
-      'Si le client a `nabor.update.checkUrl` défini, il utilise GitHub Releases ' +
-      'directement plutôt que cet endpoint.',
+      'Proxy du manifeste `latest.json` publié en asset de la dernière ' +
+      'GitHub Release du client (avec cache). Le client Java compare ' +
+      '`version` avec sa version locale, puis télécharge `download_url` ' +
+      'et vérifie le SHA-256 avant de remplacer son installation.',
   })
   @ApiOkResponse({
     description: 'Manifeste de la dernière version',
@@ -29,32 +31,42 @@ export class UpdatesController {
       properties: {
         version: { type: 'string', example: '1.2.0' },
         sha256: { type: 'string', example: 'abc123def456...' },
-        jar_filename: { type: 'string', example: 'nabor-desktop.jar' },
+        changelog_url: {
+          type: 'string',
+          example: 'https://github.com/org/repo/releases/tag/v1.2.0',
+        },
+        download_url: {
+          type: 'string',
+          example:
+            'https://github.com/org/repo/releases/download/v1.2.0/nabor-desktop.zip',
+        },
       },
     },
   })
-  @ApiNotFoundResponse({ description: 'Aucun manifeste trouvé' })
+  @ApiServiceUnavailableResponse({
+    description: 'Manifeste indisponible (GitHub injoignable, aucun cache)',
+  })
   async getLatest() {
     return this.updatesService.getLatest();
   }
 
   @Get('download')
   @ApiOperation({
-    summary: 'Télécharger le JAR du client Java Desktop',
+    summary: 'Télécharger le bundle ZIP du client Java Desktop',
     description:
-      'Stream le fichier JAR de la dernière version. Le client vérifie ' +
-      'le hash SHA-256 après téléchargement avant de remplacer son ancien JAR.',
+      'Redirige (302) vers l’asset `nabor-desktop.zip` de la dernière ' +
+      'GitHub Release. Le client vérifie le hash SHA-256 après ' +
+      'téléchargement avant de remplacer son installation.',
   })
-  @ApiOkResponse({ description: 'Fichier JAR' })
-  @ApiNotFoundResponse({ description: 'Fichier JAR introuvable' })
+  @ApiFoundResponse({ description: 'Redirection vers l’asset GitHub Release' })
+  @ApiNotFoundResponse({
+    description: 'Aucune URL de téléchargement dans le manifeste',
+  })
+  @ApiServiceUnavailableResponse({
+    description: 'Manifeste indisponible (GitHub injoignable, aucun cache)',
+  })
   async download(@Res() res: Response) {
-    const { stream, filename, size } = this.updatesService.getDownloadStream();
-
-    res.setHeader('Content-Type', 'application/java-archive');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Length', size.toString());
-    res.setHeader('Cache-Control', 'no-cache');
-
-    stream.pipe(res);
+    const url = await this.updatesService.getDownloadUrl();
+    res.redirect(302, url);
   }
 }

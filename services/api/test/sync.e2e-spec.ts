@@ -85,8 +85,8 @@ describe('Sync & Updates Modules (e2e)', () => {
     it('GET /v1/updates/latest should be public (no token required)', async () => {
       const res = await request(app.getHttpServer()).get('/v1/updates/latest');
 
-      // 200 if manifest file exists, 404 if not configured
-      expect([200, 404]).toContain(res.status);
+      // 200 si GitHub Release joignable, 503 sinon (aucun cache)
+      expect([200, 503]).toContain(res.status);
       if (res.status === 200) {
         expect(res.body).toHaveProperty('version');
       }
@@ -100,19 +100,19 @@ describe('Sync & Updates Modules (e2e)', () => {
         .get('/v1/updates/latest')
         .set('Authorization', `Bearer ${token}`);
 
-      expect([200, 404]).toContain(res.status);
+      expect([200, 503]).toContain(res.status);
       if (res.status === 200) {
         expect(res.body).toHaveProperty('version');
       }
     });
 
     it('GET /v1/updates/download should be public', async () => {
-      const res = await request(app.getHttpServer()).get(
-        '/v1/updates/download',
-      );
+      const res = await request(app.getHttpServer())
+        .get('/v1/updates/download')
+        .redirects(0);
 
-      // 200 if JAR file exists, 404 if not configured
-      expect([200, 404]).toContain(res.status);
+      // 302 vers l'asset GitHub Release, 503 si le manifeste est indisponible
+      expect([302, 503]).toContain(res.status);
     });
   });
 });

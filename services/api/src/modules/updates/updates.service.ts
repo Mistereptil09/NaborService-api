@@ -1,58 +1,89 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createReadStream, existsSync } from 'fs';
-import { readFile } from 'fs/promises';
-import { join } from 'path';
+import { HttpRetryService } from '../../common/http-retry/http-retry.service';
 
 export interface UpdateManifest {
   version: string;
   sha256: string;
-  jar_filename: string;
+  changelog_url?: string;
+  download_url?: string;
 }
 
 @Injectable()
 export class UpdatesService {
   private readonly logger = new Logger(UpdatesService.name);
-  private readonly updatesDir: string;
+  private readonly manifestUrl: string;
+  private readonly cacheTtlMs: number;
 
-  constructor(private readonly config: ConfigService) {
-    this.updatesDir =
-      this.config.get<string>('UPDATES_DIR') ?? join(process.cwd(), 'updates');
+  private cachedManifest: UpdateManifest | null = null;
+  private cacheExpiresAt = 0;
+  private inflight: Promise<UpdateManifest> | null = null;
+
+  constructor(
+    private readonly config: ConfigService,
+    private readonly httpRetry: HttpRetryService,
+  ) {
+    const repo =
+      this.config.get<string>('UPDATES_GITHUB_REPO') ??
+      'Mistereptil09/Nabor-Java-Client';
+    this.manifestUrl = `https://github.com/${repo}/releases/latest/download/latest.json`;
+
+    const ttl = Number(this.config.get<string>('UPDATES_CACHE_TTL_MS'));
+    this.cacheTtlMs = Number.isFinite(ttl) && ttl > 0 ? ttl : 300_000;
   }
 
   async getLatest(): Promise<UpdateManifest> {
-    const manifestPath = join(this.updatesDir, 'latest.json');
-    if (!existsSync(manifestPath)) {
-      throw new NotFoundException('No update manifest found');
+    if (this.cachedManifest && Date.now() < this.cacheExpiresAt) {
+      return this.cachedManifest;
     }
 
-    const raw = await readFile(manifestPath, 'utf-8');
-    const manifest: UpdateManifest = JSON.parse(raw);
-
-    if (!manifest.version || !manifest.sha256 || !manifest.jar_filename) {
-      throw new NotFoundException('Invalid update manifest');
-    }
-
-    return manifest;
+    // Déduplique les requêtes concurrentes vers GitHub.
+    this.inflight ??= this.fetchManifest().finally(() => {
+      this.inflight = null;
+    });
+    return this.inflight;
   }
 
-  getDownloadStream(): {
-    stream: NodeJS.ReadableStream;
-    filename: string;
-    size: number;
-  } {
-    const jarPath = join(this.updatesDir, 'nabor-app.jar');
-    if (!existsSync(jarPath)) {
-      throw new NotFoundException('JAR file not found');
+  async getDownloadUrl(): Promise<string> {
+    const manifest = await this.getLatest();
+    if (!manifest.download_url) {
+      throw new NotFoundException('No download URL in update manifest');
     }
+    return manifest.download_url;
+  }
 
-    const { statSync } = require('fs');
-    const stats = statSync(jarPath);
+  private async fetchManifest(): Promise<UpdateManifest> {
+    try {
+      const response = await this.httpRetry.fetchWithRetry(this.manifestUrl, {
+        headers: { Accept: 'application/json' },
+      });
+      const manifest = (await response.json()) as UpdateManifest;
 
-    return {
-      stream: createReadStream(jarPath),
-      filename: 'nabor-app.jar',
-      size: stats.size,
-    };
+      if (!manifest.version || !manifest.sha256) {
+        throw new Error('Invalid update manifest received from GitHub');
+      }
+
+      this.cachedManifest = manifest;
+      this.cacheExpiresAt = Date.now() + this.cacheTtlMs;
+      return manifest;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // En cas d'échec GitHub, sert le cache même expiré plutôt que rien.
+      if (this.cachedManifest) {
+        this.logger.warn(
+          `Failed to refresh update manifest, serving stale cache: ${message}`,
+        );
+        return this.cachedManifest;
+      }
+      this.logger.error(
+        `Failed to fetch update manifest from ${this.manifestUrl}: ${message}`,
+      );
+      throw new ServiceUnavailableException('Update manifest unavailable');
+    }
   }
 }
