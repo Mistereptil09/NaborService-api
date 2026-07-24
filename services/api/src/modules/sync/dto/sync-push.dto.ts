@@ -63,8 +63,6 @@ export class SyncUpdatesBatchDto {
   updates: SyncUpdateItemDto[];
 }
 
-// ---- Response DTOs ----
-
 export class SyncUpdateResultDto {
   @ApiProperty()
   entity_type: string;

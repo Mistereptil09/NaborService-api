@@ -5,12 +5,6 @@ import { Vote } from '../entities/vote.entity';
 import { Incident } from '../../incidents/entities/incident.entity';
 import { User } from '../../users/entities/user.entity';
 
-/**
- * Validates: Requirements 7.1–7.5, 8.1–8.3
- *
- * Combined metadata tests for Polls & Incidents entities verifying
- * CHECK constraints, composite PKs, indexes, and relations.
- */
 describe('Polls & Incidents Entities — TypeORM Metadata', () => {
   let dataSource: DataSource;
 
@@ -24,8 +18,6 @@ describe('Polls & Incidents Entities — TypeORM Metadata', () => {
     });
     (dataSource as unknown as { buildMetadatas(): void }).buildMetadatas();
   });
-
-  // ─── Poll ─────────────────────────────────────────────────────────────
 
   describe('Poll entity', () => {
     it('should map to the "polls" table with UUID PK', () => {
@@ -105,8 +97,6 @@ describe('Polls & Incidents Entities — TypeORM Metadata', () => {
     });
   });
 
-  // ─── PollOption ───────────────────────────────────────────────────────
-
   describe('PollOption entity', () => {
     it('should map to the "poll_options" table with UUID PK', () => {
       const metadata = dataSource.getMetadata(PollOption);
@@ -136,8 +126,6 @@ describe('Polls & Incidents Entities — TypeORM Metadata', () => {
       expect(rel!.inverseEntityMetadata.target).toBe(Poll);
     });
   });
-
-  // ─── Vote ─────────────────────────────────────────────────────────────
 
   describe('Vote entity', () => {
     it('should map to the "votes" table', () => {
@@ -182,8 +170,6 @@ describe('Polls & Incidents Entities — TypeORM Metadata', () => {
       expect(optionRel!.inverseEntityMetadata.target).toBe(PollOption);
     });
   });
-
-  // ─── Incident ─────────────────────────────────────────────────────────
 
   describe('Incident entity', () => {
     it('should map to the "incidents" table with UUID PK', () => {

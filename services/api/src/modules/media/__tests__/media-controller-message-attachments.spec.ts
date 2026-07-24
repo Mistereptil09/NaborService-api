@@ -73,8 +73,6 @@ describe('MediaController — message_attachment authorization', () => {
         'message_attachment',
         'msg1',
       );
-      // Régression : les autres membres du groupe doivent être notifiés en
-      // temps réel (sinon la pièce jointe n'apparaît qu'après rechargement).
       expect(mockChatMessageService.getMessage).toHaveBeenCalledWith(
         'msg1',
         'u1',

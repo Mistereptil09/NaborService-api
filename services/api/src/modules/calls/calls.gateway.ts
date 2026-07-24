@@ -49,8 +49,6 @@ export class CallsGateway implements OnGatewayConnection {
     }
   }
 
-  // ── Emit helpers (called by CallsService) ───────────────
-
   emitToUser(userId: string, event: string, data: Record<string, unknown>) {
     this.server.to(`user:${userId}`).emit(event, data);
   }
@@ -58,8 +56,6 @@ export class CallsGateway implements OnGatewayConnection {
   emitToCallRoom(callId: string, event: string, data: Record<string, unknown>) {
     this.server.to(`call:${callId}`).emit(event, data);
   }
-
-  // ── Room management ─────────────────────────────────────
 
   @SubscribeMessage('join_call')
   async handleJoinCall(
@@ -75,13 +71,6 @@ export class CallsGateway implements OnGatewayConnection {
       call_id: data.call_id,
       user_id: client.userId,
     });
-    // NOT { event, data }: @nestjs/platform-socket.io's IoAdapter treats any
-    // handler return value with a truthy `.event` key as a fire-and-forget
-    // socket.emit(response.event, response.data) instead of invoking the
-    // caller's ack callback (see bindMessageHandlers in
-    // node_modules/@nestjs/platform-socket.io/adapters/io-adapter.js) — so an
-    // { event: 'joined', ... } return here would silently swallow the ack and
-    // the client would never receive `participants`. `status` avoids the clash.
     return {
       status: 'joined',
       call_id: data.call_id,
@@ -102,8 +91,6 @@ export class CallsGateway implements OnGatewayConnection {
     });
     return { status: 'left', call_id: data.call_id };
   }
-
-  // ── Call events ──────────────────────────────────────────
 
   @SubscribeMessage('call:decline')
   async handleDecline(

@@ -93,7 +93,6 @@ export class EventDocument {
 
 export const EventDocumentSchema = SchemaFactory.createForClass(EventDocument);
 
-// Pre-save hook for aggregate size safety (cover + attachments <= 13.5 MB)
 EventDocumentSchema.pre(
   'save',
   createTotalSizePreSaveHook({
@@ -105,6 +104,5 @@ EventDocumentSchema.pre(
   }),
 );
 
-// Indexes
 EventDocumentSchema.index({ pg_event_id: 1 }, { unique: true });
 EventDocumentSchema.index({ updated_at: -1 });

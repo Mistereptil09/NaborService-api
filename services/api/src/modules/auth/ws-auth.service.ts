@@ -6,12 +6,6 @@ export interface AuthenticatedSocket extends Socket {
   userId?: string;
 }
 
-/**
- * Shared JWT verification for Socket.IO gateways, extracted from the
- * inline try/catch block that used to be copy-pasted into every gateway's
- * handleConnection. Used both there (to reject the connection) and by
- * WsJwtGuard (to re-check on every @SubscribeMessage handler).
- */
 @Injectable()
 export class WsAuthService {
   constructor(private readonly jwtService: JwtService) {}

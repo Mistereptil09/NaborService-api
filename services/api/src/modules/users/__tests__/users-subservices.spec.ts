@@ -25,7 +25,6 @@ import { DataProcessingService } from '../data-processing.service';
 import { Neo4jService } from '../../../database/neo4j/neo4j.service';
 import { VisibilityEnum, MessagePolicyEnum } from '../../../common/enums';
 
-// Mock sharp
 jest.mock('sharp', () => {
   const fn = jest.fn().mockImplementation(() => ({
     metadata: jest.fn().mockResolvedValue({ width: 200, height: 200 }),
@@ -37,15 +36,11 @@ jest.mock('sharp', () => {
   });
 });
 
-// Mock otplib
 jest.mock('otplib', () => ({
   verifySync: jest.fn().mockReturnValue({ valid: true }),
 }));
 
 describe('Users Module Services Unit Tests', () => {
-  // ----------------------------------------------------
-  // UserMediaService
-  // ----------------------------------------------------
   describe('UserMediaService', () => {
     let mediaService: UserMediaService;
     let mockMediaService: any;
@@ -132,9 +127,6 @@ describe('Users Module Services Unit Tests', () => {
     });
   });
 
-  // ----------------------------------------------------
-  // UserPreferencesService
-  // ----------------------------------------------------
   describe('UserPreferencesService', () => {
     let preferencesService: UserPreferencesService;
     let mockUserRepo: jest.Mocked<Repository<User>>;
@@ -179,9 +171,6 @@ describe('Users Module Services Unit Tests', () => {
     });
   });
 
-  // ----------------------------------------------------
-  // UserRgpdService
-  // ----------------------------------------------------
   describe('UserRgpdService', () => {
     let rgpdService: UserRgpdService;
     let mockUserRepo: jest.Mocked<Repository<User>>;
@@ -248,9 +237,6 @@ describe('Users Module Services Unit Tests', () => {
     });
   });
 
-  // ----------------------------------------------------
-  // UserDiscoveryService
-  // ----------------------------------------------------
   describe('UserDiscoveryService', () => {
     let discoveryService: UserDiscoveryService;
     let mockUserRepo: jest.Mocked<Repository<User>>;
@@ -335,8 +321,6 @@ describe('Users Module Services Unit Tests', () => {
       const mockUser = new User();
       mockUser.id = 'target-user';
       mockUserRepo.findOne.mockResolvedValue(mockUser);
-      // First call: "already swiped?" check → no. Second call: "did they
-      // like me back?" check → yes, target already liked user-1.
       mockSwipeRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({
         swiperId: 'target-user',
         swipedId: 'user-1',
@@ -423,9 +407,6 @@ describe('Users Module Services Unit Tests', () => {
     });
   });
 
-  // ----------------------------------------------------
-  // UserSocialService
-  // ----------------------------------------------------
   describe('UserSocialService', () => {
     let socialService: UserSocialService;
     let mockUserRepo: jest.Mocked<Repository<User>>;

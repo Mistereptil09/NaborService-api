@@ -77,8 +77,6 @@ export class ListingsController {
     private readonly chatGroupRepository: Repository<ChatGroup>,
   ) {}
 
-  // --- Moderation Routes (Must be declared BEFORE parameter routes to avoid conflict) ---
-
   @Get('reported')
   @Roles('moderator', 'admin')
   @UseGuards(RolesGuard)
@@ -158,8 +156,6 @@ export class ListingsController {
   async getModerationHistory(@Param('listing_id') id: string) {
     return this.moderationService.getModerationHistory(id);
   }
-
-  // --- Listings CRUD ---
 
   @Get()
   @ApiOperation({ summary: 'Lister les annonces publiques' })
@@ -250,8 +246,6 @@ export class ListingsController {
     return { success: true };
   }
 
-  // --- Listing Rich Content (MongoDB) ---
-
   @Get(':listing_id/content')
   @ApiOperation({ summary: "Lire le contenu enrichi HTML d'une annonce" })
   @ApiOkResponse({
@@ -286,8 +280,6 @@ export class ListingsController {
       req.user.role,
     );
   }
-
-  // --- Listing Media (Multipart Upload) ---
 
   @Get(':listing_id/media')
   @ApiOperation({ summary: "Lister les photos d'une annonce" })
@@ -338,8 +330,6 @@ export class ListingsController {
     );
     return { success: true };
   }
-
-  // --- Listing Lifecycle & State Machine ---
 
   @Post(':listing_id/interest')
   @ApiOperation({ summary: 'Exprimer son intérêt pour une annonce' })
@@ -441,8 +431,6 @@ export class ListingsController {
     );
   }
 
-  // --- Listing Chat Group ---
-
   @Get(':listing_id/chat')
   @ApiOperation({ summary: "Obtenir le groupe de discussion lié à l'annonce" })
   @ApiOkResponse({ description: 'Groupe de messagerie instantanée retourné' })
@@ -469,8 +457,6 @@ export class ListingsController {
 
     return chatGroup;
   }
-
-  // --- Contract and Receipt Documents ---
 
   @Get(':listing_id/contract')
   @ApiOperation({ summary: 'Télécharger le contrat de transaction généré' })
@@ -583,8 +569,6 @@ export class ListingsController {
       userAgent,
     );
   }
-
-  // --- Listing Report ---
 
   @Post(':listing_id/report')
   @ApiOperation({

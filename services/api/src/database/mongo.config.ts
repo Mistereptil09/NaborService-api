@@ -26,8 +26,6 @@ export const mongoConfig: MongooseModuleAsyncOptions = {
 
     const uri = `mongodb://${username}:${password}@${host}:${port}/${database}?authSource=admin`;
 
-    // Verify connectivity at boot — but don't crash if unavailable.
-    // Mongoose handles auto-reconnect internally.
     try {
       const conn = await mongoose.createConnection(uri).asPromise();
       await conn.close();
@@ -41,7 +39,6 @@ export const mongoConfig: MongooseModuleAsyncOptions = {
 
     return {
       uri,
-      // Let Mongoose handle reconnection with its built-in retry
       serverSelectionTimeoutMS: 5000,
       connectTimeoutMS: 5000,
     };

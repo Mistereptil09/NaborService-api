@@ -10,8 +10,6 @@ interface CreateCheckoutSessionParams {
   metadata: Record<string, string>;
 }
 
-// Stripe's default export only re-exposes the `Stripe` class type, not its
-// nested namespace (Checkout, Event, ...) — derive what we need from method signatures instead.
 export type StripeCheckoutSession = Awaited<
   ReturnType<Stripe.Stripe['checkout']['sessions']['create']>
 >;
@@ -38,15 +36,26 @@ export class StripeService {
     if (!webhookSecret) throw new Error('STRIPE_WEBHOOK_SECRET is not defined');
     this.webhookSecret = webhookSecret;
     this.connectWebhookSecret = this.configService.get<string>(
-        'STRIPE_CONNECT_WEBHOOK_SECRET',
+      'STRIPE_CONNECT_WEBHOOK_SECRET',
     );
   }
-  constructWebhookEvent(rawBody: Buffer, signature: string): StripeWebhookEvent {
+  constructWebhookEvent(
+    rawBody: Buffer,
+    signature: string,
+  ): StripeWebhookEvent {
     try {
-      return this.stripe.webhooks.constructEvent(rawBody, signature, this.webhookSecret)
+      return this.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        this.webhookSecret,
+      );
     } catch (err) {
       if (!this.connectWebhookSecret) throw err;
-      return this.stripe.webhooks.constructEvent(rawBody, signature, this.connectWebhookSecret)
+      return this.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        this.connectWebhookSecret,
+      );
     }
   }
 
@@ -78,7 +87,6 @@ export class StripeService {
     });
   }
 
-  /** Crée le compte connecté (Express) recevant les virements de cashout. */
   async createConnectAccount(email: string): Promise<string> {
     const account = await this.stripe.accounts.create({
       type: 'express',
@@ -88,7 +96,6 @@ export class StripeService {
     return account.id;
   }
 
-  /** Lien d'onboarding hébergé par Stripe (KYC + coordonnées bancaires). */
   async createAccountLink(
     accountId: string,
     refreshUrl: string,
@@ -103,7 +110,6 @@ export class StripeService {
     return link.url;
   }
 
-  /** Virement du solde de la plateforme vers le compte connecté d'un utilisateur. */
   async createTransfer(
     amountCents: number,
     destinationAccountId: string,

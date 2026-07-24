@@ -19,9 +19,6 @@ export class NeighbourhoodService {
     return typeof val.toNumber === 'function' ? val.toNumber() : Number(val);
   }
 
-  /**
-   * Create or update a Neighbourhood node
-   */
   async upsert(data: UpsertNeighbourhoodDto): Promise<void> {
     const cypher = `
       MERGE (n:Neighbourhood { pg_id: $pgId })
@@ -58,9 +55,6 @@ export class NeighbourhoodService {
     });
   }
 
-  /**
-   * Retrieve a Neighbourhood node and its adjacent IDs
-   */
   async findByPgId(pgId: string): Promise<NeighbourhoodWithAdjacencies | null> {
     const cypher = `
       MATCH (n:Neighbourhood { pg_id: $pgId })
@@ -98,9 +92,6 @@ export class NeighbourhoodService {
     };
   }
 
-  /**
-   * Proximity centroid query return up to 5 Neighbourhood nodes within a radius
-   */
   async findNearby(
     lat: number,
     lng: number,
@@ -127,9 +118,6 @@ export class NeighbourhoodService {
     }));
   }
 
-  /**
-   * List all neighbourhoods (public summary: id, name, city, zip_code)
-   */
   async findAll(): Promise<
     {
       pgId: string;
@@ -154,9 +142,6 @@ export class NeighbourhoodService {
     }));
   }
 
-  /**
-   * Find members (residents) of a neighbourhood
-   */
   async findMembers(
     pgId: string,
   ): Promise<{ pgId: string; visibility: string }[]> {
@@ -173,9 +158,6 @@ export class NeighbourhoodService {
     }));
   }
 
-  /**
-   * Delete a Neighbourhood node only when safe (no active residents)
-   */
   async delete(pgId: string): Promise<void> {
     const checkCypher = `
       MATCH (n:Neighbourhood { pg_id: $pgId })
@@ -203,15 +185,11 @@ export class NeighbourhoodService {
     await this.neo4jService.run(deleteCypher, { pgId });
   }
 
-  /**
-   * Replace ADJACENT_TO relations for the Neighbourhood atomically within a single transaction
-   */
   async replaceAdjacencies(
     pgId: string,
     adjacentPgIds: string[],
   ): Promise<void> {
     await this.neo4jService.runInTransaction(async (tx) => {
-      // 1. Verify existence
       const existResult = await tx.run(
         'MATCH (n:Neighbourhood { pg_id: $pgId }) RETURN n',
         { pgId },
@@ -220,13 +198,11 @@ export class NeighbourhoodService {
         throw new NotFoundException(`Neighbourhood with ID ${pgId} not found`);
       }
 
-      // 2. Delete existing adjacencies
       await tx.run(
         'MATCH (n:Neighbourhood { pg_id: $pgId })-[r:ADJACENT_TO]-() DELETE r',
         { pgId },
       );
 
-      // 3. Create new adjacencies
       if (adjacentPgIds && adjacentPgIds.length > 0) {
         await tx.run(
           `

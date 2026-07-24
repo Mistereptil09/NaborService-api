@@ -18,7 +18,6 @@ export class Vote {
   @PrimaryColumn({ name: 'option_id', type: 'uuid' })
   optionId: string;
 
-  /** Copié depuis `PollOption.weight` au moment du vote — jamais choisi par le votant. */
   @Column({
     type: 'numeric',
     precision: 10,

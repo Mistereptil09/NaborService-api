@@ -1,8 +1,6 @@
 import fc from 'fast-check';
 import { partitionIntoBatches } from '../utils/batch-partition';
 
-// Feature: bullmq-integration, Property 5: Crypto-rotation batch partitioning preserves all message IDs
-// Feature: bullmq-integration, Property 6: Crypto-rotation batch size is clamped to valid range
 describe('Batch Partition', () => {
   it('should preserve all items and order when splitting', () => {
     fc.assert(

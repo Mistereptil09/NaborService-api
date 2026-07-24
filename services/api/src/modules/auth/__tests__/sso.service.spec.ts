@@ -113,10 +113,8 @@ describe('SsoService', () => {
     it('should throw HttpException if too many active sessions exist', async () => {
       const ip = '127.0.0.1';
       mockRedisClient.incr.mockResolvedValueOnce(2);
-      // Mock active keys list
       const activeKeys = ['sso:qr:key1', 'sso:qr:key2', 'sso:qr:key3'];
       mockRedisClient.smembers.mockResolvedValueOnce(activeKeys);
-      // All 3 exist
       mockRedisClient.exists.mockResolvedValue(1);
 
       await expect(service.generateQr(ip, deviceName)).rejects.toThrow(
@@ -129,7 +127,6 @@ describe('SsoService', () => {
       mockRedisClient.incr.mockResolvedValueOnce(1);
       const activeKeys = ['sso:qr:key1', 'sso:qr:key2'];
       mockRedisClient.smembers.mockResolvedValueOnce(activeKeys);
-      // first doesn't exist, second does
       mockRedisClient.exists.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
 
       const result = await service.generateQr(ip, deviceName);

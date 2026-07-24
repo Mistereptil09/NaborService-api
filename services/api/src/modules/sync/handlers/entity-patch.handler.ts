@@ -29,8 +29,6 @@ export class EntityPatchHandler {
     private readonly eventRepository: Repository<Evenement>,
   ) {}
 
-  // ── Whitelist & config ──────────────────────────────────
-
   private readonly whitelists = {
     user: ['firstName', 'lastName', 'bio'],
     listing: ['title', 'description', 'price', 'status', 'locationName'],
@@ -68,8 +66,6 @@ export class EntityPatchHandler {
     return this.whitelists;
   }
 
-  // ── Dispatch ────────────────────────────────────────────
-
   async handlePatch(update: SyncUpdateItemDto): Promise<PatchResult> {
     const repo = this.resolveRepo(update.entity_type);
     if (!repo) {
@@ -85,8 +81,6 @@ export class EntityPatchHandler {
         return this.handleUpdate(repo, update);
     }
   }
-
-  // ── CREATE — incidents only ─────────────────────────────
 
   private async handleCreate(
     repo: Repository<any>,
@@ -125,8 +119,6 @@ export class EntityPatchHandler {
     return { status: 'success', processed: true, serverEntityId: saved.id };
   }
 
-  // ── DELETE — incidents only ─────────────────────────────
-
   private async handleDelete(
     repo: Repository<any>,
     { entity_type, entity_id, base_updated_at }: SyncUpdateItemDto,
@@ -143,7 +135,6 @@ export class EntityPatchHandler {
       return { status: 'success', processed: false };
     }
 
-    // Only check conflict if the entity was modified on the server.
     if (base_updated_at !== undefined && existing.updatedAt) {
       const clientBase =
         base_updated_at !== null ? new Date(base_updated_at) : new Date(0);
@@ -166,8 +157,6 @@ export class EntityPatchHandler {
     return { status: 'success', processed: true };
   }
 
-  // ── UPDATE ──────────────────────────────────────────────
-
   private async handleUpdate(
     repo: Repository<any>,
     { entity_type, entity_id, changes, base_updated_at }: SyncUpdateItemDto,
@@ -179,7 +168,6 @@ export class EntityPatchHandler {
     const clientBase =
       base_updated_at !== null ? new Date(base_updated_at) : new Date(0);
 
-    // Whitelist filter
     const allowedFields = this.whitelists[entity_type] ?? [];
     const sanitized: Record<string, any> = {};
     for (const key of Object.keys(changes)) {
@@ -196,7 +184,6 @@ export class EntityPatchHandler {
       return { status: 'success', processed: false };
     }
 
-    // Conflict detection — only if the entity was modified server-side
     if (existing.updatedAt) {
       if (existing.updatedAt.getTime() > clientBase.getTime()) {
         const conflictedFields = Object.keys(sanitized).filter(
@@ -217,7 +204,6 @@ export class EntityPatchHandler {
       }
     }
 
-    // Guard against phantom columns (whitelist entries without a DB column)
     const existingColumns = new Set(
       repo.metadata.columns.map((c) => c.propertyName),
     );
@@ -231,7 +217,6 @@ export class EntityPatchHandler {
       return { status: 'success', processed: false };
     }
 
-    // repo.update() bypasses @UpdateDateColumn — set explicitly
     if (repo.metadata.findColumnWithPropertyName('updatedAt')) {
       validChanges['updatedAt'] = new Date();
     }
@@ -239,8 +224,6 @@ export class EntityPatchHandler {
     await repo.update(entity_id, validChanges);
     return { status: 'success', processed: true };
   }
-
-  // ── Helpers ─────────────────────────────────────────────
 
   private resolveRepo(type: string): Repository<any> | null {
     switch (type) {

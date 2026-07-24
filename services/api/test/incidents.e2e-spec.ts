@@ -25,15 +25,11 @@ describe('Incidents Module (e2e)', () => {
     await clearRedis(app);
   });
 
-  // ── Auth ─────────────────────────────────────────────────────
-
   describe('Auth', () => {
     it('should return 401 without token', async () => {
       await request(app.getHttpServer()).get('/v1/incidents').expect(401);
     });
   });
-
-  // ── CRUD ─────────────────────────────────────────────────────
 
   describe('CRUD', () => {
     it('POST /v1/incidents should create an incident', async () => {
@@ -69,7 +65,6 @@ describe('Incidents Module (e2e)', () => {
       const { email, password } = await createTestUser(app, 'lister');
       const { token } = await loginAndGetToken(app, email, password);
 
-      // Create an incident first
       await request(app.getHttpServer())
         .post('/v1/incidents')
         .set('Authorization', `Bearer ${token}`)
@@ -152,8 +147,6 @@ describe('Incidents Module (e2e)', () => {
     });
   });
 
-  // ── Admin-only routes ────────────────────────────────────────
-
   describe('Admin / Moderator routes', () => {
     it('POST /v1/incidents/:id/assign should return 403 for regular user', async () => {
       const { email, password } = await createTestUser(app, 'reporter');
@@ -176,7 +169,6 @@ describe('Incidents Module (e2e)', () => {
       const admin = await createAdminUser(app, 'admin');
       const adminToken = admin.token;
 
-      // Create incident as admin
       const created = await request(app.getHttpServer())
         .post('/v1/incidents')
         .set('Authorization', `Bearer ${adminToken}`)

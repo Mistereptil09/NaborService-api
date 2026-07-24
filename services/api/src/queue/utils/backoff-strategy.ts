@@ -14,11 +14,6 @@ const delays: Record<string, number[]> = {
   'call-timeout': [1000, 5000, 30000],
 };
 
-/**
- * Returns the backoff delay in milliseconds.
- * In BullMQ, attemptsMade is the number of attempts already made.
- * If 1 attempt has been made (it just failed once), attemptsMade is 1, and we return the first delay (index 0).
- */
 export function getBackoffDelay(
   queueName: string,
   attemptsMade: number,
@@ -26,7 +21,6 @@ export function getBackoffDelay(
   const queueDelays = delays[queueName];
   if (!queueDelays) return 1000;
 
-  // attempt 1 -> index 0, attempt 2 -> index 1, etc.
   const index = Math.max(0, Math.min(attemptsMade - 1, queueDelays.length - 1));
   return queueDelays[index];
 }

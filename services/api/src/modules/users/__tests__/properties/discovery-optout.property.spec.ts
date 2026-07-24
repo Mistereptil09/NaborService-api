@@ -5,9 +5,7 @@ interface UserMock {
   isDiscoveryOptedOut: boolean;
 }
 
-// Simulated Profile/Feed Discovery Query execution
 async function simulateDiscoveryQuery(users: UserMock[]): Promise<UserMock[]> {
-  // Centralized check / filtering for discovery query
   return users.filter((u) => !u.isDiscoveryOptedOut);
 }
 
@@ -25,12 +23,10 @@ describe('Feature: rgpd-data-processing-table, Property 5: Discovery exclusion',
         async (users) => {
           const results = await simulateDiscoveryQuery(users);
 
-          // Assert that no returned user has isDiscoveryOptedOut === true
           for (const user of results) {
             expect(user.isDiscoveryOptedOut).toBe(false);
           }
 
-          // Assert that all users who had isDiscoveryOptedOut === false are included in the results
           const expectedUsers = users.filter((u) => !u.isDiscoveryOptedOut);
           expect(results.length).toBe(expectedUsers.length);
           for (const expectedUser of expectedUsers) {

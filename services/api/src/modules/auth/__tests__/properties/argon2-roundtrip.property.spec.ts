@@ -18,11 +18,9 @@ describe('Property 14: Argon2id hash round-trip', () => {
             salt,
           });
 
-          // Verify correct password
           const isOriginalValid = await argon2.verify(hash, password);
           expect(isOriginalValid).toBe(true);
 
-          // Verify incorrect password fails
           const isDifferentValid = await argon2.verify(
             hash,
             password + '_modified',

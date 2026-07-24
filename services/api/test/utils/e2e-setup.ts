@@ -6,11 +6,7 @@ import { DataSource } from 'typeorm';
 import { getQueueToken } from '@nestjs/bullmq';
 import { Job, Queue } from 'bullmq';
 
-// To be called in beforeAll of each test suite
 export async function createTestingApp(): Promise<INestApplication> {
-  // We rely on the local dev DB for tests. To avoid destroying dev data,
-  // we require tests to run against nabor_db_test.
-  // The test runner (jest) should set POSTGRES_DB=nabor_db_test.
   if (process.env.POSTGRES_DB !== 'nabor_db_test') {
     console.warn(
       'Warning: Tests are not running against nabor_db_test. Wiping dev DB!',
@@ -25,7 +21,6 @@ export async function createTestingApp(): Promise<INestApplication> {
 
   app.setGlobalPrefix('v1');
 
-  // Apply the same global middleware and pipes as main.ts
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
@@ -39,7 +34,6 @@ export async function createTestingApp(): Promise<INestApplication> {
   return app;
 }
 
-// Clears all tables in PostgreSQL
 export async function clearDatabase(app: INestApplication) {
   const dataSource = app.get(DataSource);
   const entities = dataSource.entityMetadatas;
@@ -76,18 +70,12 @@ export async function clearQueues(app: INestApplication) {
   }
 }
 
-/**
- * Clears only application-specific Redis keys (rate limits, TOTP, sessions, SSO).
- * Does NOT use flushdb — that would wipe BullMQ's internal job-tracking keys,
- * causing "Missing key for job X" errors when the async workers try to complete jobs.
- */
 export async function clearRedis(app: INestApplication) {
   try {
     await clearQueues(app);
     const redis = app.get('REDIS_CLIENT', { strict: false });
     if (!redis || typeof redis.keys !== 'function') return;
 
-    // Only delete app-specific key namespaces, not bull:* (BullMQ job data)
     const patterns = ['ratelimit:*', 'totp:*', 'refresh:*', 'sso:*', 'reset:*'];
 
     for (const pattern of patterns) {
@@ -101,10 +89,6 @@ export async function clearRedis(app: INestApplication) {
   }
 }
 
-/**
- * Waits for a specific BullMQ job to reach a terminal state.
- * Useful in e2e tests that enqueue async workers.
- */
 export async function waitForQueueJob(
   app: INestApplication,
   queueName: string,
@@ -128,10 +112,6 @@ export async function waitForQueueJob(
   return queue.getJob(jobId);
 }
 
-/**
- * Post-test cleanup: removes failed/completed jobs accumulated during the test.
- * Call in afterEach to suppress noisy worker errors from entities deleted by clearDatabase.
- */
 export async function clearQueueJobs(app: INestApplication) {
   const queues = [
     'neo4j-sync',

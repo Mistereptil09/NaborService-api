@@ -28,7 +28,6 @@ export class PointsCashout {
   @Column({ name: 'amount_cents', type: 'int', nullable: false })
   amountCents: number;
 
-  // exchange-rate snapshot at creation time, same convention as PointsTopup.
   @Column({ name: 'cents_per_point', type: 'int', nullable: false })
   centsPerPoint: number;
 

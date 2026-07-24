@@ -34,7 +34,6 @@ describe('Neo4jInitService', () => {
 
     await service.onModuleInit();
 
-    // Should NOT throw — returns early with a warning
     expect(mockNeo4jService.run).not.toHaveBeenCalled();
   });
 
@@ -49,7 +48,6 @@ describe('Neo4jInitService', () => {
       .mockRejectedValueOnce(skipError) // first index already exists
       .mockRejectedValueOnce(skipError); // second index already exists
 
-    // Should complete successfully
     await service.onModuleInit();
 
     expect(mockNeo4jService.run).toHaveBeenCalledTimes(10);
@@ -59,7 +57,6 @@ describe('Neo4jInitService', () => {
     const randomError = new Error('Syntax error or permission denied');
     mockNeo4jService.run.mockRejectedValueOnce(randomError);
 
-    // Should NOT throw — logs warning and continues
     await service.onModuleInit();
 
     expect(mockNeo4jService.run).toHaveBeenCalledTimes(10); // continues through all indexes

@@ -10,15 +10,6 @@ import { Follow } from '../social/entities/follow.entity';
 import { Friendship } from '../social/entities/friendship.entity';
 import { UserBlock } from '../social/entities/user-block.entity';
 
-/**
- * Keeps Neo4j in sync with PostgreSQL.
- *
- * Two tracks:
- * 1. Startup — full scan of everything (catches any drift from server downtime)
- * 2. Hourly  — 1.5h window for neighbourhoods + targeted social graph diff
- *
- * All operations are idempotent (MERGE for creates, DELETE no-ops for missing).
- */
 @Injectable()
 export class GeoReconciliationService implements OnApplicationBootstrap {
   private readonly logger = new Logger(GeoReconciliationService.name);
@@ -38,10 +29,7 @@ export class GeoReconciliationService implements OnApplicationBootstrap {
     private readonly neo4jService: Neo4jService,
   ) {}
 
-  // ── Startup: full scan to catch anything missed during downtime ──
-
   onApplicationBootstrap() {
-    // Delay so Neo4j has time to connect after boot
     setTimeout(() => this.runFullStartupScan(), 10_000);
   }
 
@@ -55,7 +43,6 @@ export class GeoReconciliationService implements OnApplicationBootstrap {
       this.logger.log('Startup reconciliation complete.');
     } catch (error) {
       const msg = (error as Error).message;
-      // Neo4j not available — expected in dev/test without Neo4j stack
       if (
         msg.includes('Driver not Connected') ||
         msg.includes('Unable to acquire connection')
@@ -67,13 +54,10 @@ export class GeoReconciliationService implements OnApplicationBootstrap {
     }
   }
 
-  // ── Hourly cron: 1.5h window to catch recent drift ──────────────
-
   @Cron(CronExpression.EVERY_HOUR)
   async handleHourlyReconciliation() {
     this.logger.log('Starting hourly reconciliation...');
     try {
-      // 1.5h window is enough to cover a missed cron run + buffer
       await this.reconcileRecentEntities(1.5);
       await this.reconcileSocialGraph(1.5);
       this.logger.log('Hourly reconciliation complete.');
@@ -89,8 +73,6 @@ export class GeoReconciliationService implements OnApplicationBootstrap {
       }
     }
   }
-
-  // ── Neighbourhood assignment ────────────────────────────────────
 
   async reconcileRecentEntities(hours: number): Promise<void> {
     const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
@@ -165,11 +147,6 @@ export class GeoReconciliationService implements OnApplicationBootstrap {
     );
   }
 
-  // ── Social graph ────────────────────────────────────────────────
-
-  /**
-   * @param hours  PG time-filter in hours, or null for full scan
-   */
   async reconcileSocialGraph(hours: number | null = 1.5): Promise<void> {
     let fixed = 0;
     fixed += await this.reconcileFollows(hours);
@@ -180,12 +157,9 @@ export class GeoReconciliationService implements OnApplicationBootstrap {
     }
   }
 
-  // ── Follows ─────────────────────────────────────────────────────
-
   private async reconcileFollows(hours: number | null): Promise<number> {
     let fixed = 0;
 
-    // PG side: time-filtered for creates, full scan for startup
     const follows =
       hours != null
         ? await this.followRepository
@@ -199,8 +173,6 @@ export class GeoReconciliationService implements OnApplicationBootstrap {
             select: ['followerId', 'followedId'],
           });
 
-    // Neo4j side: always full scan — cheap Cypher, needed to detect deletes
-    // (unfollow removes the PG row, so a time filter can never find it)
     const neoResult = await this.neo4jService.run(
       `MATCH (u1:User)-[r:FOLLOWS]->(u2:User)
        RETURN u1.pg_id AS followerId, u2.pg_id AS followedId`,
@@ -215,7 +187,6 @@ export class GeoReconciliationService implements OnApplicationBootstrap {
       ),
     );
 
-    // Missing in Neo4j → create
     for (const f of follows) {
       const key = `${f.followerId}->${f.followedId}`;
       if (!neoSet.has(key)) {
@@ -234,7 +205,6 @@ export class GeoReconciliationService implements OnApplicationBootstrap {
       }
     }
 
-    // Stale in Neo4j → delete
     for (const key of neoSet) {
       if (!pgSet.has(key)) {
         const [followerId, followedId] = key.split('->');
@@ -253,8 +223,6 @@ export class GeoReconciliationService implements OnApplicationBootstrap {
 
     return fixed;
   }
-
-  // ── Blocks ──────────────────────────────────────────────────────
 
   private async reconcileBlocks(hours: number | null): Promise<number> {
     let fixed = 0;
@@ -320,8 +288,6 @@ export class GeoReconciliationService implements OnApplicationBootstrap {
     return fixed;
   }
 
-  // ── Friendships ─────────────────────────────────────────────────
-
   private async reconcileFriendships(hours: number | null): Promise<number> {
     let fixed = 0;
 
@@ -345,7 +311,6 @@ export class GeoReconciliationService implements OnApplicationBootstrap {
        RETURN u1.pg_id AS user1Id, u2.pg_id AS user2Id`,
     );
 
-    // FRIENDS_WITH is undirected — normalize ID order for comparison
     const normKey = (a: string, b: string) =>
       a < b ? `${a}<->${b}` : `${b}<->${a}`;
 
@@ -392,8 +357,6 @@ export class GeoReconciliationService implements OnApplicationBootstrap {
 
     return fixed;
   }
-
-  // ── Private helpers ─────────────────────────────────────────────
 
   private async reconcileEntity(
     nodeLabel: string,

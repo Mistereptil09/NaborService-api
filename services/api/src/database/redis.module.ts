@@ -16,8 +16,6 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
         const port = config.get<number>('REDIS_PORT', 6379);
         const password = config.get<string>('REDIS_PASSWORD') || undefined;
 
-        // We manage retries ourselves via connectWithRetry.
-        // Create a new client on each attempt so ioredis doesn't interfere.
         const client = await connectWithRetry('Redis', async () => {
           const redis = new Redis({
             host,
@@ -29,7 +27,6 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
             enableOfflineQueue: false,
           });
 
-          // Suppress unhandled error events during connection attempt
           redis.on('error', () => {});
 
           await redis.connect();

@@ -58,15 +58,12 @@ describe('Health Module (e2e)', () => {
       expect(res.body).toHaveProperty('status');
       expect(['ok', 'degraded', 'critical']).toContain(res.body.status);
       expect(res.body).toHaveProperty('services');
-      // Each service reports its dependency type
       for (const svc of Object.values(res.body.services)) {
         expect(svc).toHaveProperty('status');
         expect(svc).toHaveProperty('dependency');
         expect(['hard', 'soft']).toContain(svc.dependency);
       }
-      // degraded = soft deps only down → still 200
       if (res.body.status === 'degraded') expect(res.status).toBe(200);
-      // critical = any hard dep down → 503
       if (res.body.status === 'critical') expect(res.status).toBe(503);
     });
   });

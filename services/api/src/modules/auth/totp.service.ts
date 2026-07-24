@@ -37,7 +37,6 @@ export class TotpService {
       this.configService.get<string>('AES_MASTER_KEY') ||
       'default-dev-aes-master-key-must-be-changed';
 
-    // Parse key: if hex 64 chars -> Buffer from hex, otherwise scrypt
     if (/^[0-9a-fA-F]{64}$/.test(key)) {
       this.keyBuffer = Buffer.from(key, 'hex');
     } else {
@@ -45,10 +44,6 @@ export class TotpService {
     }
   }
 
-  /**
-   * Encrypts a TOTP secret using AES-256-GCM
-   * Returns format: iv:authTag:ciphertext (base64url/base64)
-   */
   encryptSecret(secret: string): string {
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', this.keyBuffer, iv);
@@ -61,9 +56,6 @@ export class TotpService {
     return `${iv.toString('base64')}:${authTag.toString('base64')}:${ciphertext.toString('base64')}`;
   }
 
-  /**
-   * Decrypts an AES-256-GCM encrypted TOTP secret
-   */
   decryptSecret(encrypted: string): string {
     const parts = encrypted.split(':');
     if (parts.length !== 3) {
@@ -84,18 +76,12 @@ export class TotpService {
     return decrypted.toString('utf8');
   }
 
-  /**
-   * Checks if the user is currently blocked from TOTP attempts
-   */
   async isUserBlocked(userId: string): Promise<boolean> {
     const blockedKey = `totp:blocked:${userId}`;
     const blocked = await this.redis.exists(blockedKey);
     return blocked === 1;
   }
 
-  /**
-   * Creates a TOTP login challenge
-   */
   async createChallenge(userId: string, context: string): Promise<string> {
     const challengeToken = crypto.randomUUID();
     const key = `totp:pending:${challengeToken}`;
@@ -111,9 +97,6 @@ export class TotpService {
     return challengeToken;
   }
 
-  /**
-   * Verifies a TOTP code against a pending login challenge
-   */
   async verifyChallenge(challengeToken: string, code: string): Promise<string> {
     const challengeKey = `totp:pending:${challengeToken}`;
     const data = await this.redis.get(challengeKey);
@@ -125,10 +108,8 @@ export class TotpService {
     const payload = JSON.parse(data) as ChallengePayload;
     const userId = payload.user_id;
 
-    // Apply per-user TOTP rate limit
     await this.rateLimitService.incrementTotpAttempt(userId);
 
-    // Check if user is blocked
     if (await this.isUserBlocked(userId)) {
       throw new HttpException(
         'Trop de tentatives, compte temporairement bloqué',
@@ -159,10 +140,8 @@ export class TotpService {
       return userId;
     }
 
-    // Handle failure and attempts count
     const attempts = payload.attempts + 1;
     if (attempts >= 3) {
-      // Block user for 15 minutes (900 seconds)
       const blockedKey = `totp:blocked:${userId}`;
       await this.redis.set(blockedKey, '1', 'EX', 900);
       await this.redis.del(challengeKey);
@@ -173,16 +152,12 @@ export class TotpService {
       );
     }
 
-    // Update attempts
     payload.attempts = attempts;
     await this.redis.set(challengeKey, JSON.stringify(payload), 'EX', 300);
 
     throw new UnauthorizedException('Code TOTP invalide');
   }
 
-  /**
-   * Initiates TOTP setup during login using a challenge token
-   */
   async createSetupChallenge(
     userId: string,
     email: string,
@@ -207,9 +182,6 @@ export class TotpService {
     return { challengeToken, otpauthUrl };
   }
 
-  /**
-   * Confirms TOTP setup using a challenge token and returns the user ID
-   */
   async verifySetupChallenge(
     challengeToken: string,
     code: string,
@@ -226,7 +198,6 @@ export class TotpService {
       throw new UnauthorizedException('Invalid setup payload');
     }
 
-    // Apply per-user TOTP rate limit
     await this.rateLimitService.incrementTotpAttempt(payload.user_id);
 
     let secret: string;
@@ -268,9 +239,6 @@ export class TotpService {
     throw new UnauthorizedException('Code TOTP invalide');
   }
 
-  /**
-   * Initiates TOTP setup for a user
-   */
   async setupTotp(
     userId: string,
     email: string,
@@ -305,9 +273,6 @@ export class TotpService {
     return { otpauthUrl };
   }
 
-  /**
-   * Confirms TOTP setup for a user
-   */
   async confirmTotp(userId: string, code: string): Promise<void> {
     const setupKey = `totp:setup:${userId}`;
     const data = await this.redis.get(setupKey);
@@ -356,10 +321,6 @@ export class TotpService {
     throw new UnauthorizedException('Code TOTP invalide');
   }
 
-  /**
-   * Verifies a TOTP code directly against the user's stored secret.
-   * Used for sensitive action confirmation (signing, password change, etc.)
-   */
   async verifyTotp(userId: string, code: string): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { id: userId, deletedAt: IsNull() },
@@ -390,9 +351,6 @@ export class TotpService {
     }
   }
 
-  /**
-   * Disables TOTP for a user after verifying a code
-   */
   async disableTotp(userId: string, code: string): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { id: userId, deletedAt: IsNull() },
@@ -402,7 +360,6 @@ export class TotpService {
       throw new UnauthorizedException('TOTP non configuré');
     }
 
-    // Apply per-user TOTP rate limit
     await this.rateLimitService.incrementTotpAttempt(userId);
 
     let secret: string;

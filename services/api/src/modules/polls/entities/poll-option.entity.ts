@@ -21,7 +21,6 @@ export class PollOption {
   @Column({ type: 'varchar', nullable: false })
   label: string;
 
-  /** Poids fixe attribué par le créateur du sondage (sondages de type "weighted"). Un vote pour cette option compte pour ce poids, quel que soit le votant. */
   @Column({
     type: 'numeric',
     precision: 10,

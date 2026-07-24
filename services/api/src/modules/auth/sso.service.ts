@@ -47,11 +47,6 @@ export class SsoService {
     private readonly ssoGateway: SsoGateway,
   ) {}
 
-  /**
-   * Generates a new SSO QR code session.
-   * The QR encodes a full scan URL so any phone camera can open it directly.
-   * The scanUrl is also returned so the desktop client can display a "copy link" fallback.
-   */
   async generateQr(ip: string, deviceName: string): Promise<GenerateQrResult> {
     try {
       const rateLimitKey = `rate:sso:generate:${ip}`;
@@ -106,8 +101,6 @@ export class SsoService {
         process.env.APP_BASE_URL ??
         'http://localhost:3000/v1';
 
-      // Encode the full scan URL so any phone camera opens the web client directly.
-      // device_name is included for display on the confirmation screen
       const deviceParam = encodeURIComponent(deviceName);
       const base = qrcodeurl.replace(/\/+$/, '');
       const scanUrl = `${base}/auth/sso/qr/validate?token=${tokenUuid}&device=${deviceParam}`;
@@ -115,9 +108,6 @@ export class SsoService {
 
       return { qr, scanUrl };
     } catch (error: any) {
-      // Re-throw NestJS HttpExceptions so they reach the client as proper
-      // structured errors (429, 409, etc.). Wrap unexpected Redis/network
-      // failures as 503 so the Java client can retry gracefully.
       if (error instanceof HttpException) {
         throw error;
       }
@@ -129,10 +119,6 @@ export class SsoService {
     }
   }
 
-  /**
-   * Validates an SSO session from the authenticated web client.
-   * Generates long-lived tokens for the Java Desktop client.
-   */
   async validateQr(
     tokenUuid: string,
     userId: string,
@@ -191,15 +177,6 @@ export class SsoService {
     this.ssoGateway.emitQrValidated(tokenUuid, accessToken, refreshToken);
   }
 
-  /**
-   * Checks the status of an SSO session. Used by the Java Desktop client.
-   * Tokens are consumed on first retrieval (one-time claim).
-   *
-   * This endpoint is polled every 2 seconds by the Java client during the
-   * QR display phase. It MUST always return a valid JSON response and MUST
-   * NEVER throw, otherwise the Java HttpClient connection pool gets corrupted
-   * and the desktop client enters a network-error flood loop.
-   */
   async checkStatus(tokenUuid: string): Promise<{
     status: string;
     access_token?: string;
@@ -216,7 +193,6 @@ export class SsoService {
 
       const payload = JSON.parse(data) as SsoSessionPayload;
       if (payload.status === 'validated') {
-        // One-time claim: consume tokens so they can't be replayed
         await this.redis.del(ssoKey).catch(() => {
           // Best-effort deletion — key may already be expired
         });
@@ -229,9 +205,6 @@ export class SsoService {
 
       return { status: 'pending' };
     } catch (error: any) {
-      // Redis or parsing failure — degrade gracefully.
-      // The Java client will continue polling; a transient Redis blip
-      // should not break the SSO flow.
       this.logger.error(
         `SSO status check failed for token ${tokenUuid}: ${error.message}`,
       );

@@ -133,8 +133,6 @@ describe('DSL Module (e2e)', () => {
     jest.clearAllMocks();
   });
 
-  // ── Auth guards ───────────────────────────────────────────
-
   it('POST /v1/dsl/query should return 401 without token', async () => {
     await request(app.getHttpServer())
       .post('/v1/dsl/query')
@@ -145,8 +143,6 @@ describe('DSL Module (e2e)', () => {
   it('GET /v1/dsl/audit should return 401 without token', async () => {
     await request(app.getHttpServer()).get('/v1/dsl/audit').expect(401);
   });
-
-  // ── Role guards ───────────────────────────────────────────
 
   it('POST /v1/dsl/query should return 403 for resident', async () => {
     const { email, password } = await createTestUser(app, 'dslresident');
@@ -167,8 +163,6 @@ describe('DSL Module (e2e)', () => {
       .set('Authorization', `Bearer ${mod.token}`)
       .expect(403);
   });
-
-  // ── POST /dsl/query — Moderator ───────────────────────────
 
   describe('POST /v1/dsl/query (moderator)', () => {
     let modToken: string;
@@ -279,8 +273,6 @@ describe('DSL Module (e2e)', () => {
     });
   });
 
-  // ── POST /dsl/query — Admin ───────────────────────────────
-
   describe('POST /v1/dsl/query (admin)', () => {
     let adminToken: string;
 
@@ -300,8 +292,6 @@ describe('DSL Module (e2e)', () => {
       expect(res.body.resultCount).toBe(3);
     });
   });
-
-  // ── GET /dsl/audit — Admin ────────────────────────────────
 
   describe('GET /v1/dsl/audit (admin)', () => {
     let adminToken: string;

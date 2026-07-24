@@ -54,7 +54,6 @@ export class ListingDocument {
 export const ListingDocumentSchema =
   SchemaFactory.createForClass(ListingDocument);
 
-// Indexes
 ListingDocumentSchema.index({ pg_listing_id: 1 }, { unique: true });
 ListingDocumentSchema.index({ tags: 1 });
 ListingDocumentSchema.index({ updated_at: -1 });

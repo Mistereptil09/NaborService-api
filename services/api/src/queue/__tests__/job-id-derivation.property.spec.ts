@@ -5,7 +5,6 @@ import {
   eventRegisterJobId,
 } from '../utils/job-id';
 
-// Feature: bullmq-integration, Property 4: Idempotent jobId derivation is deterministic and correctly formatted
 describe('Job ID Derivation', () => {
   it('stripeJobId returns eventId', () => {
     fc.assert(

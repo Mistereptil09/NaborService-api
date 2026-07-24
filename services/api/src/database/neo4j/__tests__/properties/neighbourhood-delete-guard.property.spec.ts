@@ -22,7 +22,6 @@ describe('Feature: neo4j-init-service, Property 7: Neighbourhood deletion guard'
         async (residentCount) => {
           mockNeo4jService.run.mockReset();
 
-          // Mock the exist & resident count check
           const mockRecord = {
             get: () => residentCount,
           };

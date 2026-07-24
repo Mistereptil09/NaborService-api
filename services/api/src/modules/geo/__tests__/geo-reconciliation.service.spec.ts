@@ -100,11 +100,9 @@ describe('GeoReconciliationService', () => {
           { id: 'user-1', neighbourhoodId: 'nb-1' },
         ]);
 
-      // 1. Neo4j current state: lacks relationship
       (neo4jService.run as jest.Mock).mockResolvedValueOnce({
         records: [{ get: () => null }],
       });
-      // 2. Check if neighbourhood exists in Neo4j
       (neo4jService.run as jest.Mock).mockResolvedValueOnce({
         records: [{ get: () => ({}) }], // exists
       });
@@ -112,7 +110,6 @@ describe('GeoReconciliationService', () => {
       await service.reconcileRecentEntities(24);
 
       expect(neo4jService.run).toHaveBeenCalledTimes(3);
-      // 3rd call is the fix query
       expect(neo4jService.run).toHaveBeenNthCalledWith(
         3,
         expect.stringContaining('MERGE'),
@@ -128,11 +125,9 @@ describe('GeoReconciliationService', () => {
           { id: 'user-1', neighbourhoodId: 'nb-1' },
         ]);
 
-      // 1. Neo4j current state: lacks relationship
       (neo4jService.run as jest.Mock).mockResolvedValueOnce({
         records: [{ get: () => null }],
       });
-      // 2. Check if neighbourhood exists in Neo4j
       (neo4jService.run as jest.Mock).mockResolvedValueOnce({
         records: [], // does NOT exist
       });
@@ -152,7 +147,6 @@ describe('GeoReconciliationService', () => {
           { id: 'user-1', neighbourhoodId: null },
         ]);
 
-      // 1. Neo4j current state: has relationship
       (neo4jService.run as jest.Mock).mockResolvedValueOnce({
         records: [{ get: () => 'nb-old' }],
       });
@@ -160,7 +154,6 @@ describe('GeoReconciliationService', () => {
       await service.reconcileRecentEntities(24);
 
       expect(neo4jService.run).toHaveBeenCalledTimes(2);
-      // 2nd call is the fix query
       expect(neo4jService.run).toHaveBeenNthCalledWith(
         2,
         expect.stringContaining('DELETE'),

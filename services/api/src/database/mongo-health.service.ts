@@ -4,13 +4,6 @@ import { Connection } from 'mongoose';
 
 export type MongoHealthState = 'healthy' | 'degraded' | 'down';
 
-/**
- * Tracks MongoDB health via Mongoose connection events.
- *
- * When MongoDB goes down, services that depend on it (media, chat,
- * contracts, tickets) should check isHealthy() before attempting
- * operations and return a graceful error instead of crashing.
- */
 @Injectable()
 export class MongoHealthService implements OnModuleInit {
   private readonly logger = new Logger(MongoHealthService.name);
@@ -24,19 +17,15 @@ export class MongoHealthService implements OnModuleInit {
   constructor(@InjectConnection() private readonly connection: Connection) {}
 
   onModuleInit() {
-    // Mongoose connection events
     this.connection.on('connected', () => this.onConnect());
     this.connection.on('disconnected', () => this.onDisconnect());
     this.connection.on('error', () => this.onError());
 
-    // Check initial state
     if (this.connection.readyState !== 1) {
       this.state = 'degraded';
       this.logger.warn('MongoDB not connected at startup — marked DEGRADED');
     }
   }
-
-  // ── Public API ───────────────────────────────────────────────
 
   isHealthy(): boolean {
     return this.state === 'healthy' || this.state === 'degraded';
@@ -45,8 +34,6 @@ export class MongoHealthService implements OnModuleInit {
   getState(): MongoHealthState {
     return this.state;
   }
-
-  // ── Event handlers ───────────────────────────────────────────
 
   private onConnect() {
     this.consecutiveErrors = 0;
@@ -80,8 +67,6 @@ export class MongoHealthService implements OnModuleInit {
     }
   }
 
-  // ── Probing ──────────────────────────────────────────────────
-
   private startProbing(): void {
     if (this.probeTimer) return;
     this.probeTimer = setInterval(() => this.probe(), this.probeIntervalMs);
@@ -99,7 +84,6 @@ export class MongoHealthService implements OnModuleInit {
       const admin = this.connection.db?.admin();
       if (admin) {
         await admin.ping();
-        // If we get here, MongoDB is back — Mongoose will emit 'connected'
         this.onConnect();
       }
     } catch {

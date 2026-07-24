@@ -73,8 +73,6 @@ describe('ChatController', () => {
 
   it('should be defined', () => expect(controller).toBeDefined());
 
-  // ── Groups ──────────────────────────────────────────────
-
   describe('GET /chat/groups', () => {
     it('should return user groups', async () => {
       chatService.getUserGroups.mockResolvedValue([
@@ -124,8 +122,6 @@ describe('ChatController', () => {
       expect(result.deletedAt).toBeDefined();
     });
   });
-
-  // ── Members ─────────────────────────────────────────────
 
   describe('GET /chat/groups/:id/members', () => {
     it('should list members mapped to snake_case with joined user identity', async () => {
@@ -184,8 +180,6 @@ describe('ChatController', () => {
     });
   });
 
-  // ── Mute ────────────────────────────────────────────────
-
   describe('POST /chat/groups/:id/mute', () => {
     it('should mute', async () => {
       await controller.mute('g1', mockUser as any, { duration_minutes: 60 });
@@ -199,8 +193,6 @@ describe('ChatController', () => {
       expect(chatService.unmute).toHaveBeenCalledWith('g1', 'u1');
     });
   });
-
-  // ── Messages ────────────────────────────────────────────
 
   describe('GET /chat/groups/:id/messages', () => {
     it('should return paginated messages', async () => {
@@ -222,7 +214,6 @@ describe('ChatController', () => {
         'cursor123',
         '25' as any,
       );
-      // limit comes from query string → passed as-is (not parsed to number)
       expect(chatMessageService.getMessages).toHaveBeenCalledWith(
         'g1',
         'u1',
@@ -298,8 +289,6 @@ describe('ChatController', () => {
     });
   });
 
-  // ── Pin ─────────────────────────────────────────────────
-
   describe('POST /chat/messages/:id/pin', () => {
     it('should pin a message', async () => {
       const result = await controller.pinMessage('msg1', mockUser as any);
@@ -318,8 +307,6 @@ describe('ChatController', () => {
       expect(result.pinned).toBe(false);
     });
   });
-
-  // ── Read pointer ────────────────────────────────────────
 
   describe('POST /chat/groups/:id/read', () => {
     it('should mark the conversation read', async () => {

@@ -1,7 +1,6 @@
 import fc from 'fast-check';
 import { getBackoffDelay } from '../utils/backoff-strategy';
 
-// Feature: bullmq-integration, Property 1: Backoff strategy produces correct delays for all queues and attempts
 describe('Backoff Strategy', () => {
   const delaysMap: Record<string, number[]> = {
     'neo4j-sync': [1000, 5000, 30000],

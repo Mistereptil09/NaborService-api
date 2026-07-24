@@ -27,8 +27,6 @@ describe('Listings & Payments Entities — TypeORM Metadata', () => {
     (dataSource as unknown as { buildMetadatas(): void }).buildMetadatas();
   });
 
-  // ─── ListingCategory (Requirement 5.1) ───────────────────────────────────────
-
   describe('ListingCategory entity', () => {
     it('should map to table "listing_category"', () => {
       const metadata = dataSource.getMetadata(ListingCategory);
@@ -97,8 +95,6 @@ describe('Listings & Payments Entities — TypeORM Metadata', () => {
       expect(updatedAt!.isNullable).toBe(true);
     });
   });
-
-  // ─── Listing (Requirements 5.2, 5.3) ─────────────────────────────────────────
 
   describe('Listing entity', () => {
     it('should map to table "listings"', () => {
@@ -206,8 +202,6 @@ describe('Listings & Payments Entities — TypeORM Metadata', () => {
     });
   });
 
-  // ─── ListingTransaction (Requirements 5.4, 5.5) ──────────────────────────────
-
   describe('ListingTransaction entity', () => {
     it('should map to table "listing_transactions"', () => {
       const metadata = dataSource.getMetadata(ListingTransaction);
@@ -305,8 +299,6 @@ describe('Listings & Payments Entities — TypeORM Metadata', () => {
     });
   });
 
-  // ─── ListingReport (Requirement 5.6) ─────────────────────────────────────────
-
   describe('ListingReport entity', () => {
     it('should map to table "listing_reports"', () => {
       const metadata = dataSource.getMetadata(ListingReport);
@@ -367,8 +359,6 @@ describe('Listings & Payments Entities — TypeORM Metadata', () => {
       expect(reporterRel!.type).toBe(User);
     });
   });
-
-  // ─── ListingModerationAction (Requirement 5.7) ───────────────────────────────
 
   describe('ListingModerationAction entity', () => {
     it('should map to table "listing_moderation_actions"', () => {

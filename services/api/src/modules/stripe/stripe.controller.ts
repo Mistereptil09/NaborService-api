@@ -46,8 +46,6 @@ export class StripeController {
       throw new BadRequestException(`Webhook Error: ${errorMessage}`);
     }
 
-    // Acknowledge fast; StripeWebhookWorker does the actual processing
-    // (jobId = event.id gives BullMQ-level dedup against Stripe retries).
     await this.stripeWebhookQueue.add(
       event.type,
       {

@@ -33,8 +33,6 @@ describe('Events Module (e2e)', () => {
     await clearQueueJobs(app);
   });
 
-  // ── CRUD ───────────────────────────────────────────────────
-
   describe('CRUD', () => {
     it('POST /v1/events should create a draft event', async () => {
       const { email, password } = await createTestUser(app, 'creator');
@@ -127,8 +125,6 @@ describe('Events Module (e2e)', () => {
     });
   });
 
-  // ── State Machine ──────────────────────────────────────────
-
   describe('State Machine', () => {
     it('should flow: draft → published → open → completed', async () => {
       const { email, password } = await createTestUser(app, 'sm');
@@ -187,8 +183,6 @@ describe('Events Module (e2e)', () => {
     });
   });
 
-  // ── Registration ───────────────────────────────────────────
-
   describe('Registration', () => {
     it('POST /v1/events/:id/register should register participant for a free open event', async () => {
       const u1 = await createTestUser(app, 'creator');
@@ -211,12 +205,14 @@ describe('Events Module (e2e)', () => {
         .expect(202);
       expect(res.body).toHaveProperty('success', true);
 
-      // Wait for the async worker to persist the registration
-      const job = await waitForQueueJob(app, 'event-register', `${event.id}_${u2.user.id}`);
+      const job = await waitForQueueJob(
+        app,
+        'event-register',
+        `${event.id}_${u2.user.id}`,
+      );
       expect(job).toBeDefined();
       expect(await job!.isCompleted()).toBe(true);
 
-      // Verify the participant is actually persisted
       const participantsRes = await request(app.getHttpServer())
         .get(`/v1/events/${event.id}/participants`)
         .set('Authorization', `Bearer ${t1}`)
@@ -260,8 +256,6 @@ describe('Events Module (e2e)', () => {
     });
   });
 
-  // ── Swipe ──────────────────────────────────────────────────
-
   describe('Swipe', () => {
     it('POST /v1/events/:id/swipe should record a like', async () => {
       const creator = await createTestUser(app, 'creator');
@@ -302,8 +296,6 @@ describe('Events Module (e2e)', () => {
         .expect(400);
     });
   });
-
-  // ── Report ─────────────────────────────────────────────────
 
   describe('Report', () => {
     it('POST /v1/events/:id/report should report an event', async () => {
@@ -351,8 +343,6 @@ describe('Events Module (e2e)', () => {
         .expect(400);
     });
   });
-
-  // ── Auth ───────────────────────────────────────────────────
 
   describe('Auth', () => {
     it('should return 401 without token', async () => {

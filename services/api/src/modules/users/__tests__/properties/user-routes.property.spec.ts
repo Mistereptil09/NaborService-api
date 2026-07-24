@@ -1,9 +1,6 @@
 import * as fc from 'fast-check';
 import * as argon2 from 'argon2';
 
-// ----------------------------------------------------
-// 1. Profile update preserves unmodified fields
-// ----------------------------------------------------
 interface UserProfile {
   id: string;
   firstName: string;
@@ -25,9 +22,6 @@ function simulateUpdateProfile(
   };
 }
 
-// ----------------------------------------------------
-// 2. Media upload / 3. replacement / 4. deletion
-// ----------------------------------------------------
 interface MongoMedia {
   _id: string;
   pg_user_id: string;
@@ -50,7 +44,6 @@ function simulateUploadMedia(
   const store = [...mediaStore];
   const newId = `mongo-${Math.random()}`;
 
-  // Property 3: replacement marks old
   const oldMediaIdx = store.findIndex(
     (m) => m.pg_user_id === userId && m.type === type,
   );
@@ -62,7 +55,6 @@ function simulateUploadMedia(
     };
   }
 
-  // Add new
   store.push({
     _id: newId,
     pg_user_id: userId,
@@ -99,9 +91,6 @@ function simulateDeleteMedia(
   return { refs, store };
 }
 
-// ----------------------------------------------------
-// 6. Password change revokes other sessions
-// ----------------------------------------------------
 interface Session {
   id: string;
   userId: string;
@@ -127,9 +116,6 @@ function simulatePasswordChange(
   });
 }
 
-// ----------------------------------------------------
-// 7. Opt-out / 8. Restriction
-// ----------------------------------------------------
 interface UserDataProcessing {
   userId: string;
   optOuts: string[];
@@ -143,9 +129,6 @@ function getEffectiveOptOuts(record: UserDataProcessing): string[] {
   return record.optOuts;
 }
 
-// ----------------------------------------------------
-// 9. Visibility / 10. Blocks
-// ----------------------------------------------------
 interface RelationshipGraph {
   follows: { followerId: string; followedId: string }[];
   friendships: {
@@ -213,12 +196,7 @@ function getPublicProfile(
   };
 }
 
-// ----------------------------------------------------
-// Tests Description
-// ----------------------------------------------------
-
 describe('Feature: users-routes-cdc, Correctness Properties', () => {
-  // Property 1
   it('Property 1: Profile update preserves unmodified fields', () => {
     fc.assert(
       fc.property(
@@ -247,14 +225,12 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
 
           const updated = simulateUpdateProfile(user, updateDto);
 
-          // Checked fields must be changed if specified
           if (updateDto.firstName)
             expect(updated.firstName).toBe(updateDto.firstName);
           if (updateDto.lastName)
             expect(updated.lastName).toBe(updateDto.lastName);
           if (updateDto.bio) expect(updated.bio).toBe(updateDto.bio);
 
-          // All other fields must remain identical
           expect(updated.id).toBe(user.id);
           expect(updated.visibility).toBe(user.visibility);
           expect(updated.messagePolicy).toBe(user.messagePolicy);
@@ -266,7 +242,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 2 & 3
   it('Property 2 & 3: Media upload produces WebP and replacement marks old', () => {
     fc.assert(
       fc.property(
@@ -297,7 +272,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
           if (type === 'avatar') {
             expect(refs.profilePictureMongoId).not.toBeNull();
             expect(refs.profilePictureMongoId).not.toBe('old-mongo-id');
-            // old avatar should be marked replaced
             const oldAvatar = store.find((m) => m._id === 'old-mongo-id');
             expect(oldAvatar?.replaced_at).not.toBeNull();
             expect(oldAvatar?.type).toBe('avatar_replaced');
@@ -305,7 +279,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
             expect(refs.bannerMongoId).not.toBeNull();
           }
 
-          // Newly added media is WebP
           const newMedia = store.find(
             (m) =>
               m._id ===
@@ -321,7 +294,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 4
   it('Property 4: Media deletion clears both stores', () => {
     fc.assert(
       fc.property(
@@ -369,7 +341,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 5
   it('Property 5: Password update round-trip (Argon2id)', async () => {
     const password = 'mySecurePassword123';
     const salt = Buffer.from('somesalt12345678');
@@ -379,7 +350,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     expect(await argon2.verify(hash, 'wrongpassword')).toBe(false);
   });
 
-  // Property 6
   it('Property 6: Password change revokes other sessions', () => {
     fc.assert(
       fc.property(
@@ -393,7 +363,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
           }),
         ),
         (userId, randomSessions) => {
-          // ensure at least some sessions belong to our user
           const userSessions = randomSessions.map((s, idx) => {
             if (idx % 2 === 0) {
               return { ...s, userId };
@@ -418,11 +387,9 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
             currentSessionId,
           );
 
-          // Current session is not revoked
           const current = updated.find((s) => s.id === currentSessionId);
           expect(current?.revokedAt).toBeNull();
 
-          // Other sessions of the same user are revoked
           for (const s of updated) {
             if (s.userId === userId && s.id !== currentSessionId) {
               expect(s.revokedAt).not.toBeNull();
@@ -434,7 +401,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 7
   it('Property 7: Opt-out add/remove round-trip', () => {
     fc.assert(
       fc.property(
@@ -446,13 +412,11 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
             isRestricted: false,
           };
 
-          // Add opt-out
           record.optOuts = Array.from(
             new Set([...record.optOuts, processingType]),
           );
           expect(getEffectiveOptOuts(record)).toContain(processingType);
 
-          // Remove opt-out
           record.optOuts = record.optOuts.filter((o) => o !== processingType);
           expect(getEffectiveOptOuts(record)).not.toContain(processingType);
         },
@@ -461,7 +425,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 8
   it('Property 8: Restriction activates all opt-outs', () => {
     fc.assert(
       fc.property(
@@ -475,7 +438,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
             isRestricted: false,
           };
 
-          // Activate restriction
           record.isRestricted = true;
           expect(getEffectiveOptOuts(record)).toEqual([
             'discovery',
@@ -483,7 +445,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
             'neo4j_tracking',
           ]);
 
-          // Deactivate restriction
           record.isRestricted = false;
           expect(getEffectiveOptOuts(record)).toEqual(
             Array.from(new Set(initialOptOuts)),
@@ -494,7 +455,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 9
   it('Property 9: Visibility controls profile response content', () => {
     fc.assert(
       fc.property(
@@ -537,7 +497,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
               expect(profile.bio).toBeUndefined();
             }
           } else {
-            // public
             expect(profile.bio).toBe(target.bio);
           }
         },
@@ -546,7 +505,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 10
   it('Property 10: Blocked users are invisible across all surfaces', () => {
     fc.assert(
       fc.property(
@@ -567,7 +525,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
             blocks: [{ blockerId: 'req-user', blockedId: 'target-user' }],
           };
 
-          // Lookups throw 404
           expect(() => getPublicProfile('req-user', target, graph)).toThrow(
             '404',
           );
@@ -577,7 +534,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 11
   it('Property 11: Search results respect pagination and exclusions', () => {
     fc.assert(
       fc.property(
@@ -591,10 +547,8 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
           { minLength: 5, maxLength: 50 },
         ),
         (users) => {
-          // exclude soft deleted
           const active = users.filter((u) => u.deletedAt === null);
 
-          // Pagination offset/limit test
           const offset = 2;
           const limit = 3;
           const results = active.slice(offset, offset + limit);
@@ -609,7 +563,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 12
   it('Property 12: Discover feed is sorted by score descending', () => {
     fc.assert(
       fc.property(
@@ -626,7 +579,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
           const filtered = candidates.filter((c) => !c.swiped && !c.optedOut);
           filtered.sort((a, b) => b.score - a.score);
 
-          // Verify strictly non-increasing order
           for (let i = 0; i < filtered.length - 1; i++) {
             expect(filtered[i].score).toBeGreaterThanOrEqual(
               filtered[i + 1].score,
@@ -638,7 +590,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 13
   it('Property 13: Follow creates record and mutual follow creates friendship', () => {
     fc.assert(
       fc.property(
@@ -652,12 +603,10 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
             blocks: [],
           };
 
-          // A follows B
           graph.follows.push({ followerId: u1, followedId: u2 });
 
           if (followBackExists) {
             graph.follows.push({ followerId: u2, followedId: u1 });
-            // Mutual follow creates friendship
             const first = u1 < u2 ? u1 : u2;
             const second = u1 < u2 ? u2 : u1;
             graph.friendships.push({
@@ -681,7 +630,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 14
   it('Property 14: Unfollow removes record and breaks friendship', () => {
     fc.assert(
       fc.property(fc.uuid(), fc.uuid(), (u1, u2) => {
@@ -700,12 +648,10 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
           blocks: [],
         };
 
-        // Unfollow A -> B
         graph.follows = graph.follows.filter(
           (f) => !(f.followerId === u1 && f.followedId === u2),
         );
 
-        // Break friendship
         const first = u1 < u2 ? u1 : u2;
         const second = u1 < u2 ? u2 : u1;
         const friendship = graph.friendships.find(
@@ -724,7 +670,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 15
   it('Property 15: Block removes all social relationships', () => {
     fc.assert(
       fc.property(fc.uuid(), fc.uuid(), (u1, u2) => {
@@ -743,10 +688,8 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
           blocks: [],
         };
 
-        // Block A -> B
         graph.blocks.push({ blockerId: u1, blockedId: u2 });
 
-        // Clean follows in both directions
         graph.follows = graph.follows.filter(
           (f) =>
             !(
@@ -755,7 +698,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
             ),
         );
 
-        // Clean friendship
         const first = u1 < u2 ? u1 : u2;
         const second = u1 < u2 ? u2 : u1;
         const friendship = graph.friendships.find(
@@ -773,7 +715,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 16
   it('Property 16: Followers/following/friends lists are consistent with relationships', () => {
     fc.assert(
       fc.property(
@@ -835,7 +776,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 17 & 18
   it('Property 17 & 18: RGPD JSON / CSV export completeness and equivalence', () => {
     fc.assert(
       fc.property(
@@ -849,14 +789,12 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
           votes: fc.array(fc.record({ optionId: fc.uuid() })),
         }),
         (data) => {
-          // Property 17 completeness
           expect(data.profile).toBeDefined();
           expect(data.listings).toBeDefined();
           expect(data.messages).toBeDefined();
           expect(data.eventParticipations).toBeDefined();
           expect(data.votes).toBeDefined();
 
-          // Conversion equivalence simulation
           let csv = 'Format,Table,RecordID,Details\n';
           csv += `JSON,users,${data.profile.id},"email: ${data.profile.email}"\n`;
           for (const l of data.listings) {
@@ -873,7 +811,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 19
   it('Property 19: Swipe history is ordered by date descending', () => {
     fc.assert(
       fc.property(
@@ -900,7 +837,6 @@ describe('Feature: users-routes-cdc, Correctness Properties', () => {
     );
   });
 
-  // Property 20
   it('Property 20: Report records all required fields', () => {
     fc.assert(
       fc.property(

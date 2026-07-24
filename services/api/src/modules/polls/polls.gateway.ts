@@ -36,8 +36,6 @@ export class PollsGateway {
     }
   }
 
-  // ── Room management ─────────────────────────────────────
-
   @SubscribeMessage('join_poll')
   async handleJoinPoll(
     @MessageBody() data: { poll_id: string },
@@ -56,8 +54,6 @@ export class PollsGateway {
     client.leave(`polls:poll:${data.poll_id}`);
     return { event: 'left', poll_id: data.poll_id };
   }
-
-  // ── Emit helpers (called by PollsService) ───────────────
 
   emitPollUpdated(pollId: string, results: any[]) {
     this.server

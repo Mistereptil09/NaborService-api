@@ -63,8 +63,6 @@ export class NotificationsGateway implements OnGatewayConnection {
     }
   }
 
-  // ── Emit helpers (called by NotificationsService) ──────
-
   emitToUser(userId: string, event: string, data: Record<string, unknown>) {
     this.server.to(`user:${userId}`).emit(event, data);
   }

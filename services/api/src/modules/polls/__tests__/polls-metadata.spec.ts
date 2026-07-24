@@ -175,7 +175,6 @@ describe('Polls Domain — TypeORM Metadata', () => {
       const userRelations = metadata.relations.filter(
         (r) => r.type === Function && r.inverseEntityMetadata?.target === User,
       );
-      // Use join columns to identify the two relations
       const creatorRel = metadata.relations.find((r) =>
         r.joinColumns.some((jc) => jc.databaseName === 'creator_id'),
       );

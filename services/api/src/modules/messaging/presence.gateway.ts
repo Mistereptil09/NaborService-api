@@ -43,7 +43,6 @@ export class PresenceGateway
     try {
       const { userId } = this.wsAuthService.verify(client);
 
-      // Update presence in Redis
       const presenceKey = `presence:${userId}`;
       await this.redis.set(
         presenceKey,
@@ -56,7 +55,6 @@ export class PresenceGateway
         86400, // 24h
       );
 
-      // Broadcast to all connected clients
       this.server.emit('presence:online', { user_id: userId });
     } catch {
       client.disconnect();
@@ -66,7 +64,6 @@ export class PresenceGateway
   async handleDisconnect(client: AuthenticatedSocket) {
     if (!client.userId) return;
 
-    // Check if user has other active connections
     const sockets = await this.server.fetchSockets();
     const hasOtherConnection = sockets.some(
       (s) =>

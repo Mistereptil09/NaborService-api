@@ -28,7 +28,6 @@ export interface ReadinessResponse {
   };
 }
 
-/** Services required for the server to function. Down = critical. */
 const SOFT_DEPS = new Set(['mongodb', 'neo4j']);
 
 @Injectable()

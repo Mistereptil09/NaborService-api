@@ -32,6 +32,5 @@ export class UserMedia {
 
 export const UserMediaSchema = SchemaFactory.createForClass(UserMedia);
 
-// Indexes
 UserMediaSchema.index({ pg_user_id: 1, type: 1 }, { unique: true });
 UserMediaSchema.index({ uploaded_at: -1 });

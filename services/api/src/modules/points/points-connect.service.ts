@@ -16,7 +16,9 @@ export class PointsConnectService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getStatus(userId: string): Promise<{ hasAccount: boolean; payoutsEnabled: boolean }> {
+  async getStatus(
+    userId: string,
+  ): Promise<{ hasAccount: boolean; payoutsEnabled: boolean }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('Utilisateur introuvable');
@@ -27,7 +29,6 @@ export class PointsConnectService {
     };
   }
 
-  /** Crée le compte connecté si besoin, puis renvoie un lien d'onboarding Stripe. */
   async createOnboardingLink(userId: string): Promise<{ url: string }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
@@ -35,7 +36,9 @@ export class PointsConnectService {
     }
 
     if (!user.stripeAccountId) {
-      user.stripeAccountId = await this.stripeService.createConnectAccount(user.email);
+      user.stripeAccountId = await this.stripeService.createConnectAccount(
+        user.email,
+      );
       await this.userRepository.save(user);
     }
 
@@ -53,7 +56,6 @@ export class PointsConnectService {
     return { url };
   }
 
-  /** Webhook `account.updated` : synchronise l'éligibilité au cashout. */
   async handleAccountUpdated(account: Record<string, any>): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { stripeAccountId: account.id },
@@ -65,7 +67,9 @@ export class PointsConnectService {
       return;
     }
 
-    user.payoutsEnabled = Boolean(account.charges_enabled && account.payouts_enabled);
+    user.payoutsEnabled = Boolean(
+      account.charges_enabled && account.payouts_enabled,
+    );
     await this.userRepository.save(user);
   }
 }

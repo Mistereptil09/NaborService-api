@@ -65,7 +65,6 @@ export class ListingsGateway
   ) {
     if (!this.server) return;
 
-    // Attempt joining by retrieving sockets
     const providerSocketId = this.userSockets.get(providerId);
     const requesterSocketId = this.userSockets.get(requesterId);
 

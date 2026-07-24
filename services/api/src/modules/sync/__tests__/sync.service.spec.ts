@@ -187,7 +187,6 @@ describe('SyncService', () => {
 
     const result = await service.syncUpdates(dto);
 
-    // When there's a conflict, success=false but non-conflicting updates still applied
     expect(result.success).toBe(false);
     expect(result.has_conflicts).toBe(true);
     expect(result.applied_count).toBe(1);
@@ -209,7 +208,6 @@ describe('SyncService', () => {
       },
     });
 
-    // Conflict stored as audit log
     expect(syncConflictRepository.save).toHaveBeenCalled();
     expect(redisClient.set).toHaveBeenCalledWith(
       'sync:job:job-567',
@@ -245,16 +243,12 @@ describe('SyncService', () => {
   });
 
   it('should set sync_at at the end of snapshot (after queries)', async () => {
-    // Verify the snapshot response includes a sync_at timestamp
-    // and that it's set after data fetching (not at request start).
-    // We can verify this by checking that sync_at is reasonable.
     const query = new GetSnapshotQueryDto();
     query.since = new Date('2025-01-01T00:00:00Z');
     query.limit = 500;
 
     const result = await service.getSnapshot(query);
 
-    // sync_at should be set and be a recent date (not the epoch)
     expect(result.sync_at).toBeInstanceOf(Date);
     expect(result.sync_at.getTime()).toBeGreaterThan(
       new Date('2025-01-01').getTime(),

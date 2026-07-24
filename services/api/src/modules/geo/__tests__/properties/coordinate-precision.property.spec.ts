@@ -1,7 +1,6 @@
 import fc from 'fast-check';
 import { parseFeatureCollection } from '../../geojson-parser';
 
-// Feature: geographical-pipeline, Property 4: GeoJSON Coordinate Extraction Preserves Precision and Order
 describe('Property 4: Coordinate Precision', () => {
   it('should extract exact precision values and [lng, lat] order', () => {
     fc.assert(

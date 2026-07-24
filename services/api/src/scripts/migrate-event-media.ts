@@ -1,17 +1,3 @@
-/**
- * Migration ponctuelle — médias d'événements vers le stockage unifié MediaService.
- *
- * Avant : les images/pièces jointes étaient stockées en binaire dans le
- * document Mongo `event_documents` (champs `cover` et `attachments`).
- * Après : elles sont stockées en GridFS + métadonnées dans `media_files`
- * (owner_type `event_cover` / `event_attachment`), comme les annonces.
- *
- * Le script vide ensuite les champs binaires d'`event_documents` pour éviter
- * toute double source de vérité.
- *
- * Usage:
- *   npm run db:migrate:event-media
- */
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '../../.env' });
 

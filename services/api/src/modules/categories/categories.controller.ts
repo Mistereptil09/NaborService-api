@@ -31,8 +31,6 @@ import { CreateCategoryDto, UpdateCategoryDto } from './categories.dto';
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
-  // ── GET /categories/listings (public) ──────────────────
-
   @Get('listings')
   @ApiOperation({ summary: "Arbre des catégories d'annonces" })
   @ApiOkResponse({ description: 'Catégories listings retournées' })
@@ -40,16 +38,12 @@ export class CategoriesController {
     return this.categoriesService.getTree('listings');
   }
 
-  // ── GET /categories/events (public) ────────────────────
-
   @Get('events')
   @ApiOperation({ summary: "Arbre des catégories d'événements" })
   @ApiOkResponse({ description: 'Catégories événements retournées' })
   async getEventCategories() {
     return this.categoriesService.getTree('events');
   }
-
-  // ── POST /categories/listings (admin) ──────────────────
 
   @Post('listings')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -66,8 +60,6 @@ export class CategoriesController {
     return this.categoriesService.create('listings', dto);
   }
 
-  // ── POST /categories/events (admin) ────────────────────
-
   @Post('events')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
@@ -82,8 +74,6 @@ export class CategoriesController {
   async createEventCategory(@Body() dto: CreateCategoryDto) {
     return this.categoriesService.create('events', dto);
   }
-
-  // ── PATCH /categories/listings/:id (admin) ─────────────
 
   @Patch('listings/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -101,8 +91,6 @@ export class CategoriesController {
     return this.categoriesService.update('listings', id, dto);
   }
 
-  // ── PATCH /categories/events/:id (admin) ───────────────
-
   @Patch('events/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
@@ -119,8 +107,6 @@ export class CategoriesController {
     return this.categoriesService.update('events', id, dto);
   }
 
-  // ── DELETE /categories/listings/:id (admin) ────────────
-
   @Delete('listings/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
@@ -134,8 +120,6 @@ export class CategoriesController {
     await this.categoriesService.delete('listings', id);
     return { success: true };
   }
-
-  // ── DELETE /categories/events/:id (admin) ──────────────
 
   @Delete('events/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)

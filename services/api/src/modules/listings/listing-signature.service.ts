@@ -55,8 +55,6 @@ export class ListingSignatureService {
     if (!dto.canvas_b64 || dto.canvas_b64.trim() === '') {
       throw new BadRequestException('Le canvas de signature est obligatoire');
     }
-    // pdf-lib embarquera cette image dans le PDF final — refuser d'emblée
-    // tout ce qui n'est pas un PNG en data-URL.
     if (!dto.canvas_b64.startsWith('data:image/png;base64,')) {
       throw new BadRequestException(
         'La signature doit être une image PNG (data URL)',
@@ -83,7 +81,6 @@ export class ListingSignatureService {
       throw new ForbiddenException("Vous n'êtes pas signataire de ce document");
     }
 
-    // Immutabilité : document complet ou signature déjà apposée par ce rôle.
     const state = getSignatureState(contract);
     if (state.fullySigned) {
       throw new ConflictException('Document déjà signé');
@@ -92,10 +89,8 @@ export class ListingSignatureService {
       throw new ConflictException('Vous avez déjà signé ce document');
     }
 
-    // Verify TOTP via the centralized service (same path as login / sensitive actions).
     await this.totpService.verifyTotp(userId, dto.totp_code);
 
-    // Intégrité : re-hachage du PDF original avant d'apposer la signature.
     const gridfsFile = await this.gridfsService.download(
       new Types.ObjectId(contract.pdf.gridfs_file_id),
     );
@@ -108,7 +103,6 @@ export class ListingSignatureService {
       throw new ConflictException('Intégrité du document compromise');
     }
 
-    // Enregistrement de la signature de cette partie
     const now = new Date();
     contract.signatures = {
       ...contract.signatures,
@@ -133,7 +127,6 @@ export class ListingSignatureService {
     const savedContract = await contract.save();
 
     if (fullySigned) {
-      // Génération asynchrone du PDF final (signatures + certificat).
       await this.pdfGenerationQueue.add('finalize-signed-contract', {
         transactionId: transaction.id,
       });
@@ -156,7 +149,6 @@ export class ListingSignatureService {
         }
       }
     } else {
-      // L'autre partie est notifiée que c'est à son tour de signer.
       try {
         await this.notificationsService.create({
           userId: otherPartyId,
@@ -186,7 +178,6 @@ export class ListingSignatureService {
     };
   }
 
-  /** État de signature du contrat, pour la page de signature du frontend. */
   async getSignatureStatus(userId: string, listingId: string): Promise<any> {
     const transaction =
       await this.transactionService.findByListingId(listingId);
@@ -246,11 +237,6 @@ export class ListingSignatureService {
     return doc;
   }
 
-  /**
-   * Flux du PDF : version signée (signatures + certificat) dès qu'elle
-   * existe, sinon l'original ; `original: true` force l'original non signé
-   * (vérification d'empreinte).
-   */
   async getContractStream(
     userId: string,
     listingId: string,

@@ -63,8 +63,6 @@ export class UserDiscoveryService {
       whereClause.neighbourhoodId = neighbourhood;
     }
 
-    // Build the query to fuzzy search on firstName or lastName using standard SQL ILike
-    // TypeORM supports In and Not operators, but for fuzzy OR name search:
     const qb = this.userRepository.createQueryBuilder('user');
     qb.where('user.deleted_at IS NULL');
     qb.andWhere('user.id NOT IN (:...excludeIds)', { excludeIds });
@@ -73,7 +71,6 @@ export class UserDiscoveryService {
       qb.andWhere('user.neighbourhood_id = :neighbourhood', { neighbourhood });
     }
 
-    // similarity() needs text, not unknown — use a sanitized literal to avoid type casting issues with TypeORM parameters
     const sanitized = query.replace(/'/g, "''");
     qb.andWhere(
       `(user.first_name ILIKE :query OR user.last_name ILIKE :query OR similarity(user.first_name, '${sanitized}') > 0.3 OR similarity(user.last_name, '${sanitized}') > 0.3)`,
@@ -86,7 +83,6 @@ export class UserDiscoveryService {
     qb.take(pagination.limit);
     const users = await qb.getMany();
 
-    // Transform users to select only allowed columns
     const data = users.map((u) => ({
       id: u.id,
       firstName: u.firstName,
@@ -116,8 +112,6 @@ export class UserDiscoveryService {
     data: any[];
     meta: { total: number; offset: number; limit: number };
   }> {
-    // Cached per-user (not per offset/limit) so a swipe/block can invalidate
-    // it with a single DEL instead of a pattern scan across every page.
     const cacheKey = `discover:${userId}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) {
@@ -145,7 +139,6 @@ export class UserDiscoveryService {
       new Set([userId, ...blockedIds, ...swipedIds]),
     );
 
-    // Query candidate users from PostgreSQL first
     const candidates = await this.userRepository.find({
       where: {
         deletedAt: IsNull(),
@@ -154,7 +147,6 @@ export class UserDiscoveryService {
       },
     });
 
-    // Filter out users opted out of discovery
     const discoveryCandidates: User[] = [];
     for (const c of candidates) {
       const isOpted = await this.dataProcessingService.isOptedOut(
@@ -179,7 +171,6 @@ export class UserDiscoveryService {
 
     const candidateIds = discoveryCandidates.map((c) => c.id);
 
-    // Compute scores using Neo4j
     let scoredUserIds: { pgId: string; score: number }[] = [];
     try {
       const cypher = `
@@ -222,12 +213,10 @@ export class UserDiscoveryService {
         score: Number(r.get('score')),
       }));
     } catch (error) {
-      // Graceful degradation: default score = 0
       console.warn('Neo4j discovery scoring failed, using default scores');
       scoredUserIds = candidateIds.map((id) => ({ pgId: id, score: 0 }));
     }
 
-    // Map candidates to their scores
     const scoreMap = new Map(
       scoredUserIds.map((item) => [item.pgId, item.score]),
     );
@@ -236,7 +225,6 @@ export class UserDiscoveryService {
       score: scoreMap.get(c.id) ?? 0,
     }));
 
-    // Sort by score descending
     candidatesWithScores.sort((a, b) => b.score - a.score);
 
     const fullList = candidatesWithScores.map((item) => ({
@@ -292,11 +280,8 @@ export class UserDiscoveryService {
     });
     await this.swipeRepository.save(swipe);
 
-    // Invalidate the cached feed so a re-fetch doesn't keep serving this
-    // now-swiped user back (would otherwise 409 on a repeat swipe attempt).
     await this.redis.del(`discover:${userId}`);
 
-    // Publish sync job to Neo4j queue
     await this.neo4jSyncQueue.add('user.swipe', {
       swiperId: userId,
       swipedId: targetId,
@@ -313,15 +298,12 @@ export class UserDiscoveryService {
       });
 
       if (reciprocal) {
-        // Mutual like — follow each other, which also triggers the
-        // existing mutual-follow friendship (+ chat group) creation.
         await this.autoFollow(userId, targetId);
         await this.autoFollow(targetId, userId);
       }
     }
   }
 
-  /** Follows on behalf of a match, ignoring an already-existing follow. */
   private async autoFollow(
     followerId: string,
     followedId: string,

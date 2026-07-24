@@ -129,7 +129,6 @@ export class AuthController {
       where: { id: userId },
     });
 
-    // Generate tokens
     const accessToken = this.tokenService.generateAccessToken(user);
     const refreshToken = this.tokenService.generateRefreshToken();
     const refreshTokenHash = this.tokenService.hashRefreshToken(refreshToken);
@@ -137,7 +136,6 @@ export class AuthController {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    // Save session in PostgreSQL
     const session = await this.sessionService.createSession({
       userId: user.id,
       refreshTokenHash,
@@ -147,7 +145,6 @@ export class AuthController {
       expiresAt,
     });
 
-    // Save refresh token in Redis
     await this.tokenService.storeRefreshInRedis(
       refreshTokenHash,
       user.id,
@@ -155,11 +152,9 @@ export class AuthController {
       expiresAt,
     );
 
-    // Update user last login
     user.lastLoginAt = new Date();
     await this.userRepository.save(user);
 
-    // Set refresh token cookie
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: true,
@@ -198,7 +193,6 @@ export class AuthController {
       where: { id: userId },
     });
 
-    // Generate tokens
     const accessToken = this.tokenService.generateAccessToken(user);
     const refreshToken = this.tokenService.generateRefreshToken();
     const refreshTokenHash = this.tokenService.hashRefreshToken(refreshToken);
@@ -206,7 +200,6 @@ export class AuthController {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    // Save session in PostgreSQL
     const session = await this.sessionService.createSession({
       userId: user.id,
       refreshTokenHash,
@@ -216,7 +209,6 @@ export class AuthController {
       expiresAt,
     });
 
-    // Save refresh token in Redis
     await this.tokenService.storeRefreshInRedis(
       refreshTokenHash,
       user.id,
@@ -224,11 +216,9 @@ export class AuthController {
       expiresAt,
     );
 
-    // Update user last login
     user.lastLoginAt = new Date();
     await this.userRepository.save(user);
 
-    // Set refresh token cookie
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: true,
@@ -256,7 +246,6 @@ export class AuthController {
     @Req() req: Express.Request,
     @Res({ passthrough: true }) res: Express.Response,
   ) {
-    // Extract refresh token from cookie (browser) OR Authorization header (Java desktop)
     let token = req.cookies?.['refresh_token'];
     const viaHeader = !token;
     if (!token) {
@@ -280,7 +269,6 @@ export class AuthController {
         `userId=${payload?.user_id ?? session?.userId ?? 'unknown'}`,
     );
 
-    // Fallback validation against DB if Redis miss
     if (!payload && session) {
       if (
         session.revokedAt !== null ||
@@ -306,7 +294,6 @@ export class AuthController {
       throw new UnauthorizedException('Utilisateur introuvable');
     }
 
-    // Generate new tokens (Rotation)
     const newAccessToken = this.tokenService.generateAccessToken(user);
     const newRefreshToken = this.tokenService.generateRefreshToken();
     const newHash = this.tokenService.hashRefreshToken(newRefreshToken);
@@ -314,10 +301,8 @@ export class AuthController {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    // Remove old hash from Redis
     await this.tokenService.deleteRefreshFromRedis(hash);
 
-    // Store new hash in Redis
     await this.tokenService.storeRefreshInRedis(
       newHash,
       user.id,
@@ -325,10 +310,8 @@ export class AuthController {
       expiresAt,
     );
 
-    // Update session in PostgreSQL
     await this.sessionService.updateLastUsed(session.id, newHash);
 
-    // Set cookie for browser-based clients
     if (!viaHeader) {
       res.cookie('refresh_token', newRefreshToken, {
         httpOnly: true,
@@ -375,11 +358,9 @@ export class AuthController {
       throw new UnauthorizedException('Session introuvable');
     }
 
-    // Revoke session in Redis and PostgreSQL
     await this.tokenService.deleteRefreshFromRedis(hash);
     await this.sessionService.revokeSession(session.id);
 
-    // Clear cookie
     res.clearCookie('refresh_token', {
       path: '/v1/auth/refresh',
     });
@@ -399,12 +380,10 @@ export class AuthController {
       req.user.sub,
     );
 
-    // Revoke all in Redis
     for (const session of activeSessions) {
       await this.tokenService.deleteRefreshFromRedis(session.refreshTokenHash);
     }
 
-    // Revoke all in PostgreSQL
     await this.sessionService.revokeAllUserSessions(req.user.sub);
 
     return { message: 'Déconnecté de tous les appareils' };
@@ -460,10 +439,8 @@ export class AuthController {
       throw new ForbiddenException('Accès interdit');
     }
 
-    // Revoke in Redis
     await this.tokenService.deleteRefreshFromRedis(dbSession.refreshTokenHash);
 
-    // Revoke in PostgreSQL
     await this.sessionService.revokeSession(dbSession.id);
 
     return { message: 'Session révoquée' };

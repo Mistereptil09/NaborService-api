@@ -35,10 +35,6 @@ export class AuthService {
     private readonly rateLimitService: RateLimitService,
   ) {}
 
-  /**
-   * Registers a new user.
-   * Uses Argon2id for password hashing and inserts default notification preferences atomically in a transaction.
-   */
   async register(dto: RegisterDto): Promise<{ message: string }> {
     return this.dataSource.transaction(async (manager) => {
       const existing = await manager.findOne(User, {
@@ -48,10 +44,8 @@ export class AuthService {
         throw new ConflictException('Email déjà utilisé');
       }
 
-      // Generate a cryptographically secure 16-byte random salt
       const salt = crypto.randomBytes(16);
 
-      // Hash password using Argon2id with exact spec parameters
       const passwordHash = await argon2.hash(dto.password, {
         type: argon2.argon2id,
         memoryCost: 65536, // 64 MiB
@@ -69,7 +63,6 @@ export class AuthService {
       });
       const savedUser = await manager.save(user);
 
-      // Create notification preferences atomically with all fields set to true
       const preferences = manager.create(UserNotificationPreferences, {
         userId: savedUser.id,
         notifNewFollower: true,
@@ -81,7 +74,6 @@ export class AuthService {
       });
       await manager.save(preferences);
 
-      // Create data processing preferences atomically
       const dataProcessing = manager.create(UserDataProcessing, {
         userId: savedUser.id,
         optOuts: [],
@@ -93,10 +85,6 @@ export class AuthService {
     });
   }
 
-  /**
-   * Authenticates a user.
-   * Implements secure credentials non-disclosure and branches depending on TOTP configuration.
-   */
   async login(
     dto: LoginDto,
     ip: string | null = null,
@@ -110,10 +98,7 @@ export class AuthService {
       where: { email: dto.email },
     });
 
-    // Uniform response to prevent email harvesting and account existence leaks.
-    // Also checks if the account is soft-deleted.
     if (!user || user.deletedAt !== null) {
-      // Execute dummy verify with equivalent work to prevent timing analysis
       await argon2.verify(
         '$argon2id$v=19$m=65536,t=3,p=1$c29tZXNhbHQ$dGVzdHBhc3N3b3Jk',
         dto.password,
@@ -121,7 +106,6 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants invalides');
     }
 
-    // Apply per-user rate limit now that we know the account exists
     await this.rateLimitService.incrementLoginAttemptByUserId(user.id);
 
     const passwordValid = await argon2.verify(user.passwordHash, dto.password);
@@ -133,9 +117,7 @@ export class AuthService {
       throw new UnauthorizedException('Compte suspendu');
     }
 
-    // Branching login flow depending on whether TOTP is enabled
     if (user.totpSecret) {
-      // Check if user is blocked due to excessive TOTP failures
       const isBlocked = await this.totpService.isUserBlocked(user.id);
       if (isBlocked) {
         throw new HttpException(
@@ -154,7 +136,6 @@ export class AuthService {
       };
     }
 
-    // TOTP not enabled (mandatory setup at registration/first login)
     const { challengeToken, otpauthUrl } =
       await this.totpService.createSetupChallenge(user.id, user.email);
 

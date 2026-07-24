@@ -5,15 +5,6 @@ import { Repository } from 'typeorm';
 import { Evenement } from './entities/evenement.entity';
 import { EventStatusEnum } from '../../common/enums';
 
-/**
- * Periodically closes events whose scheduled time has elapsed.
- *
- * Runs every 15 minutes and transitions open events past their
- * `ends_at ?? starts_at` into `completed`. This is a system path:
- * unlike EventStateMachineService.complete(), it deliberately skips
- * the organiser/ownership check so past events cannot linger `open`
- * and keep accepting registrations indefinitely.
- */
 @Injectable()
 export class EventAutoCompleteService {
   private readonly logger = new Logger(EventAutoCompleteService.name);
@@ -28,7 +19,6 @@ export class EventAutoCompleteService {
     try {
       const now = new Date();
 
-      // ends_at when present, otherwise starts_at, must be in the past.
       const result = await this.eventRepo
         .createQueryBuilder()
         .update(Evenement)

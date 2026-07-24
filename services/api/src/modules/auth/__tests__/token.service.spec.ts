@@ -66,7 +66,6 @@ describe('TokenService', () => {
   describe('hashRefreshToken', () => {
     it('should correctly hash refresh tokens with SHA-256', () => {
       const token = 'my-token';
-      // SHA-256 of 'my-token' is 'fece50d2287f7245aea5819b75f95ee8bec295a14f8ef1e7a31f17f1dae9df44'
       const expectedHash =
         'fece50d2287f7245aea5819b75f95ee8bec295a14f8ef1e7a31f17f1dae9df44';
       const actualHash = service.hashRefreshToken(token);

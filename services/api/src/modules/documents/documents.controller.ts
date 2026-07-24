@@ -24,8 +24,6 @@ export class DocumentsController {
     private readonly gridfsService: GridFSService,
   ) {}
 
-  // ── GET /documents/:document_id (signatory) ────────────
-
   @Get(':document_id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -46,8 +44,6 @@ export class DocumentsController {
   ) {
     return this.documentsService.findById(documentId, req.user.sub);
   }
-
-  // ── GET /documents/:document_id/download (signatory) ───
 
   @Get(':document_id/download')
   @UseGuards(JwtAuthGuard)

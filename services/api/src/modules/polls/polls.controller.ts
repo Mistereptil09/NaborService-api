@@ -48,8 +48,6 @@ export class PollsController {
     private readonly chatGateway: ChatGateway,
   ) {}
 
-  // ── Polls ───────────────────────────────────────────────
-
   @Get()
   @ApiOperation({
     summary:
@@ -93,12 +91,6 @@ export class PollsController {
       );
       this.chatGateway.emitToGroup(dto.group_id, 'message:received', message);
     } else if (dto.neighbourhood_id) {
-      // Bridge into the neighbourhood's own auto-managed conversation, same as
-      // group-scoped polls above — otherwise it only ever shows in the Polls tab.
-      // Skipped when the group doesn't exist yet (not backfilled) or when the
-      // creator isn't a member of it (e.g. a global moderator/admin creating a
-      // poll for a neighbourhood they don't belong to) — the poll itself still
-      // succeeds either way, there's just no chat entry to post.
       const group = await this.chatService.getNeighbourhoodGroup(
         dto.neighbourhood_id,
       );
@@ -166,8 +158,6 @@ export class PollsController {
     return result;
   }
 
-  // ── Options ─────────────────────────────────────────────
-
   @Post(':poll_id/options')
   @ApiOperation({ summary: 'Ajouter une option (créateur, avant 1er vote)' })
   async addOption(
@@ -205,8 +195,6 @@ export class PollsController {
       req.user.role,
     );
   }
-
-  // ── Vote ────────────────────────────────────────────────
 
   @Get(':poll_id/vote')
   @ApiOperation({ summary: 'Consulter son vote' })

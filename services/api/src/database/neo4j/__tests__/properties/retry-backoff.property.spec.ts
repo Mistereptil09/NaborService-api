@@ -31,7 +31,6 @@ describe('Feature: neo4j-init-service, Property 2: Retry with exponential backof
 
           const service = new Neo4jService(mockDriver);
 
-          // Setup mocked run implementations
           let calls = 0;
           mockSession.run.mockImplementation((async () => {
             if (calls < failuresBeforeSuccess) {
@@ -44,9 +43,7 @@ describe('Feature: neo4j-init-service, Property 2: Retry with exponential backof
           const runPromise = service.run('RETURN 1');
           runPromise.catch(() => {});
 
-          // If failures < 4, it should eventually succeed
           if (failuresBeforeSuccess < 4) {
-            // Advance timers incrementally for each expected transient retry
             for (let i = 0; i < failuresBeforeSuccess; i++) {
               const delay = i === 0 ? 1000 : i === 1 ? 5000 : 30000;
               await jest.advanceTimersByTimeAsync(delay);
@@ -57,7 +54,6 @@ describe('Feature: neo4j-init-service, Property 2: Retry with exponential backof
               failuresBeforeSuccess + 1,
             );
           } else {
-            // If failures >= 4, it will exhaust all 3 retries (4 total attempts)
             for (let i = 0; i < 3; i++) {
               const delay = i === 0 ? 1000 : i === 1 ? 5000 : 30000;
               await jest.advanceTimersByTimeAsync(delay);

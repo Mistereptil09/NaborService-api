@@ -43,20 +43,6 @@ import { UsersInGroup } from '../messaging/entities/users-in-group.entity';
 import { Follow } from '../social/entities/follow.entity';
 import { Friendship } from '../social/entities/friendship.entity';
 
-// ─── Composite Cursor ─────────────────────────────────────
-//
-// Format: base64(ISO_TIMESTAMP + "|" + entityType + "|" + entityId)
-//
-// Prevents the silent data loss that occurs with pure timestamp cursors
-// when multiple entities share the exact same `updatedAt` (e.g. bulk
-// INSERT inside a single transaction). The entity ID (UUID v7) ensures
-// a strict total order even at identical timestamps.
-//
-// Example: 15 entities updated at "2026-06-09T15:30:00.000Z", limit=10
-//   Page 1 → returns 10, cursor = encode(max_ts, max_type, max_id)
-//   Page 2 → (timeCol = max_ts AND id > max_id) OR (timeCol > max_ts)
-//          → returns remaining 5 (no data loss)
-
 interface CursorPosition {
   date: Date;
   entityType: string;
@@ -86,9 +72,6 @@ function encodeCursor(
   return Buffer.from(payload).toString('base64');
 }
 
-// Maps repository entity class name to the cursor entityType label.
-// These labels match the sync whitelist keys and the snapshot response
-// property names, so the Java client can correlate them.
 const REPO_TYPE_MAP = new Map<any, string>([
   [User, 'user'],
   [Incident, 'incident'],
@@ -158,22 +141,16 @@ export class SyncService {
     private readonly neo4jService: Neo4jService,
   ) {}
 
-  // ─── Snapshot (delta pull) ──────────────────────────────
-
   async getSnapshot(dto: GetSnapshotQueryDto): Promise<SnapshotResponseDto> {
     const { since, limit = 500, cursor } = dto;
     const cursorPos = decodeCursor(cursor);
 
-    // Must have either `since` or `cursor` — at least one anchor point.
     if (!cursorPos && !since) {
       throw new BadRequestException(
         'Either `since` or `cursor` must be provided',
       );
     }
 
-    // When a cursor is present, it drives the position. `since` is only
-    // used on the very first page (no cursor). Sending both is harmless —
-    // the cursor takes priority.
     const effectiveSince = cursorPos?.date ?? since!;
     const take = limit;
     let remaining = take;
@@ -204,8 +181,6 @@ export class SyncService {
       neighbourhoods: {},
     };
 
-    // Track the max (timestamp, type, id) across all fetched entities.
-    // Used to build the composite cursor for the next page.
     let maxTs: Date | null = null;
     let maxType = '';
     let maxId = '';
@@ -221,10 +196,6 @@ export class SyncService {
           entity.followedAt ||
           entity.friendedAt;
         if (ts) {
-          // Use the repo's primary key column value. For entities with a
-          // single `id` column that's `entity.id`. For composite-PK tables
-          // (votes → userId, follows → followerId, etc.) we use the first
-          // PK column's property value to keep the cursor comparable.
           const eid = pkProp
             ? (entity[pkProp] ?? '')
             : (entity.id ?? entity._id?.toString() ?? '');
@@ -241,18 +212,6 @@ export class SyncService {
       }
     };
 
-    /**
-     * Generic delta fetcher. When a composite cursor is present and
-     * the current repo matches the cursor's entity type, the WHERE
-     * clause uses a composite condition to avoid the silent data loss
-     * that occurs when multiple entities share the same timestamp.
-     *
-     * Composite WHERE (cursor's own type):
-     *   (timeCol = cursorDate AND id > cursorId) OR (timeCol > cursorDate)
-     *
-     * Simple WHERE (all other entity types):
-     *   timeCol > effectiveSince
-     */
     const fetchDelta = async (
       repo: Repository<any>,
       relations: string[] = [],
@@ -292,16 +251,10 @@ export class SyncService {
       const repoType = REPO_TYPE_MAP.get(repo.target) ?? '';
       const isCursorRepo =
         cursorPos !== null && repoType === cursorPos.entityType;
-      // Resolve the primary key column name for cursor WHERE clauses.
-      // Most entities have a single `id` column; composite-PK tables
-      // (votes, follows, event_participants…) use their first PK column.
       const pkColumn = repo.metadata.primaryColumns[0]?.databaseName || 'id';
 
-      // Build WHERE clause
       if (timeColumn) {
         if (isCursorRepo) {
-          // Composite cursor: (timeCol = cursorDate AND <pkCol> > cursorId)
-          //                    OR (timeCol > cursorDate)
           qb.where(
             `(entity.${timeColumn} = :cursorDate AND entity.${pkColumn} > :cursorId) OR (entity.${timeColumn} > :cursorDate)`,
             {
@@ -310,13 +263,10 @@ export class SyncService {
             },
           );
         } else if (cursorPos) {
-          // Other repos on a cursor page: use >= to avoid missing entities
-          // at the exact cursor boundary timestamp
           qb.where(`entity.${timeColumn} >= :since`, {
             since: effectiveSince,
           });
         } else {
-          // First page (no cursor): use > for strict delta
           const orCreatedAt = timeColumn === 'updatedAt' && hasCreatedAt;
           const timeCondition = orCreatedAt
             ? `(entity.${timeColumn} > :since OR entity.createdAt > :since)`
@@ -324,7 +274,6 @@ export class SyncService {
           qb.where(timeCondition, { since: effectiveSince });
         }
 
-        // Soft-delete catch-up
         if (hasDeletedAt) {
           qb.andWhere(
             `(entity.deletedAt IS NULL OR entity.deletedAt > :since)`,
@@ -340,10 +289,6 @@ export class SyncService {
       if (timeColumn) {
         qb.orderBy(`entity.${timeColumn}`, 'ASC');
       }
-      // Secondary sort by primary key(s) for deterministic order across
-      // entities sharing the same timestamp. Some tables use composite
-      // keys (votes → user_id + option_id, follows → follower_id + followed_id)
-      // — we sort by every PK column to ensure a strict total order.
       for (const pk of repo.metadata.primaryColumns) {
         qb.addOrderBy(`entity.${pk.databaseName}`, 'ASC');
       }
@@ -361,14 +306,12 @@ export class SyncService {
       return results;
     };
 
-    // Map snapshot response keys → EntityPatchHandler entity type keys
     const snapshotKeyMap: Record<string, string> = {
       users_raw: 'user',
       listing_transactions: 'listing_transactions',
       event_participants: 'event_participants',
     };
 
-    // Helper: strip sensitive fields and convert to plain POJOs
     const clean = (arr: any[], snapshotKey?: string) => {
       const entityKey = snapshotKey
         ? (snapshotKeyMap[snapshotKey] ?? snapshotKey)
@@ -382,7 +325,6 @@ export class SyncService {
       );
     };
 
-    // ── Fetch in order ────────────────────────────────────
     response.incidents = clean(await fetchDelta(this.incidentRepository));
     response.listing_moderation_actions = clean(
       await fetchDelta(this.lmaRepository),
@@ -422,7 +364,6 @@ export class SyncService {
     response.follows = clean(await fetchDelta(this.followRepository));
     response.friendships = clean(await fetchDelta(this.friendshipRepository));
 
-    // Neighbourhood id → name map for Java client UX
     try {
       const nbResult = await this.neo4jService.run(
         'MATCH (n:Neighbourhood) RETURN n.pg_id AS id, n.name AS name',
@@ -436,14 +377,8 @@ export class SyncService {
       response.neighbourhoods = {};
     }
 
-    // Set sync_at at the END so it reflects the actual point-in-time
-    // after all queries complete — prevents missed updates in the next delta.
     response.sync_at = new Date();
 
-    // Always return a composite cursor encoding the position of the last
-    // entity included in this page (or sync_at if the delta is empty).
-    // Consistent cursor presence lets the client unconditionally store it
-    // as the resume point without branching on has_more.
     response.cursor = encodeCursor(
       maxTs ?? response.sync_at,
       maxType || '',
@@ -456,8 +391,6 @@ export class SyncService {
 
     return response;
   }
-
-  // ─── Push (batch updates) ───────────────────────────────
 
   async syncUpdates(dto: SyncUpdatesBatchDto): Promise<SyncUpdatesResponseDto> {
     const cachedResponse = await this.checkIdempotence(dto.jobId);

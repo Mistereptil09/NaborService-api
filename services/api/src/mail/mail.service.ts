@@ -11,7 +11,6 @@ export type MailLocale = 'fr' | 'en';
 export interface SendTemplatedParams {
   to: string;
   subject: string;
-  /** Template file name (without extension/locale), e.g. 'reset-password'. */
   templateName: string;
   locale: MailLocale;
   variables: Record<string, any>;
@@ -19,7 +18,6 @@ export interface SendTemplatedParams {
 
 const SUPPORTED_LOCALES: MailLocale[] = ['fr', 'en'];
 const DEFAULT_LOCALE: MailLocale = 'fr';
-/** Used when no template file matches the requested templateName. */
 const FALLBACK_TEMPLATE = 'notification';
 
 @Injectable()
@@ -28,9 +26,7 @@ export class MailService implements OnModuleInit {
   private transporter!: Transporter;
   private readonly from: string;
   private readonly templatesDir = path.join(__dirname, 'templates');
-  /** Compiled body templates, keyed by `${locale}/${templateName}`. */
   private readonly cache = new Map<string, Handlebars.TemplateDelegate>();
-  /** Compiled layout, keyed by locale. */
   private readonly layoutCache = new Map<string, Handlebars.TemplateDelegate>();
 
   private readonly frontendUrl: string;
@@ -43,14 +39,12 @@ export class MailService implements OnModuleInit {
   }
 
   onModuleInit() {
-    // Equality helper for conditional wording in templates: {{#if (eq action 'cancelled')}}
     Handlebars.registerHelper('eq', (a: unknown, b: unknown) => a === b);
 
     const host = this.config.get<string>('SMTP_HOST', 'localhost');
     const port = this.config.get<number>('SMTP_PORT', 1025);
     const user = this.config.get<string>('SMTP_USER');
     const password = this.config.get<string>('SMTP_PASSWORD');
-    // Mailpit (dev) accepts plain SMTP on 1025; TLS only makes sense with a real relay.
     const secure = this.config.get<string>('SMTP_SECURE') === 'true';
 
     this.transporter = nodemailer.createTransport({
@@ -61,10 +55,6 @@ export class MailService implements OnModuleInit {
     });
   }
 
-  /**
-   * Renders `templateName` in the given locale and sends it via SMTP.
-   * Errors are propagated so the BullMQ worker can retry.
-   */
   async sendTemplated(params: SendTemplatedParams): Promise<void> {
     const { to, subject, templateName, locale, variables } = params;
 
@@ -78,7 +68,6 @@ export class MailService implements OnModuleInit {
         html,
       });
     } catch (error: any) {
-      // Never log email content (reset links, tokens) — only the failure cause.
       this.logger.error(
         `Failed to send "${templateName}" to ${to}: ${error?.message ?? error}`,
       );
@@ -86,7 +75,6 @@ export class MailService implements OnModuleInit {
     }
   }
 
-  /** Compiles (with cache) and renders the body, wrapped in the shared layout. */
   private render(
     templateName: string,
     locale: MailLocale,
@@ -107,7 +95,6 @@ export class MailService implements OnModuleInit {
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
 
-    // Locale fallback (requested -> fr), then template fallback -> generic.
     const filePath =
       this.findTemplateFile(templateName, requested) ??
       this.findTemplateFile(FALLBACK_TEMPLATE, requested);
@@ -140,7 +127,6 @@ export class MailService implements OnModuleInit {
     return compiled;
   }
 
-  /** Returns the .hbs path in `locale`, then falls back to `fr`, else null. */
   private findTemplateFile(name: string, locale: MailLocale): string | null {
     for (const loc of [locale, DEFAULT_LOCALE]) {
       const candidate = path.join(this.templatesDir, loc, `${name}.hbs`);

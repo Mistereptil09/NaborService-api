@@ -41,7 +41,6 @@ describe('QueueFailureListener', () => {
   it('should close all QueueEvents on destroy', async () => {
     listener.onModuleInit();
     await listener.onModuleDestroy();
-    // Verify close was called on the mocked instances (implicit in array size 9)
     const instances = (listener as any).queueEventsList;
     expect(instances.length).toBe(9);
     instances.forEach((inst: any) => {

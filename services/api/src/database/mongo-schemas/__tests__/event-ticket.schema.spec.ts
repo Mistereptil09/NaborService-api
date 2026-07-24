@@ -54,7 +54,6 @@ describe('EventTicket Schema', () => {
   it('should require all non-optional fields', () => {
     const doc = new EventTicketModel({
       pg_event_id: 'evt_123',
-      // missing pg_user_id, qr_payload, qr_png, issued_at
     });
     const err = doc.validateSync();
     expect(err).toBeDefined();

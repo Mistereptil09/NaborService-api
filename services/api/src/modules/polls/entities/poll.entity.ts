@@ -35,7 +35,6 @@ export class Poll {
   @Column({ name: 'neighbourhood_id', type: 'text', nullable: true })
   neighbourhoodId: string | null;
 
-  /** Sondage rattaché à une conversation de groupe plutôt qu'à un quartier (mutuellement exclusif avec `neighbourhoodId`). */
   @Column({ name: 'group_id', type: 'uuid', nullable: true })
   groupId: string | null;
 
@@ -62,12 +61,6 @@ export class Poll {
   })
   isAnonymous: boolean;
 
-  /**
-   * Indépendant de `pollType` : un sondage "multiple" peut aussi être pondéré
-   * (chaque option choisie compte pour son propre poids). `pollType` ne régit
-   * plus que le mode de sélection (unique/multiple) ; `PollTypeEnum.WEIGHTED`
-   * n'est conservé que pour les sondages existants créés avant ce champ.
-   */
   @Column({
     name: 'is_weighted',
     type: 'boolean',

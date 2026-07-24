@@ -106,10 +106,6 @@ export enum CallTypeEnum {
   VIDEO = 'video',
 }
 
-/**
- * 'ringing'/'active' only ever exist in Redis (live call state) — the
- * Postgres CallLog only ever gets written with a final status.
- */
 export enum CallStatusEnum {
   RINGING = 'ringing',
   ACTIVE = 'active',

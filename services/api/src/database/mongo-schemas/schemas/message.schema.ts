@@ -74,12 +74,6 @@ export class Message {
   @Prop({ type: String, default: null })
   poll_id: string | null;
 
-  /**
-   * Only set when type === 'system' — a short event-name string (e.g.
-   * 'call_missed', 'call_ended') plus a free-form payload, so any future
-   * non-user-authored event can reuse this same message kind instead of
-   * each feature inventing its own.
-   */
   @Prop({ type: String, default: null })
   system_event: string | null;
 
@@ -107,7 +101,6 @@ export class Message {
 
 export const MessageSchema = SchemaFactory.createForClass(Message);
 
-// Pre-save hook for aggregate size safety
 MessageSchema.pre(
   'save',
   createTotalSizePreSaveHook({
@@ -118,7 +111,6 @@ MessageSchema.pre(
   }),
 );
 
-// Indexes
 MessageSchema.index({ pg_message_id: 1 }, { unique: true });
 MessageSchema.index({ pg_group_id: 1, sent_at: -1 });
 MessageSchema.index({ pg_sender_id: 1 });

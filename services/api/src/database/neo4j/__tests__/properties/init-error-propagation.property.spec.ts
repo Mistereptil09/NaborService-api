@@ -31,7 +31,6 @@ describe('Feature: neo4j-init-service, Property 4: Non-"already exists" errors a
 
           const service = new Neo4jInitService(mockDriver, mockNeo4jService);
 
-          // Should NOT throw — logs warning and continues
           await expect(service.onModuleInit()).resolves.toBeUndefined();
           expect(mockNeo4jService.run).toHaveBeenCalledTimes(10);
         },

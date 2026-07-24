@@ -8,10 +8,6 @@ export interface Neo4jSyncJobPayload {
   data: Record<string, any>;
 }
 
-/**
- * Notification preference flags on UserNotificationPreferences that an email
- * may be gated behind. Mirrors the boolean columns of that entity.
- */
 export type NotifPreferenceKey =
   | 'notifNewFollower'
   | 'notifNewListing'
@@ -22,21 +18,12 @@ export type NotifPreferenceKey =
 
 export interface EmailJobPayload {
   recipient: string;
-  /** French subject (default). */
   subject: string;
-  /** English subject, used by the worker when the resolved locale is 'en'. */
   subjectEn?: string;
-  /** Selects the Handlebars template file only — NOT used for opt-out. */
   templateName: string;
   templateVariables: Record<string, any>;
-  /**
-   * Transactional email (reset password, security, moderation): always sent,
-   * bypasses opt-out. When true, `preferenceKey` is ignored.
-   */
   essential?: boolean;
-  /** Preference to check when the email is NOT essential. */
   preferenceKey?: NotifPreferenceKey;
-  /** Override recipient locale; otherwise resolved from user.locale, fallback 'fr'. */
   locale?: 'fr' | 'en';
 }
 

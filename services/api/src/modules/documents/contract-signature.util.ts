@@ -14,7 +14,6 @@ export interface SignatureState {
   fullySigned: boolean;
 }
 
-/** Dérive l'état de signature d'un contrat (double signature eIDAS SES). */
 export function getSignatureState(contract: Contract): SignatureState {
   const provider = contract.signatures?.provider ?? null;
   const requester = contract.signatures?.requester ?? null;
@@ -26,7 +25,6 @@ export function getSignatureState(contract: Contract): SignatureState {
   };
 }
 
-/** Rôle de l'utilisateur dans le contrat, ou null s'il n'est pas partie. */
 export function getUserRole(
   contract: Contract,
   userId: string,
@@ -36,7 +34,6 @@ export function getUserRole(
   return null;
 }
 
-/** Statut du document du point de vue d'un utilisateur donné. */
 export function deriveStatus(
   contract: Contract,
   userId: string,

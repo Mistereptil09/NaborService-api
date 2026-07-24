@@ -11,10 +11,6 @@ import {
 export class Neo4jSyncService {
   constructor(private readonly neo4jService: Neo4jService) {}
 
-  // ==========================================
-  // NODE OPERATIONS
-  // ==========================================
-
   async upsertUser(data: UpsertUserDto): Promise<void> {
     const cypher = `
       MERGE (u:User { pg_id: $pgId })
@@ -123,10 +119,6 @@ export class Neo4jSyncService {
       domain: data.domain,
     });
   }
-
-  // ==========================================
-  // RELATIONSHIP OPERATIONS
-  // ==========================================
 
   async createLivesIn(
     userPgId: string,

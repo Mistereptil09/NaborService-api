@@ -64,10 +64,8 @@ describe('Neo4jService', () => {
 
     const runPromise = service.run('RETURN 1');
 
-    // Attempt 1 fails, schedules retry after 1s
     await jest.advanceTimersByTimeAsync(1000);
 
-    // Attempt 2 fails, schedules retry after 5s
     await jest.advanceTimersByTimeAsync(5000);
 
     const result = await runPromise;
@@ -88,16 +86,12 @@ describe('Neo4jService', () => {
     const runPromise = service.run('RETURN 1');
     runPromise.catch(() => {});
 
-    // Attempt 1 fails, schedules 1s
     await jest.advanceTimersByTimeAsync(1000);
 
-    // Attempt 2 fails, schedules 5s
     await jest.advanceTimersByTimeAsync(5000);
 
-    // Attempt 3 fails, schedules 30s
     await jest.advanceTimersByTimeAsync(30000);
 
-    // Attempt 4 fails, retries exhausted, throws
     await expect(runPromise).rejects.toEqual(transientError);
 
     expect(mockDriver.session).toHaveBeenCalledTimes(4);

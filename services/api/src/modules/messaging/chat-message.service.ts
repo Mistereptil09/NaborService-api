@@ -34,7 +34,6 @@ export interface AttachmentDto {
   filename: string;
   mimetype: string;
   size_bytes: number;
-  /** Renseigné pour les pièces jointes audio — probé côté back au transcodage (voir UploadPipeline). */
   duration_seconds?: number | null;
 }
 
@@ -80,13 +79,7 @@ export class ChatMessageService {
     private readonly mediaService: MediaService,
   ) {}
 
-  // ── Send ────────────────────────────────────────────────
-
   async sendMessage(groupId: string, senderId: string, dto: SendMessageDto) {
-    // Note : la sourdine (mute) ne fait que masquer les notifications côté
-    // destinataire, elle n'empêche jamais l'expéditeur d'envoyer/réagir dans
-    // ses propres groupes — un utilisateur en sourdine dans un groupe doit
-    // pouvoir continuer à y participer normalement.
     await this.chatService.assertCanParticipate(groupId, senderId);
     let parent: MessageMetadata | null = null;
     if (dto.parent_message_id) {
@@ -111,7 +104,6 @@ export class ChatMessageService {
 
     const messageId = crypto.randomUUID();
 
-    // MongoDB: encrypted content
     const mongoMsg = await this.messageModel.create({
       pg_message_id: messageId,
       pg_group_id: groupId,
@@ -126,7 +118,6 @@ export class ChatMessageService {
       sent_at: new Date(),
     });
 
-    // PostgreSQL: metadata
     const metadata = this.msgRepo.create({
       id: messageId,
       mongoMessageId: messageId,
@@ -149,15 +140,6 @@ export class ChatMessageService {
     });
   }
 
-  /**
-   * Insère un message système (non initié par une action utilisateur, ex. un
-   * appel manqué/terminé) dans le fil d'une conversation. Contourne
-   * `assertCanParticipate` — ce n'est pas un envoi utilisateur — et ne
-   * chiffre pas un contenu arbitraire : `content` reste un texte de repli
-   * non localisé, le rendu réel se fait côté front à partir de `event`/
-   * `payload`. `authoredBy` reste requis (sender_id est NOT NULL) mais le
-   * front distingue ces messages par `type === 'system'`, pas par l'auteur.
-   */
   async postSystemMessage(
     groupId: string,
     authoredBy: string,
@@ -205,7 +187,6 @@ export class ChatMessageService {
     return this.toPlainMessage(mongoMsg, metadata, groupKey, { sender });
   }
 
-  /** Récupère les pièces jointes (module media, GridFS) pour un lot de messages, sans N+1. */
   private async getAttachmentsMap(
     messageIds: string[],
   ): Promise<Map<string, AttachmentDto[]>> {
@@ -229,8 +210,6 @@ export class ChatMessageService {
     return map;
   }
 
-  // ── Get history ─────────────────────────────────────────
-
   async getMessages(
     groupId: string,
     userId: string,
@@ -243,9 +222,6 @@ export class ChatMessageService {
       throw new ForbiddenException("Vous n'êtes pas membre de ce groupe");
     }
 
-    // Jump-to-message (ex. depuis un message épinglé plus chargé dans le fil) :
-    // résolu avant de construire la requête, pour 404 proprement si la cible
-    // n'existe pas/plus, sans construire un query builder pour rien.
     let aroundTimestamp: Date | null = null;
     if (aroundMessageId) {
       const target = await this.msgRepo.findOne({
@@ -255,10 +231,6 @@ export class ChatMessageService {
       aroundTimestamp = target.sentAt;
     }
 
-    // "newer" ne s'applique qu'à une pagination par curseur (jamais à `around`,
-    // qui définit déjà son propre point de départ) — comble le trou laissé
-    // entre une fenêtre de contexte (jump-to-message) et le fil "en direct",
-    // en repartant vers le présent au lieu de rester coincé dans le passé.
     const fetchingNewer =
       direction === 'newer' && !aroundTimestamp && Boolean(cursor);
 
@@ -269,8 +241,6 @@ export class ChatMessageService {
       .take(limit + 1);
 
     if (aroundTimestamp) {
-      // `<=` (pas `<`) pour inclure le message cible lui-même — avec le tri
-      // DESC il apparaît donc en tête de la page renvoyée.
       qb.orderBy('m.sentAt', 'DESC').andWhere('m.sentAt <= :around', {
         around: aroundTimestamp,
       });
@@ -294,12 +264,8 @@ export class ChatMessageService {
     const metadata = await qb.getMany();
     const hasExtra = metadata.length > limit;
     if (hasExtra) metadata.pop();
-    // Requêté en ASC pour rester "le plus proche du curseur d'abord" ; remis en
-    // DESC pour que la forme de la page (plus récent en tête) reste la même
-    // quelle que soit la direction — le reste de la méthode ne voit pas la différence.
     if (fetchingNewer) metadata.reverse();
 
-    // Fetch encrypted content from MongoDB
     const mongoIds = metadata.map((m) => m.mongoMessageId);
     const mongoDocs = await this.messageModel
       .find({ pg_message_id: { $in: mongoIds } })
@@ -332,18 +298,10 @@ export class ChatMessageService {
     const oldestInBatch = metadata[metadata.length - 1]?.sentAt;
     const newestInBatch = metadata[0]?.sentAt;
 
-    // Curseur "plus ancien" (pagination historique, ex. "charger plus ancien") :
-    // une page issue de `fetchingNewer` n'est jamais consultée dans ce sens —
-    // elle ne fait que combler le trou entre une fenêtre `around` et le direct,
-    // donc pas besoin de faire une requête supplémentaire pour ce cas.
     const hasMoreOlder = fetchingNewer ? false : hasExtra;
     const cursorOut =
       hasMoreOlder && oldestInBatch ? encode(oldestInBatch) : undefined;
 
-    // Curseur "plus récent" (comble le trou laissé par un jump-to-message) :
-    // seulement calculé — pour ne pas alourdir le chemin normal (chargement
-    // initial / "charger plus ancien" simple, tous deux déjà reliés au direct
-    // sans trou) — pour une page `around` ou une page déjà en pagination "newer".
     const needsNewerInfo = Boolean(aroundTimestamp) || fetchingNewer;
     const hasMoreNewer =
       needsNewerInfo && newestInBatch
@@ -369,12 +327,6 @@ export class ChatMessageService {
     };
   }
 
-  /**
-   * Liste complète des messages épinglés d'un groupe, indépendamment de ce qui
-   * est déjà chargé côté client (les pins pointent souvent vers des messages
-   * anciens, hors de la première page paginée) — alimente le panneau
-   * "messages épinglés" du fil.
-   */
   async getPinnedMessages(groupId: string, userId: string) {
     if (!(await this.chatService.isMember(groupId, userId))) {
       throw new ForbiddenException("Vous n'êtes pas membre de ce groupe");
@@ -407,21 +359,11 @@ export class ChatMessageService {
     return { messages };
   }
 
-  /**
-   * Toutes les pièces jointes d'un groupe (fichiers partagés dans des messages
-   * non supprimés), indépendamment de la pagination du fil. Le panneau
-   * "fichiers partagés" doit lister l'historique complet — pas seulement les
-   * messages déjà chargés/scrollés à l'écran, comme le faisait une dérivation
-   * côté client sur la première page paginée.
-   */
   async getGroupAttachments(groupId: string, userId: string) {
     if (!(await this.chatService.isMember(groupId, userId))) {
       throw new ForbiddenException("Vous n'êtes pas membre de ce groupe");
     }
 
-    // Les media_files ne référencent pas le groupe (owner_id = id de message) :
-    // on résout d'abord les messages non supprimés du groupe (id-only, léger),
-    // puis on récupère leurs pièces jointes en un seul $in.
     const metadata = await this.msgRepo.find({
       where: { groupId, isDeleted: false },
       select: ['id', 'senderId', 'sentAt'],
@@ -481,8 +423,6 @@ export class ChatMessageService {
     });
   }
 
-  // ── Edit ────────────────────────────────────────────────
-
   async editMessage(messageId: string, userId: string, newContent: string) {
     const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
     if (!metadata || metadata.isDeleted)
@@ -498,7 +438,6 @@ export class ChatMessageService {
     const groupKey = await this.getGroupKey(metadata.groupId);
     if (!groupKey) throw new Error('Clé de groupe introuvable');
 
-    // Re-encrypt with new IV
     const iv = crypto.randomBytes(IV_LENGTH);
     const cipher = crypto.createCipheriv(AES_ALGO, groupKey, iv);
     const encrypted = Buffer.concat([
@@ -530,17 +469,12 @@ export class ChatMessageService {
     });
   }
 
-  // ── Reactions ───────────────────────────────────────────
-
-  /** Remplace la réaction active de l'utilisateur (une seule réaction par utilisateur et par message). */
   async setReaction(messageId: string, userId: string, emoji: string) {
     const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
     if (!metadata || metadata.isDeleted)
       throw new NotFoundException('Message introuvable');
     await this.chatService.assertCanParticipate(metadata.groupId, userId);
 
-    // $pull puis $push séparément : MongoDB refuse de modifier le même chemin
-    // de tableau deux fois dans une seule opération update.
     await this.messageModel.updateOne(
       { pg_message_id: messageId },
       { $pull: { reactions: { pg_user_id: userId } } },
@@ -564,7 +498,6 @@ export class ChatMessageService {
     };
   }
 
-  /** Retire la réaction active de l'utilisateur, quel que soit l'emoji. */
   async removeReaction(messageId: string, userId: string) {
     const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
     if (!metadata || metadata.isDeleted)
@@ -585,8 +518,6 @@ export class ChatMessageService {
       reactions: mongo?.reactions ?? [],
     };
   }
-
-  // ── Pin ─────────────────────────────────────────────────
 
   async pinMessage(messageId: string, userId: string) {
     const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
@@ -616,13 +547,6 @@ export class ChatMessageService {
     return this.getMessage(messageId, userId);
   }
 
-  /**
-   * Un message privé (DM) n'a pas de rôle "actions"/"admin" — les deux
-   * participants y sont toujours "message" (voir user-social.service.ts, qui
-   * provisionne la conversation) — donc exiger ces rôles y rendrait
-   * l'épinglage définitivement impossible. Là, simple appartenance suffit ;
-   * pour un groupe/quartier, le contrôle de rôle habituel reste inchangé.
-   */
   private async assertCanPin(groupId: string, userId: string): Promise<void> {
     const group = await this.groupRepo.findOne({ where: { id: groupId } });
     if (group?.type === ChatGroupTypeEnum.DIRECT_MESSAGE) {
@@ -639,8 +563,6 @@ export class ChatMessageService {
     ]);
   }
 
-  // ── Soft delete ─────────────────────────────────────────
-
   async softDeleteMessage(messageId: string, userId: string) {
     const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
     if (!metadata || metadata.isDeleted)
@@ -648,7 +570,6 @@ export class ChatMessageService {
 
     const isAdmin = await this.chatService.isMember(metadata.groupId, userId);
     if (metadata.senderId !== userId) {
-      // Check if user is admin of the group
       const membership = await this.chatService.getMembers(metadata.groupId);
       const userMembership = membership.find((m) => m.userId === userId);
       if (!userMembership || userMembership.roleInGroup !== 'admin') {
@@ -671,13 +592,6 @@ export class ChatMessageService {
     return { deleted: true, message_id: messageId };
   }
 
-  /**
-   * Cascade-deletes any GridFS attachments left on a message once it's soft-
-   * deleted — otherwise the file stays fetchable forever via the public
-   * `/media/:id/stream` endpoint even though the message itself now reads
-   * as "deleted". Best-effort: one failing attachment shouldn't roll back
-   * the message deletion that already succeeded.
-   */
   private async deleteAttachments(messageId: string): Promise<void> {
     const attachments =
       (await this.getAttachmentsMap([messageId])).get(messageId) ?? [];
@@ -688,10 +602,6 @@ export class ChatMessageService {
     );
   }
 
-  /**
-   * Admin/moderator soft-delete — bypasses group membership.
-   * Marks the message as deleted and records the moderator who deleted it.
-   */
   async softDeleteMessageAsModerator(messageId: string, moderatorId: string) {
     const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
     if (!metadata) throw new NotFoundException('Message introuvable');
@@ -712,16 +622,11 @@ export class ChatMessageService {
     return { deleted: true, message_id: messageId, by: 'moderator' };
   }
 
-  /**
-   * Admin/moderator group history — bypasses group membership.
-   * Same cursor-based pagination as getMessages, without the membership check.
-   */
   async getMessagesAsAdmin(
     groupId: string,
     cursor?: string,
     limit = MESSAGES_PER_PAGE,
   ) {
-    // Verify group exists
     const group = await this.groupRepo.findOne({ where: { id: groupId } });
     if (!group || group.deletedAt)
       throw new NotFoundException('Groupe introuvable');
@@ -783,10 +688,6 @@ export class ChatMessageService {
     return { messages, has_more: hasMore, cursor: nextCursor };
   }
 
-  /**
-   * Admin/moderator message read — bypasses group membership.
-   * Returns the full decrypted message.
-   */
   async getMessageAsAdmin(messageId: string) {
     const metadata = await this.msgRepo.findOne({
       where: { id: messageId },
@@ -815,10 +716,6 @@ export class ChatMessageService {
     });
   }
 
-  /**
-   * Admin/moderator files list — mêmes pièces jointes que getGroupAttachments
-   * mais sans contrôle d'appartenance (aperçu « fichiers » de la modération).
-   */
   async getGroupAttachmentsAsAdmin(groupId: string) {
     const group = await this.groupRepo.findOne({ where: { id: groupId } });
     if (!group || group.deletedAt)
@@ -856,10 +753,6 @@ export class ChatMessageService {
     return { attachments };
   }
 
-  /**
-   * Admin/moderator pinned list — même contenu que getPinnedMessages mais sans
-   * contrôle d'appartenance (le modérateur n'est pas membre du groupe).
-   */
   async getPinnedMessagesAsAdmin(groupId: string) {
     const group = await this.groupRepo.findOne({ where: { id: groupId } });
     if (!group || group.deletedAt)
@@ -892,11 +785,6 @@ export class ChatMessageService {
     return { messages };
   }
 
-  /**
-   * Admin/moderator edit — contourne le contrôle « seul l'expéditeur » de
-   * editMessage. Re-chiffre le nouveau contenu sous la clé du groupe et
-   * horodate editedAt (les deux côtés d'une conversation restent modifiables).
-   */
   async editMessageAsModerator(messageId: string, newContent: string) {
     const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
     if (!metadata || metadata.isDeleted)
@@ -929,7 +817,6 @@ export class ChatMessageService {
     return this.getMessageAsAdmin(messageId);
   }
 
-  /** Admin/moderator pin — contourne le contrôle de rôle de groupe de pinMessage. */
   async pinMessageAsModerator(messageId: string, moderatorId: string) {
     const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
     if (!metadata || metadata.isDeleted)
@@ -952,8 +839,6 @@ export class ChatMessageService {
     return this.getMessageAsAdmin(messageId);
   }
 
-  // ── Read receipts ───────────────────────────────────────
-
   async markRead(messageId: string, userId: string) {
     const metadata = await this.msgRepo.findOne({ where: { id: messageId } });
     if (!metadata) throw new NotFoundException('Message introuvable');
@@ -965,9 +850,6 @@ export class ChatMessageService {
     return { message_id: messageId, user_id: userId, read: true };
   }
 
-  // ── AES Key management ──────────────────────────────────
-
-  /** Encrypts a group key for safe storage in PostgreSQL. */
   private encryptGroupKeyForStorage(rawKey: Buffer): {
     encrypted: string;
     iv: string;
@@ -988,7 +870,6 @@ export class ChatMessageService {
     };
   }
 
-  /** Decrypts a group key retrieved from PostgreSQL. */
   private decryptStoredGroupKey(
     encryptedB64: string,
     ivB64: string,
@@ -1010,23 +891,14 @@ export class ChatMessageService {
     ]);
   }
 
-  /**
-   * Fetches or creates the AES-256 group key.
-   * 1. Try Redis (fast path)
-   * 2. Fall back to PostgreSQL (encrypted copy)
-   * 3. If neither exists, generate new key — store in Redis AND PG
-   */
   private async getOrCreateGroupKey(groupId: string): Promise<Buffer> {
     const redisKey = `group_key:${groupId}`;
 
-    // 1. Redis fast path
     const fromRedis = await this.redis.get(redisKey);
     if (fromRedis) return Buffer.from(fromRedis, 'base64');
 
-    // 2. Fall back to PostgreSQL
     const fromDb = await this.getGroupKeyFromDb(groupId);
     if (fromDb) {
-      // Restore to Redis so next read hits the fast path
       await this.redis.set(
         redisKey,
         fromDb.toString('base64'),
@@ -1036,7 +908,6 @@ export class ChatMessageService {
       return fromDb;
     }
 
-    // 3. Generate new key — store in both places
     const newKey = crypto.randomBytes(32);
     const packed = this.encryptGroupKeyForStorage(newKey);
     await this.groupRepo.update(
@@ -1054,7 +925,6 @@ export class ChatMessageService {
     return newKey;
   }
 
-  /** Tries to fetch and decrypt the group key from the chat_groups table. */
   private async getGroupKeyFromDb(groupId: string): Promise<Buffer | null> {
     try {
       const group = await this.groupRepo.findOne({
@@ -1075,11 +945,9 @@ export class ChatMessageService {
   private async getGroupKey(groupId: string): Promise<Buffer | null> {
     const redisKey = `group_key:${groupId}`;
 
-    // 1. Redis fast path
     const fromRedis = await this.redis.get(redisKey);
     if (fromRedis) return Buffer.from(fromRedis, 'base64');
 
-    // 2. Fall back to PostgreSQL + restore to Redis
     const fromDb = await this.getGroupKeyFromDb(groupId);
     if (fromDb) {
       await this.redis.set(
@@ -1169,8 +1037,6 @@ export class ChatMessageService {
     };
   }
 
-  // ── Sender / reply enrichment ───────────────────────────
-
   private async buildSenderDto(userId: string): Promise<SenderDto | null> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) return null;
@@ -1182,7 +1048,6 @@ export class ChatMessageService {
     };
   }
 
-  /** Batch user lookup (avoids N+1 when enriching a page of messages). */
   private async getUsersMap(
     userIds: string[],
   ): Promise<Map<string, SenderDto>> {
@@ -1201,7 +1066,6 @@ export class ChatMessageService {
     return map;
   }
 
-  /** Single-message reply preview (fetches parent content/sender on demand). */
   private async getSingleParentPreview(
     parentMessageId: string | null,
     groupKey: Buffer | null,
@@ -1240,10 +1104,6 @@ export class ChatMessageService {
     };
   }
 
-  /**
-   * Batched sender + parent-message lookups for a page of messages — 2 extra
-   * queries total regardless of page size, instead of N+1 per message.
-   */
   private async buildListEnrichment(metadata: MessageMetadata[]): Promise<{
     usersMap: Map<string, SenderDto>;
     parentsById: Map<string, MessageMetadata>;

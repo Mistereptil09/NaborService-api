@@ -78,9 +78,6 @@ export class EventsService {
     if (query.category) {
       qb.andWhere('event.categoryId = :category', { category: query.category });
     }
-    // Le feed public ne doit jamais exposer les brouillons d'autrui, même si
-    // on demande explicitement status=draft — seul /events/me/operations
-    // (scopé au créateur) a le droit de les lister.
     if (query.status) {
       qb.andWhere('event.status = :status', { status: query.status });
     }
@@ -91,7 +88,6 @@ export class EventsService {
     qb.skip(query.offset).take(query.limit);
 
     if (query.upcoming) {
-      // Keep only events yet to start (or with no scheduled date), soonest first.
       qb.andWhere('(event.startsAt IS NULL OR event.startsAt >= :now)', {
         now: new Date(),
       });
@@ -102,7 +98,6 @@ export class EventsService {
 
     const [events, total] = await qb.getManyAndCount();
 
-    // Enrich events with point conversion and current user's swipe state
     const centsPerPoint = await this.getCentsPerPoint();
     const eventIds = events.map((e) => e.id);
     const swipes = eventIds.length
@@ -110,12 +105,8 @@ export class EventsService {
           where: { eventId: In(eventIds), userId },
         })
       : [];
-    const swipeByEventId = new Map(
-      swipes.map((s) => [s.eventId, s.direction]),
-    );
+    const swipeByEventId = new Map(swipes.map((s) => [s.eventId, s.direction]));
 
-    // Batch the cover lookup for the whole page (one Mongo query) so the feed
-    // can show a thumbnail without a media call per card — mirrors listings.
     const covers = await this.eventMediaService.findCoverMediaIds(eventIds);
 
     const data = events.map((event) => ({
@@ -128,11 +119,6 @@ export class EventsService {
     return { data, meta: { total, offset: query.offset, limit: query.limit } };
   }
 
-  /**
-   * Events the current user is involved in: either as creator or as a
-   * registered/waitlisted participant (cancelled registrations excluded).
-   * Mirrors listings' findUserOperations.
-   */
   async findUserOperations(
     userId: string,
     query: ListEventsDto,
@@ -167,9 +153,7 @@ export class EventsService {
           where: { eventId: In(eventIds), userId },
         })
       : [];
-    const swipeByEventId = new Map(
-      swipes.map((s) => [s.eventId, s.direction]),
-    );
+    const swipeByEventId = new Map(swipes.map((s) => [s.eventId, s.direction]));
     const covers = await this.eventMediaService.findCoverMediaIds(eventIds);
 
     const data = events.map((event) => ({
@@ -182,11 +166,6 @@ export class EventsService {
     return { data, meta: { total, offset: query.offset, limit: query.limit } };
   }
 
-  /**
-   * Current user's registrations (registered or waitlisted, cancelled
-   * excluded), each enriched with the event, its cover and the participation
-   * status — feeds the "my registrations" tracking page.
-   */
   async findUserRegistrations(
     userId: string,
     query: ListEventsDto,
@@ -239,21 +218,14 @@ export class EventsService {
     const event = await this.eventRepo.findOne({ where: { id } });
     if (!event) throw new NotFoundException('Event not found');
     const centsPerPoint = await this.getCentsPerPoint();
-    return { ...event, costPoints: Math.floor(event.costCents / centsPerPoint) };
+    return {
+      ...event,
+      costPoints: Math.floor(event.costCents / centsPerPoint),
+    };
   }
 
-  /**
-   * Same as findOne but also enriched with the cover identifier, for the event
-   * detail response. Kept separate so the many internal callers of findOne
-   * (register, swipe, update…) don't incur the extra media lookup.
-   * When `userId` is given, also exposes the caller's participation status so
-   * the detail page survives a reload (registered / waitlisted / null).
-   */
   async findOneWithCover(id: string, userId?: string, userRole?: string) {
     const event = await this.findOne(id);
-    // Un brouillon n'est visible que de son créateur (ou d'un modérateur/
-    // admin) — même règle que le feed public, mais ici on masque l'existence
-    // même de l'évènement (404) plutôt que de le filtrer d'une liste.
     if (
       event.status === EventStatusEnum.DRAFT &&
       event.creatorId !== userId &&
@@ -266,7 +238,11 @@ export class EventsService {
     let participationStatus: ParticipantStatusEnum | null = null;
     if (userId) {
       const participation = await this.participantRepo.findOne({
-        where: { eventId: id, userId, status: Not(ParticipantStatusEnum.CANCELLED) },
+        where: {
+          eventId: id,
+          userId,
+          status: Not(ParticipantStatusEnum.CANCELLED),
+        },
       });
       participationStatus = participation?.status ?? null;
     }
@@ -302,7 +278,9 @@ export class EventsService {
     Object.assign(event, {
       ...dto,
       ...(dto.cost_cents !== undefined && { costCents: dto.cost_cents }),
-      ...(dto.reward_points !== undefined && { rewardPoints: dto.reward_points }),
+      ...(dto.reward_points !== undefined && {
+        rewardPoints: dto.reward_points,
+      }),
       ...(dto.refund_deadline_hours !== undefined && {
         refundDeadlineHours: dto.refund_deadline_hours,
       }),
@@ -348,9 +326,6 @@ export class EventsService {
       throw new ConflictException('Event has already started');
     }
 
-    // Best-effort synchronous pre-validation so callers get immediate feedback
-    // for the most common failure modes. The worker still performs the
-    // authoritative checks under a pessimistic lock.
     const existing = await this.participantRepo.findOne({
       where: { eventId: id, userId },
     });
@@ -376,10 +351,6 @@ export class EventsService {
       }
     }
 
-    // Pas de jobId déterministe : BullMQ déduplique sur jobId, ce qui
-    // empêchait toute ré-inscription après une désinscription (le job
-    // complété gardait le même identifiant et le nouveau n'était jamais
-    // enfilé). Le worker reste idempotent grâce au verrou pessimiste.
     await this.registerQueue.add(
       'register',
       { eventId: id, userId },
@@ -416,9 +387,6 @@ export class EventsService {
 
     const event = await this.eventRepo.findOne({ where: { id } });
 
-    // Remboursement des points débités à l'inscription, dans la même fenêtre
-    // que pour une annulation d'événement (refund_deadline_hours depuis
-    // l'inscription). Gratuit ou hors délai → rien à recréditer.
     const refundable =
       participant.paymentStatus === PaymentStatusEnum.COMPLETED &&
       participant.amountPoints > 0 &&
@@ -449,7 +417,6 @@ export class EventsService {
       }
     });
 
-    // Trigger waitlist promotion
     await this.promoteQueue.add('promote', { eventId: id });
   }
 
@@ -509,7 +476,6 @@ export class EventsService {
 
     const isModOrAdmin = isModeratorOrAdmin(userRole);
 
-    // Check if participant is registered, owner, or mod/admin
     if (event.creatorId !== userId && !isModOrAdmin) {
       const participant = await this.participantRepo.findOne({
         where: {

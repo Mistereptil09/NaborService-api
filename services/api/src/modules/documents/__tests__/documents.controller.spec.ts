@@ -85,8 +85,6 @@ describe('DocumentsController', () => {
     expect(adminController).toBeDefined();
   });
 
-  // ── GET /documents/:document_id ───────────────────────
-
   describe('GET /documents/:document_id', () => {
     it('should return document for signatory', async () => {
       service.findById.mockResolvedValue(mockDoc);
@@ -116,8 +114,6 @@ describe('DocumentsController', () => {
       ).rejects.toThrow(ForbiddenException);
     });
   });
-
-  // ── GET /admin/documents/:document_id ─────────────────
 
   describe('GET /admin/documents/:document_id', () => {
     it('should return document without party check', async () => {

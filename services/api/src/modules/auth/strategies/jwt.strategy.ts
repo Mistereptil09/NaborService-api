@@ -43,8 +43,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     if (user.passwordChangedAt) {
       const iatDate = new Date(payload.iat * 1000);
-      // If password was changed after token issuance, invalidate the token.
-      // We compare timestamps to avoid small precision mismatches.
       if (user.passwordChangedAt.getTime() > iatDate.getTime()) {
         throw new UnauthorizedException(
           'Mot de passe changé, veuillez vous reconnecter',

@@ -32,7 +32,6 @@ describe('Property 10: Rate limiting enforcement', () => {
 
           mockRedisClient.get.mockResolvedValue(null);
 
-          // The first L calls must be allowed, and remaining counts must decrease correctly
           for (let i = 1; i <= limit; i++) {
             mockRedisClient.incr.mockResolvedValueOnce(i);
             const result = await service.check('key', limit, window);
@@ -40,7 +39,6 @@ describe('Property 10: Rate limiting enforcement', () => {
             expect(result.remaining).toBe(limit - i);
           }
 
-          // The (L + 1)th call must be blocked and return remaining TTL
           mockRedisClient.incr.mockResolvedValueOnce(limit + 1);
           mockRedisClient.ttl.mockResolvedValueOnce(window - 5);
 

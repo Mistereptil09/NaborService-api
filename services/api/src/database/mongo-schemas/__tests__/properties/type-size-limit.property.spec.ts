@@ -27,7 +27,6 @@ describe('Property 2: Type-dependent size limit enforcement', () => {
           });
 
           const err = doc.validateSync();
-          // Validation should pass since database-level size checks are removed and delegated to NestJS services
           expect(err).toBeUndefined();
         },
       ),

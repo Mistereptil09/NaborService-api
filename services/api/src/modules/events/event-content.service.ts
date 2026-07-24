@@ -25,7 +25,6 @@ export class EventContentService {
   ) {}
 
   async getContent(eventId: string) {
-    // We check if event exists in pg
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) {
       throw new NotFoundException('Event not found');
@@ -35,7 +34,6 @@ export class EventContentService {
       .findOne({ pg_event_id: eventId })
       .lean();
     if (!document) {
-      // Create empty document
       const newDoc = new this.eventDocumentModel({
         pg_event_id: eventId,
         body_html: '',

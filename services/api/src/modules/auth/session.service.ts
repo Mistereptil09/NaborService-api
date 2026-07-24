@@ -11,9 +11,6 @@ export class SessionService {
     private readonly sessionRepository: Repository<UserSession>,
   ) {}
 
-  /**
-   * Creates a new user session in PostgreSQL
-   */
   async createSession(params: CreateSessionParams): Promise<UserSession> {
     const session = this.sessionRepository.create({
       userId: params.userId,
@@ -26,9 +23,6 @@ export class SessionService {
     return this.sessionRepository.save(session);
   }
 
-  /**
-   * Finds active sessions for a user (revoked_at IS NULL and expires_at > now())
-   */
   async findActiveByUser(userId: string): Promise<UserSession[]> {
     return this.sessionRepository.find({
       where: {
@@ -42,36 +36,24 @@ export class SessionService {
     });
   }
 
-  /**
-   * Looks up a session by ID
-   */
   async findSessionById(id: string): Promise<UserSession | null> {
     return this.sessionRepository.findOne({
       where: { id },
     });
   }
 
-  /**
-   * Looks up a session by refresh token hash (even if expired or revoked, for validation/audit)
-   */
   async findByTokenHash(hash: string): Promise<UserSession | null> {
     return this.sessionRepository.findOne({
       where: { refreshTokenHash: hash },
     });
   }
 
-  /**
-   * Revokes a specific session by setting revoked_at = now()
-   */
   async revokeSession(sessionId: string): Promise<void> {
     await this.sessionRepository.update(sessionId, {
       revokedAt: new Date(),
     });
   }
 
-  /**
-   * Revokes all active sessions for a user by setting revoked_at = now()
-   */
   async revokeAllUserSessions(userId: string): Promise<void> {
     await this.sessionRepository.update(
       {
@@ -85,9 +67,6 @@ export class SessionService {
     );
   }
 
-  /**
-   * Updates a session's refresh token hash and last used timestamp (on rotation)
-   */
   async updateLastUsed(sessionId: string, newHash: string): Promise<void> {
     await this.sessionRepository.update(sessionId, {
       refreshTokenHash: newHash,

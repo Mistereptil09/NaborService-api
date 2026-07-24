@@ -17,11 +17,6 @@ export class DocumentsService {
     private readonly contractModel: Model<ContractDocument>,
   ) {}
 
-  /**
-   * Retrieve a document by its MongoDB document ID.
-   * Checks that the requesting user is a party to the document.
-   * Used by: GET /documents/:document_id
-   */
   async findById(
     documentId: string,
     userId?: string,
@@ -32,7 +27,6 @@ export class DocumentsService {
       throw new NotFoundException('Document introuvable');
     }
 
-    // If userId is provided, verify the user is a party to the document
     if (userId) {
       const isProvider = doc.parties?.provider?.pg_user_id === userId;
       const isRequester = doc.parties?.requester?.pg_user_id === userId;
@@ -46,9 +40,6 @@ export class DocumentsService {
     return doc;
   }
 
-  /**
-   * Retrieve a document by transaction ID and type.
-   */
   async findByTransaction(
     transactionId: string,
     type: 'contract' | 'receipt',
@@ -59,9 +50,6 @@ export class DocumentsService {
     });
   }
 
-  /**
-   * Create a contract document record in MongoDB.
-   */
   async createContract(data: {
     pg_transaction_id: string;
     type: 'contract' | 'receipt';
@@ -89,10 +77,6 @@ export class DocumentsService {
     return doc.save();
   }
 
-  /**
-   * Admin access — no party check.
-   * Used by: GET /admin/documents/:document_id
-   */
   async findByIdAdmin(documentId: string): Promise<ContractDocument> {
     const doc = await this.contractModel.findById(documentId);
     if (!doc) {

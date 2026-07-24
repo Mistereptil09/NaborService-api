@@ -37,15 +37,12 @@ describe('EventAutoCompleteService', () => {
 
     await service.completeElapsedEvents();
 
-    // Only open events are targeted.
     expect(updateBuilder.where).toHaveBeenCalledWith('status = :status', {
       status: EventStatusEnum.OPEN,
     });
-    // Set to completed with a completedAt timestamp.
     const setArg = updateBuilder.set.mock.calls[0][0];
     expect(setArg.status).toBe(EventStatusEnum.COMPLETED);
     expect(setArg.completedAt).toBeInstanceOf(Date);
-    // Only past events (COALESCE(ends_at, starts_at) < now).
     expect(updateBuilder.andWhere).toHaveBeenCalledWith(
       'COALESCE(ends_at, starts_at) < :now',
       expect.objectContaining({ now: expect.any(Date) }),

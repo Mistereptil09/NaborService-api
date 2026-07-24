@@ -18,9 +18,6 @@ export class Neo4jService implements OnModuleDestroy {
     await this.driver.close();
   }
 
-  /**
-   * Helper to check if an error is transient (connection/session-related)
-   */
   private isTransientError(err: any): boolean {
     if (!err) return false;
     const code = err.code || err.name;
@@ -38,9 +35,6 @@ export class Neo4jService implements OnModuleDestroy {
     return false;
   }
 
-  /**
-   * Execute work with exponential backoff retry logic (1s, 5s, 30s)
-   */
   private async retryWithBackoff<T>(work: () => Promise<T>): Promise<T> {
     const delays = [1000, 5000, 30000];
     let attempt = 0;
@@ -60,9 +54,6 @@ export class Neo4jService implements OnModuleDestroy {
     }
   }
 
-  /**
-   * Execute a single Cypher query. Opens/closes session automatically.
-   */
   async run<T extends RecordShape = RecordShape>(
     cypher: string,
     params?: Record<string, unknown>,
@@ -77,9 +68,6 @@ export class Neo4jService implements OnModuleDestroy {
     });
   }
 
-  /**
-   * Execute work within a managed transaction.
-   */
   async runInTransaction<T>(
     work: (tx: ManagedTransaction) => Promise<T>,
   ): Promise<T> {

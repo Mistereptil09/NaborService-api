@@ -9,13 +9,11 @@ const NON_ESSENTIAL_EMAILS = [
   'waitlist_released',
 ] as const;
 
-// Simulated Notification Worker/Service that integrates with the RGPD opt-out checks
 async function simulateSendEmail(
   userId: string,
   emailType: string,
   isNotificationsOptedOut: boolean,
 ): Promise<{ sent: boolean; skipped: boolean }> {
-  // Centralized check for consumer services
   if (isNotificationsOptedOut && !ESSENTIAL_EMAILS.includes(emailType as any)) {
     return { sent: false, skipped: true };
   }
@@ -48,7 +46,6 @@ describe('Feature: rgpd-data-processing-table, Property 4: Notification dispatch
               expect(result.skipped).toBe(true);
             }
           } else {
-            // If notifications are NOT opted out, everything should send successfully
             expect(result.sent).toBe(true);
             expect(result.skipped).toBe(false);
           }

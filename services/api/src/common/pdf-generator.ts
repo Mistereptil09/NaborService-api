@@ -1,12 +1,4 @@
-/**
- * Minimal valid PDF generator for contracts and receipts.
- *
- * Produces a standards-compliant PDF 1.4 document without external
- * dependencies. The output passes the %PDF magic-byte check and
- * renders correctly in any PDF viewer.
- */
 export function generatePdf(content: string): Buffer {
-  // Escape PDF-special characters in text
   const escaped = content
     .replace(/\\/g, '\\\\')
     .replace(/\(/g, '\\(')
@@ -56,9 +48,6 @@ startxref
   return Buffer.from(pdf.replace(/\r/g, '').split('\n').join('\n'), 'utf-8');
 }
 
-/**
- * Formats a contract PDF with structured layout.
- */
 export function generateContractPdf(data: {
   title: string;
   providerName: string;
@@ -96,9 +85,6 @@ export function generateContractPdf(data: {
   return generatePdf(content);
 }
 
-/**
- * Formats a receipt PDF with structured layout.
- */
 export function generateReceiptPdf(data: {
   title: string;
   providerName: string;

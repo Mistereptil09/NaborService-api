@@ -29,8 +29,6 @@ describe('Listings & Payments — TypeORM Metadata', () => {
     (ds as unknown as { buildMetadatas(): void }).buildMetadatas();
   });
 
-  // ─── ListingCategory (Requirement 5.1) ───────────────────────────────────────
-
   describe('ListingCategory', () => {
     it('should map to table "listing_category"', () => {
       const meta = ds.getMetadata(ListingCategory);
@@ -99,8 +97,6 @@ describe('Listings & Payments — TypeORM Metadata', () => {
       expect(updatedAt!.isNullable).toBe(true);
     });
   });
-
-  // ─── Listing (Requirements 5.2, 5.3) ─────────────────────────────────────────
 
   describe('Listing', () => {
     it('should map to table "listings"', () => {
@@ -198,8 +194,6 @@ describe('Listings & Payments — TypeORM Metadata', () => {
     });
   });
 
-  // ─── ListingTransaction (Requirements 5.4, 5.5) ──────────────────────────────
-
   describe('ListingTransaction', () => {
     it('should map to table "listing_transactions"', () => {
       const meta = ds.getMetadata(ListingTransaction);
@@ -291,8 +285,6 @@ describe('Listings & Payments — TypeORM Metadata', () => {
     });
   });
 
-  // ─── ListingReport (Requirement 5.6) ─────────────────────────────────────────
-
   describe('ListingReport', () => {
     it('should map to table "listing_reports"', () => {
       const meta = ds.getMetadata(ListingReport);
@@ -351,8 +343,6 @@ describe('Listings & Payments — TypeORM Metadata', () => {
       expect(reporterRel!.type).toBe(User);
     });
   });
-
-  // ─── ListingModerationAction (Requirement 5.7) ───────────────────────────────
 
   describe('ListingModerationAction', () => {
     it('should map to table "listing_moderation_actions"', () => {

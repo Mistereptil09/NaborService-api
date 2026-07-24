@@ -11,7 +11,6 @@ interface IndexDef {
 }
 
 const INDEX_DEFINITIONS: IndexDef[] = [
-  // RANGE indexes
   { name: 'user_pg_id', label: 'User', properties: ['pg_id'], type: 'RANGE' },
   {
     name: 'listing_pg_id',
@@ -56,7 +55,6 @@ const INDEX_DEFINITIONS: IndexDef[] = [
     properties: ['visibility'],
     type: 'RANGE',
   },
-  // POINT index
   {
     name: 'neighbourhood_centroid',
     label: 'Neighbourhood',
@@ -76,8 +74,6 @@ export class Neo4jInitService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Verify connectivity but don't crash if Neo4j is unreachable.
-    // Graph features will be unavailable until Neo4j recovers.
     try {
       await this.driver.verifyConnectivity();
     } catch (err) {

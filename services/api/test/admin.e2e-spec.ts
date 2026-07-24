@@ -25,8 +25,6 @@ describe('Admin Module (e2e)', () => {
     await clearRedis(app);
   });
 
-  // ── Auth ─────────────────────────────────────────────────────
-
   describe('Auth', () => {
     it('should return 401 without token', async () => {
       await request(app.getHttpServer()).get('/v1/admin/users').expect(401);
@@ -43,12 +41,9 @@ describe('Admin Module (e2e)', () => {
     });
   });
 
-  // ── Users ────────────────────────────────────────────────────
-
   describe('GET /v1/admin/users', () => {
     it('should list users as admin', async () => {
       const admin = await createAdminUser(app, 'admin');
-      // Create some users
       await createTestUser(app, 'u1');
       await createTestUser(app, 'u2');
 
@@ -57,7 +52,6 @@ describe('Admin Module (e2e)', () => {
         .set('Authorization', `Bearer ${admin.token}`)
         .expect(200);
 
-      // Response shape: { total, users } (not { data, meta })
       expect(res.body).toHaveProperty('users');
       expect(res.body).toHaveProperty('total');
       expect(Array.isArray(res.body.users)).toBe(true);
@@ -90,8 +84,6 @@ describe('Admin Module (e2e)', () => {
     });
   });
 
-  // ── User detail ──────────────────────────────────────────────
-
   describe('GET /v1/admin/users/:id', () => {
     it('should return user detail as admin', async () => {
       const admin = await createAdminUser(app, 'admin');
@@ -114,8 +106,6 @@ describe('Admin Module (e2e)', () => {
         .expect(404);
     });
   });
-
-  // ── Update role ──────────────────────────────────────────────
 
   describe('PATCH /v1/admin/users/:id/role', () => {
     it('should update user role', async () => {
@@ -143,8 +133,6 @@ describe('Admin Module (e2e)', () => {
     });
   });
 
-  // ── Suspend / Restore ────────────────────────────────────────
-
   describe('Suspend & Restore', () => {
     it('POST /v1/admin/users/:id/suspend should suspend a user', async () => {
       const admin = await createAdminUser(app, 'admin');
@@ -162,13 +150,11 @@ describe('Admin Module (e2e)', () => {
       const admin = await createAdminUser(app, 'admin');
       const user = await createTestUser(app, 'victim');
 
-      // Suspend first
       await request(app.getHttpServer())
         .post(`/v1/admin/users/${user.user.id}/suspend`)
         .set('Authorization', `Bearer ${admin.token}`)
         .expect(200);
 
-      // Then restore
       const res = await request(app.getHttpServer())
         .post(`/v1/admin/users/${user.user.id}/restore`)
         .set('Authorization', `Bearer ${admin.token}`)
@@ -177,8 +163,6 @@ describe('Admin Module (e2e)', () => {
       expect(res.body).toHaveProperty('isSuspended', false);
     });
   });
-
-  // ── Points adjustments ─────────────────────────────────────
 
   describe('POST /v1/admin/points/adjust', () => {
     it('should credit points to a user as admin', async () => {
@@ -208,14 +192,12 @@ describe('Admin Module (e2e)', () => {
       const admin = await createAdminUser(app, 'pointsadmin2');
       const user = await createTestUser(app, 'pointsuser2');
 
-      // Credit first
       await request(app.getHttpServer())
         .post('/v1/admin/points/adjust')
         .set('Authorization', `Bearer ${admin.token}`)
         .send({ userId: user.user.id, amountPoints: 500 })
         .expect(200);
 
-      // Then debit
       const res = await request(app.getHttpServer())
         .post('/v1/admin/points/adjust')
         .set('Authorization', `Bearer ${admin.token}`)
@@ -277,8 +259,6 @@ describe('Admin Module (e2e)', () => {
     });
   });
 
-  // ── Config ──────────────────────────────────────────────────
-
   describe('GET/PATCH /v1/admin/config', () => {
     it('GET /v1/admin/config should return platform config', async () => {
       const admin = await createAdminUser(app, 'cfgadmin');
@@ -312,8 +292,6 @@ describe('Admin Module (e2e)', () => {
     });
   });
 
-  // ── RGPD ────────────────────────────────────────────────────
-
   describe('Admin RGPD', () => {
     it('GET /v1/admin/rgpd/requests should list RGPD requests', async () => {
       const admin = await createAdminUser(app, 'rgpdadmin');
@@ -335,8 +313,6 @@ describe('Admin Module (e2e)', () => {
         .expect(403);
     });
   });
-
-  // ── Stats ───────────────────────────────────────────────────
 
   describe('Admin Stats', () => {
     it('GET /v1/admin/stats/overview should return stats', async () => {

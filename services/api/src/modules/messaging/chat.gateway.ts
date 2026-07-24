@@ -40,7 +40,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleConnection(client: AuthenticatedSocket) {
     try {
       const { userId } = this.wsAuthService.verify(client);
-      // Join personal room for notifications
       client.join(`user:${userId}`);
     } catch {
       client.disconnect();
@@ -50,8 +49,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(client: AuthenticatedSocket) {
     // Cleanup handled by Redis TTLs
   }
-
-  // ── Message events ──────────────────────────────────────
 
   @SubscribeMessage('message:send')
   async handleSend(
@@ -198,8 +195,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { status: 'read', group_id: data.group_id };
   }
 
-  // ── Typing events ───────────────────────────────────────
-
   @SubscribeMessage('typing:start')
   async handleTypingStart(
     @MessageBody() data: { group_id: string },
@@ -225,8 +220,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       user_id: client.userId,
     });
   }
-
-  // ── Room management ─────────────────────────────────────
 
   @SubscribeMessage('join_group')
   async handleJoinGroup(
@@ -254,7 +247,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { status: 'left', group_id: data.group_id };
   }
 
-  /** Émission depuis un autre module (ex. PollsController après création d'un sondage de groupe) sans dupliquer la convention de nommage des rooms. */
   emitToGroup(groupId: string, event: string, payload: unknown) {
     this.server.to(`chat:group:${groupId}`).emit(event, payload);
   }

@@ -75,14 +75,11 @@ describe('PollsService', () => {
 
   it('should be defined', () => expect(service).toBeDefined());
 
-  // ── listPolls ───────────────────────────────────────────
-
   describe('listPolls', () => {
     it('should return non-deleted polls (closed polls stay visible)', async () => {
       pollRepo.find.mockResolvedValue([makePoll()]);
       const polls = await service.listPolls();
       expect(polls).toHaveLength(1);
-      // Seuls les supprimés sont masqués — pas de filtre sur closedAt.
       const where = pollRepo.find.mock.calls[0][0].where;
       expect(where.deletedAt).toBeDefined();
       expect(where.closedAt).toBeUndefined();
@@ -122,8 +119,6 @@ describe('PollsService', () => {
     });
   });
 
-  // ── createPoll ──────────────────────────────────────────
-
   describe('createPoll', () => {
     it('should create a neighbourhood-scoped poll', async () => {
       const p = await service.createPoll('u1', {
@@ -159,8 +154,6 @@ describe('PollsService', () => {
     });
   });
 
-  // ── getPoll ─────────────────────────────────────────────
-
   describe('getPoll', () => {
     it('should return poll with results', async () => {
       pollRepo.findOne.mockResolvedValue({
@@ -186,12 +179,20 @@ describe('PollsService', () => {
         options: [{ id: 'o1', label: 'Yes', pollId: 'p1', weight: '1.00' }],
       });
       voteRepo.find.mockResolvedValue([
-        { userId: 'u1', optionId: 'o1', weight: '1.00', option: { pollId: 'p1' } },
-        { userId: 'u2', optionId: 'o1', weight: '1.00', option: { pollId: 'p1' } },
+        {
+          userId: 'u1',
+          optionId: 'o1',
+          weight: '1.00',
+          option: { pollId: 'p1' },
+        },
+        {
+          userId: 'u2',
+          optionId: 'o1',
+          weight: '1.00',
+          option: { pollId: 'p1' },
+        },
       ]);
       const p = await service.getPoll('p1');
-      // Bug regression: string concatenation ("0" + "1.00" + "1.00") would
-      // have produced the non-numeric "01.001.00" instead of 2.
       expect(p.results[0].vote_count).toBe(2);
       expect(typeof p.results[0].vote_count).toBe('number');
     });
@@ -237,8 +238,6 @@ describe('PollsService', () => {
     });
   });
 
-  // ── updatePoll ──────────────────────────────────────────
-
   describe('updatePoll', () => {
     it('should update if creator and no votes', async () => {
       pollRepo.findOne.mockResolvedValue(makePoll());
@@ -263,8 +262,6 @@ describe('PollsService', () => {
     });
   });
 
-  // ── closePoll ───────────────────────────────────────────
-
   describe('closePoll', () => {
     it('should close by creator', async () => {
       pollRepo.findOne.mockResolvedValue(makePoll());
@@ -279,8 +276,6 @@ describe('PollsService', () => {
       );
     });
   });
-
-  // ── vote ────────────────────────────────────────────────
 
   describe('vote', () => {
     it("should cast a vote using the option's weight, not a voter-supplied one", async () => {
@@ -310,7 +305,6 @@ describe('PollsService', () => {
         pollId: 'p1',
         weight: 1,
       });
-      // Mock existing prior vote
       voteRepo.find.mockResolvedValue([
         { userId: 'u1', optionId: 'o1', option: { pollId: 'p1' } },
       ]);
@@ -352,8 +346,6 @@ describe('PollsService', () => {
     });
   });
 
-  // ── updateVote ──────────────────────────────────────────
-
   describe('updateVote', () => {
     it('should refresh the vote weight from the option', async () => {
       voteRepo.findOne.mockResolvedValue({
@@ -376,8 +368,6 @@ describe('PollsService', () => {
     });
   });
 
-  // ── deleteVote ──────────────────────────────────────────
-
   describe('deleteVote', () => {
     it('should remove vote', async () => {
       pollRepo.findOne.mockResolvedValue(makePoll());
@@ -385,8 +375,6 @@ describe('PollsService', () => {
       expect(r.deleted).toBe(true);
     });
   });
-
-  // ── addOption ───────────────────────────────────────────
 
   describe('addOption', () => {
     it('should add an option with default weight 1 if creator and no votes', async () => {

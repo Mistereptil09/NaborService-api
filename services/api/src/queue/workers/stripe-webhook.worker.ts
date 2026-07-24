@@ -7,12 +7,6 @@ import { getBackoffDelay } from '../utils/backoff-strategy';
 import { PointsTopupService } from '../../modules/points/points-topup.service';
 import { PointsConnectService } from '../../modules/points/points-connect.service';
 
-/**
- * Processes Stripe webhooks.
- * Note on idempotency: The producer MUST set `jobId` to the Stripe event ID.
- * BullMQ silently ignores duplicate adds with the same jobId, ensuring webhooks
- * are not processed multiple times.
- */
 @Processor('stripe-webhook', {
   concurrency: 5,
   settings: {

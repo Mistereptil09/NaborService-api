@@ -31,11 +31,6 @@ export class UserSecurityService {
     private readonly config: ConfigService,
   ) {}
 
-  /**
-   * Initiates a password reset flow.
-   * Generates a token, stores it in Redis, and enqueues an email job.
-   * Always returns successfully to prevent email enumeration.
-   */
   async forgotPassword(email: string): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { email },
@@ -45,7 +40,6 @@ export class UserSecurityService {
       const resetToken = crypto.randomUUID();
       const redisKey = `auth:reset:${resetToken}`;
 
-      // Store in Redis with 15 minutes TTL
       await this.redis.set(
         redisKey,
         JSON.stringify({ email: user.email }),
@@ -71,16 +65,11 @@ export class UserSecurityService {
           essential: true,
         });
       } catch (error) {
-        // Log the error but don't fail the request to preserve non-enumeration
         console.error('Failed to enqueue reset password email', error);
       }
     }
   }
 
-  /**
-   * Completes the password reset flow.
-   * Validates the token, updates the password hash, and revokes active sessions.
-   */
   async resetPassword(token: string, newPassword: string): Promise<void> {
     const redisKey = `auth:reset:${token}`;
     const data = await this.redis.get(redisKey);
@@ -98,7 +87,6 @@ export class UserSecurityService {
       throw new BadRequestException('Token invalide ou expiré');
     }
 
-    // Generate a new salt and hash the password
     const salt = crypto.randomBytes(16);
     const passwordHash = await argon2.hash(newPassword, {
       type: argon2.argon2id,
@@ -113,10 +101,8 @@ export class UserSecurityService {
     user.passwordChangedAt = new Date();
     await this.userRepository.save(user);
 
-    // Delete the reset token from Redis
     await this.redis.del(redisKey);
 
-    // Revoke all active sessions
     const activeSessions = await this.sessionService.findActiveByUser(user.id);
     for (const session of activeSessions) {
       await this.tokenService.deleteRefreshFromRedis(session.refreshTokenHash);

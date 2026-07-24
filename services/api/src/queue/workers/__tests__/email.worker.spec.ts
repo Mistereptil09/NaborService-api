@@ -85,7 +85,6 @@ describe('EmailWorker', () => {
       }),
     );
 
-    // essential bypasses opt-out entirely — preference must not even be checked
     expect(mockPrefs.isPreferenceEnabled).not.toHaveBeenCalled();
     expect(mockMailService.sendTemplated).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ sent: true });

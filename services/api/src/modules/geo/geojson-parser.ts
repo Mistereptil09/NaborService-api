@@ -28,7 +28,6 @@ export function parseFeatureCollection(raw: any): ParsedFeature[] {
   for (const feature of features) {
     if (!feature || typeof feature !== 'object') continue;
 
-    // Check geometry
     const geometry = feature.geometry;
     if (
       !geometry ||
@@ -40,7 +39,6 @@ export function parseFeatureCollection(raw: any): ParsedFeature[] {
 
     const [lng, lat] = geometry.coordinates;
 
-    // Validate coordinates are valid finite numbers
     if (
       typeof lng !== 'number' ||
       typeof lat !== 'number' ||
@@ -50,12 +48,10 @@ export function parseFeatureCollection(raw: any): ParsedFeature[] {
       continue;
     }
 
-    // Validate ranges
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       continue;
     }
 
-    // Extract properties
     const properties = feature.properties || {};
     const score = typeof properties.score === 'number' ? properties.score : 0;
     const label =
@@ -69,7 +65,6 @@ export function parseFeatureCollection(raw: any): ParsedFeature[] {
     });
   }
 
-  // Sort by score descending
   parsedFeatures.sort((a, b) => b.score - a.score);
 
   return parsedFeatures;

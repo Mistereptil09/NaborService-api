@@ -1,15 +1,3 @@
-/**
- * Standalone SMTP config check — sends a plain test email via the same
- * transport settings mail.service.ts uses, without booting the full app.
- *
- * Usage:
- *   npm run mail:test -- someone@example.com
- *
- * Reads SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASSWORD / SMTP_SECURE /
- * SMTP_FROM from the environment (loaded from the repo-root .env when run
- * outside Docker; already present in process.env when run via
- * `docker compose exec api npm run mail:test -- someone@example.com`).
- */
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '../../.env' });
 

@@ -1,14 +1,3 @@
-/**
- * Migration ponctuelle (dev) — passage à la double signature des contrats.
- *
- * - Supprime l'ancien index unique pg_transaction_id_1 (remplacé par le
- *   couple unique {pg_transaction_id, type} créé par Mongoose au boot).
- * - Supprime l'ancien champ mono-signature `signature` et initialise les
- *   nouveaux champs (signatures, signed_pdf, signed_pdf_sha256).
- *
- * Usage:
- *   npm run db:migrate:contracts
- */
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '../../.env' });
 
@@ -32,7 +21,6 @@ async function main() {
   const conn = await mongoose.createConnection(uri).asPromise();
   const contracts = conn.collection('contracts');
 
-  // 1. Ancien index unique incompatible avec contrat + reçu par transaction.
   try {
     await contracts.dropIndex('pg_transaction_id_1');
     console.log('Index pg_transaction_id_1 supprimé.');
@@ -44,7 +32,6 @@ async function main() {
     }
   }
 
-  // 2. Suppression de l'ancien champ + valeurs par défaut des nouveaux.
   const result = await contracts.updateMany(
     {},
     {

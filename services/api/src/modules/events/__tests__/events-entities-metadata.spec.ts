@@ -35,8 +35,6 @@ describe('Events Entities — TypeORM Metadata', () => {
     (dataSource as unknown as { buildMetadatas(): void }).buildMetadatas();
   });
 
-  // ─── EvenementsCategory ───────────────────────────────────────────────
-
   describe('EvenementsCategory entity', () => {
     it('should map to the "evenements_category" table', () => {
       const metadata = dataSource.getMetadata(EvenementsCategory);
@@ -91,8 +89,6 @@ describe('Events Entities — TypeORM Metadata', () => {
       expect(rel!.type).toBe(EvenementsCategory);
     });
   });
-
-  // ─── Evenement ────────────────────────────────────────────────────────
 
   describe('Evenement entity', () => {
     it('should map to the "evenements" table', () => {
@@ -282,8 +278,6 @@ describe('Events Entities — TypeORM Metadata', () => {
       expect(rel!.isNullable).toBe(true);
     });
   });
-
-  // ─── EventParticipant ─────────────────────────────────────────────────
 
   describe('EventParticipant entity', () => {
     it('should map to the "event_participants" table', () => {

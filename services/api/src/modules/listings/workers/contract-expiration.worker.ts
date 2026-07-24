@@ -72,7 +72,6 @@ export class ContractExpirationWorker extends WorkerHost {
       );
     }
 
-    // Only cancel if listing is not already closed or cancelled
     if (
       listing.status !== ListingStatusEnum.IN_PROGRESS &&
       listing.status !== ListingStatusEnum.PENDING
@@ -85,7 +84,6 @@ export class ContractExpirationWorker extends WorkerHost {
       type: 'contract',
     });
 
-    // If no contract found or it's not signed yet, expire it
     if (!contract || contract.signed_at === null) {
       listing.status = ListingStatusEnum.CANCELLED;
       listing.updatedAt = new Date();
@@ -95,7 +93,6 @@ export class ContractExpirationWorker extends WorkerHost {
       transaction.cancelledAt = new Date();
       await this.transactionRepository.save(transaction);
 
-      // Sync Neo4j
       await this.neo4jSyncQueue.add('upsert-listing', {
         id: listing.id,
         title: listing.title,
@@ -105,7 +102,6 @@ export class ContractExpirationWorker extends WorkerHost {
         created_at: listing.createdAt,
       });
 
-      // Emit Gateway Status Changed
       this.listingsGateway.emitStatusChanged(
         listing.id,
         ListingStatusEnum.CANCELLED,

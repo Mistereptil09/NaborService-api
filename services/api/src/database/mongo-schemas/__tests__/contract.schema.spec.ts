@@ -81,7 +81,6 @@ describe('Contract Schema', () => {
       pg_transaction_id: 'tx_123',
       type: 'contract',
       sha256_hash: 'abc123hash',
-      // missing pdf, parties, listing_snapshot
       created_at: new Date(),
     });
     const err = doc.validateSync();

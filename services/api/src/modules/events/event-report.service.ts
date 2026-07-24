@@ -39,7 +39,6 @@ export class EventReportService {
   }
 
   async getReportedEvents(query: ListEventsDto) {
-    // Returns reported events sorted by report count DESC
     const qb = this.reportRepo
       .createQueryBuilder('report')
       .select('report.eventId', 'eventId')
@@ -53,7 +52,6 @@ export class EventReportService {
 
     const rawResults = await qb.getRawMany();
 
-    // Fetch the actual events
     const eventIds = rawResults.map((r) => r.eventId);
     if (eventIds.length === 0) {
       return {

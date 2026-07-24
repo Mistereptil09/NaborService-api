@@ -18,7 +18,6 @@ export interface ListingContractData {
   requesterEmail: string;
   priceCents: number;
   date: string;
-  /** Clé du jeu de clauses (voir contract-clauses.ts). Défaut : 'generic'. */
   templateKey?: string | null;
   categoryName?: string | null;
   neighbourhoodName?: string | null;
@@ -29,7 +28,6 @@ export interface ListingReceiptData extends ListingContractData {
 }
 
 export interface SignedContractEvidence {
-  /** SHA-256 du PDF original (non signé), cité par le certificat. */
   originalSha256: string;
   contractId: string;
   transactionId: string;
@@ -67,19 +65,12 @@ function priceEur(priceCents: number): string {
   return `${(priceCents / 100).toFixed(2)} EUR`;
 }
 
-/**
- * Point d'entrée unique de génération des documents PDF (contrats, reçus,
- * documents d'événement). Les contrats/reçus utilisent pdf-lib avec des
- * clauses par type de service ; la signature électronique simple (eIDAS SES)
- * est matérialisée par renderSignedContract.
- */
 @Injectable()
 export class DocumentTemplateService {
   resolveTemplateKey(categoryNames: string[]): string {
     return resolveTemplateKey(categoryNames);
   }
 
-  /** Contrat non signé — cadres de signature vides. */
   async renderContract(data: ListingContractData): Promise<Buffer> {
     const builder = await PdfBuilder.create();
     this.buildContractBody(builder, data);
@@ -90,10 +81,6 @@ export class DocumentTemplateService {
     return builder.toBuffer();
   }
 
-  /**
-   * Contrat finalisé : signatures dessinées embarquées + page « Certificat de
-   * signature » (preuves eIDAS SES).
-   */
   async renderSignedContract(
     data: ListingContractData,
     signatures: { provider: PartySignature; requester: PartySignature },
@@ -116,7 +103,6 @@ export class DocumentTemplateService {
       },
     ]);
 
-    // Page de preuve
     builder.newPage();
     builder.header(
       'Certificat de signature',
@@ -165,7 +151,6 @@ export class DocumentTemplateService {
     return builder.toBuffer();
   }
 
-  /** Reçu de bonne exécution. */
   async renderReceipt(data: ListingReceiptData): Promise<Buffer> {
     const builder = await PdfBuilder.create();
     builder.header(
@@ -241,8 +226,6 @@ export class DocumentTemplateService {
     builder.spacer(10);
     builder.sectionTitle('Signatures');
   }
-
-  // ── Documents d'événement (générateur texte historique) ──
 
   generate(type: 'event_confirmation', data: EventConfirmationData): Buffer;
   generate(type: 'event_ticket', data: EventTicketData): Buffer;

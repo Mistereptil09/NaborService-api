@@ -41,8 +41,6 @@ export class ChatAdminController {
     private readonly chatGateway: ChatGateway,
   ) {}
 
-  // ── Groups ──────────────────────────────────────────────
-
   @Get('groups')
   @ApiOperation({
     summary: 'Lister tous les groupes (modérateur/admin)',
@@ -101,8 +99,6 @@ export class ChatAdminController {
     return this.chatMessageService.getGroupAttachmentsAsAdmin(groupId);
   }
 
-  // ── Messages ────────────────────────────────────────────
-
   @Get('messages/:message_id')
   @ApiOperation({
     summary:
@@ -155,7 +151,6 @@ export class ChatAdminController {
   })
   @ApiNotFoundResponse({ description: 'Message introuvable' })
   async deleteMessage(@Param('message_id') messageId: string, @Req() req: any) {
-    // Récupère le groupe avant suppression pour pouvoir notifier sa room.
     const before = await this.chatMessageService.getMessageAsAdmin(messageId);
     const result = await this.chatMessageService.softDeleteMessageAsModerator(
       messageId,

@@ -6,7 +6,6 @@ import {
   CallTypeEnum,
 } from '../../../common/enums';
 
-/** Minimal in-memory stand-in for the ioredis hash/string operations CallsService uses. */
 class FakeRedis {
   private hashes = new Map<string, Record<string, string>>();
   private strings = new Map<string, string>();
@@ -136,8 +135,6 @@ describe('CallsService', () => {
 
   it('should be defined', () => expect(service).toBeDefined());
 
-  // ── initiateCall ─────────────────────────────────────────
-
   describe('initiateCall', () => {
     it('rejects when caller is not a member of the group', async () => {
       chatService.isMember.mockResolvedValueOnce(false);
@@ -196,8 +193,6 @@ describe('CallsService', () => {
     });
   });
 
-  // ── joinCall / leaveCall / declineCall ──────────────────
-
   describe('joinCall', () => {
     it('rejects a user who is not a participant', async () => {
       const { id } = await service.initiateCall('caller', {
@@ -244,7 +239,6 @@ describe('CallsService', () => {
         { call_id: id, reason: 'ended' },
       );
 
-      // Redis state is cleared after resolution.
       const meta = await (service as any).getMeta(id);
       expect(meta).toBeNull();
     });
@@ -265,8 +259,6 @@ describe('CallsService', () => {
       );
     });
   });
-
-  // ── handleRingingTimeout ─────────────────────────────────
 
   describe('handleRingingTimeout', () => {
     it('marks invited participants missed and resolves the call', async () => {
@@ -297,8 +289,6 @@ describe('CallsService', () => {
       expect(callLogRepo.save).not.toHaveBeenCalled();
     });
   });
-
-  // ── call resolution: system message + notifications ─────
 
   describe('call resolution — system message and notifications', () => {
     it('missed call: posts a call_missed system message and notifies the missed participant', async () => {
@@ -378,8 +368,6 @@ describe('CallsService', () => {
     });
   });
 
-  // ── getIceServers ────────────────────────────────────────
-
   describe('getIceServers', () => {
     it('falls back to STUN-only when Cloudflare credentials are not configured', async () => {
       const result = await service.getIceServers();
@@ -398,8 +386,6 @@ describe('CallsService', () => {
             : undefined,
       );
       httpRetryService.fetchWithRetry.mockResolvedValue({
-        // Forme actuelle de l'API Cloudflare : `iceServers` est un tableau
-        // (une entrée STUN, une entrée TURN avec identifiants).
         json: async () => ({
           iceServers: [
             { urls: ['stun:stun.cloudflare.com:3478'] },
@@ -420,7 +406,6 @@ describe('CallsService', () => {
       expect(result).toHaveLength(2);
       expect(result[1]).toMatchObject({ username: 'u', credential: 'c' });
 
-      // Second call should hit the Redis cache, not Cloudflare again.
       httpRetryService.fetchWithRetry.mockClear();
       await service.getIceServers();
       expect(httpRetryService.fetchWithRetry).not.toHaveBeenCalled();

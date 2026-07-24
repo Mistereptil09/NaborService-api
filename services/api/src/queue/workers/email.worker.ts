@@ -38,18 +38,14 @@ export class EmailWorker extends WorkerHost {
 
       const payload: EmailJobPayload = job.data;
 
-      // 1. Resolve User by email (may be null for external recipients).
       const user = await this.dataSource
         .getRepository(User)
         .findOne({ where: { email: payload.recipient } });
 
-      // 2. Resolve locale: explicit override -> user preference -> 'fr'.
       const locale: MailLocale = this.resolveLocale(
         payload.locale ?? user?.locale,
       );
 
-      // 3. Opt-out: only for non-essential emails that declare a preference key
-      //    and target a known user. Essential emails always go through.
       if (!payload.essential && payload.preferenceKey && user) {
         const enabled = await this.userPreferencesService.isPreferenceEnabled(
           user.id,
@@ -63,7 +59,6 @@ export class EmailWorker extends WorkerHost {
         }
       }
 
-      // 4. Render + send for real (errors propagate so BullMQ retries).
       await this.mailService.sendTemplated({
         to: payload.recipient,
         subject:

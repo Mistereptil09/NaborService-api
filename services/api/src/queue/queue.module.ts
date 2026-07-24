@@ -36,8 +36,6 @@ const queues = [
   'call-timeout',
 ];
 
-// queueProviders removed since BullModule.registerQueue automatically provides the getQueueToken() injection tokens
-
 @Global()
 @Module({
   imports: [

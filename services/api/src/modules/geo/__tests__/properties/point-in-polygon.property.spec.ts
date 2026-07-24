@@ -1,12 +1,10 @@
 import fc from 'fast-check';
 import * as turf from '@turf/turf';
 
-// Feature: geographical-pipeline, Property 6: Point-in-Polygon Correctness
 describe('Property 6: Point-in-Polygon Correctness', () => {
   it('turf.booleanPointInPolygon should correctly identify interior vs exterior points', () => {
     fc.assert(
       fc.property(
-        // Generate a simple square polygon
         fc.constant(
           turf.polygon([
             [

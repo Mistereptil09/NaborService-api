@@ -48,8 +48,6 @@ export class ListingReportService {
     data: any[];
     meta: { total: number; offset: number; limit: number };
   }> {
-    // We want to fetch listings having at least one unresolved report (resolved_at IS NULL).
-    // Sorted by unresolved report count descending.
     const rawData = await this.listingRepository.manager.query(
       `SELECT 
         l.id as "id",

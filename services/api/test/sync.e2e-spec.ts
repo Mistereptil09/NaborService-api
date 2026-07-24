@@ -25,8 +25,6 @@ describe('Sync & Updates Modules (e2e)', () => {
     await clearRedis(app);
   });
 
-  // ── Sync ────────────────────────────────────────────────────
-
   describe('Sync', () => {
     it('GET /v1/sync/snapshot should return 403 for regular user', async () => {
       const { email, password } = await createTestUser(app, 'regular');
@@ -45,7 +43,6 @@ describe('Sync & Updates Modules (e2e)', () => {
         .get('/v1/sync/snapshot')
         .set('Authorization', `Bearer ${admin.token}`);
 
-      // 200 = success, 400 = validation error on cursor/params (still proves endpoint works)
       expect([200, 400]).toContain(res.status);
       if (res.status === 200) {
         expect(res.body).toHaveProperty('cursor');
@@ -78,14 +75,10 @@ describe('Sync & Updates Modules (e2e)', () => {
     });
   });
 
-  // ── Updates ─────────────────────────────────────────────────
-  // Routes are PUBLIC (no auth required — used by Java Desktop auto-update)
-
   describe('Updates', () => {
     it('GET /v1/updates/latest should be public (no token required)', async () => {
       const res = await request(app.getHttpServer()).get('/v1/updates/latest');
 
-      // 200 si GitHub Release joignable, 503 sinon (aucun cache)
       expect([200, 503]).toContain(res.status);
       if (res.status === 200) {
         expect(res.body).toHaveProperty('version');
@@ -111,7 +104,6 @@ describe('Sync & Updates Modules (e2e)', () => {
         .get('/v1/updates/download')
         .redirects(0);
 
-      // 302 vers l'asset GitHub Release, 503 si le manifeste est indisponible
       expect([302, 503]).toContain(res.status);
     });
   });

@@ -1,16 +1,6 @@
 import { NotificationType } from './entities/notification.entity';
 import { NotifPreferenceKey } from '../../queue/interfaces/job-payloads';
 
-/**
- * How a notification type is relayed by email when the recipient is offline.
- * - essential: transactional — always sent, bypasses opt-out.
- * - preferenceKey: opt-out flag checked by the mail worker (non-essential only).
- * - subject / subjectEn / templateName: passed to the `email` queue.
- *   `subject` is French (default); the mail worker uses `subjectEn` when the
- *   recipient's locale resolves to 'en'.
- *
- * The opt-out and locale are applied ONCE, in the mail worker — not here.
- */
 export interface NotificationRoute {
   essential: boolean;
   preferenceKey?: NotifPreferenceKey;
@@ -21,7 +11,6 @@ export interface NotificationRoute {
 
 export const NOTIFICATION_ROUTING: Record<NotificationType, NotificationRoute> =
   {
-    // ── Social / discovery — gated by the matching preference ──
     new_follower: {
       essential: false,
       preferenceKey: 'notifNewFollower',
@@ -58,7 +47,6 @@ export const NOTIFICATION_ROUTING: Record<NotificationType, NotificationRoute> =
       templateName: 'waitlist-promoted',
     },
 
-    // ── Transactional — essential, always sent ──
     new_listing_interest: {
       essential: true,
       subject: 'Quelqu’un est intéressé par votre annonce',
@@ -101,7 +89,6 @@ export const NOTIFICATION_ROUTING: Record<NotificationType, NotificationRoute> =
       subjectEn: 'Your report has been resolved',
       templateName: 'notification',
     },
-    // Triggered by the Stripe teammate's code, not here — mapping kept for the worker.
     payment_confirmed: {
       essential: true,
       subject: 'Votre paiement a été confirmé',

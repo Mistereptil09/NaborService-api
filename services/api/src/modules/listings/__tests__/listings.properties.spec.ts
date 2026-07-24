@@ -21,50 +21,39 @@ import { ListingModerationAction } from '../entities/listing-moderation-action.e
 import { User } from '../../users/entities/user.entity';
 
 describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
-  // Simple queue mock
   const mockQueue = {
     add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
   };
 
-  // Simple MediaService mock (cover images for the feed)
   const mockMediaService = {
     findCoverImages: jest.fn().mockResolvedValue(new Map()),
   };
 
-  // Simple gateway mock
   const mockGateway = {
     joinPartiesToRoom: jest.fn(),
     emitStatusChanged: jest.fn(),
   };
 
-  // Simple TotpService mock
   const mockTotpService = {
     decryptSecret: jest.fn((s) => s),
   };
 
-  // Simple AdminConfigService mock
   const mockConfigService = {
     getConfig: jest
       .fn()
       .mockResolvedValue({ commissionPercent: 5, contractExpirationHours: 24 }),
   };
 
-  // Simple NotificationsService mock
   const mockNotificationsService = {
     create: jest.fn().mockResolvedValue({}),
   };
 
-  // Simple PointsService mock — points side-effects aren't the focus of
-  // these state-machine transition tests.
   const mockPointsService = {
     debit: jest.fn().mockResolvedValue({}),
     credit: jest.fn().mockResolvedValue({}),
     recordCommission: jest.fn().mockResolvedValue({}),
   };
 
-  // Simple DataSource mock: runs the callback with a manager that mutates
-  // `target` (if given) on update() and passes entities through on save(),
-  // mirroring how the real EntityManager mutates the underlying row.
   function makeMockDataSource(target?: any) {
     return {
       transaction: jest.fn(async (cb: any) =>
@@ -83,10 +72,7 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
     jest.clearAllMocks();
   });
 
-  // ─── PROPERTY 1: Listing filter correctness ─────────────────────────────────
-
   it('Property 1: Listing filter correctness', async () => {
-    // Generate arbitrary filtering conditions and data
     await fc.assert(
       fc.asyncProperty(
         fc.array(
@@ -126,7 +112,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
           ),
         }),
         async (listingsData, filters) => {
-          // Mock Repository query builder
           const mockQueryBuilder: any = {
             leftJoin: jest.fn().mockReturnThis(),
             addSelect: jest.fn().mockReturnThis(),
@@ -136,7 +121,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             skip: jest.fn().mockReturnThis(),
             take: jest.fn().mockReturnThis(),
             getManyAndCount: jest.fn().mockImplementation(() => {
-              // Simulate in-memory filtering
               const filtered = listingsData.filter((item) => {
                 if (item.deletedAt !== null) return false;
                 if (
@@ -177,7 +161,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             );
             const result = await service.list('test-user-id', filters as any);
 
-            // Assertions
             result.data.forEach((listing) => {
               expect(listing.deletedAt).toBeNull();
               if (filters.neighbourhood) {
@@ -204,8 +187,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
     );
   });
 
-  // ─── PROPERTY 2: Pagination ordering invariant ──────────────────────────────
-
   it('Property 2: Pagination ordering invariant', async () => {
     await fc.assert(
       fc.asyncProperty(
@@ -221,7 +202,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
         fc.integer({ min: 1, max: 5 }), // limit
         fc.integer({ min: 0, max: 5 }), // offset
         async (listingsData, limit, offset) => {
-          // Sort items by createdAt descending
           const sortedAll = [...listingsData].sort(
             (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
           );
@@ -256,7 +236,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
             limit,
           });
 
-          // Verify sorted order
           for (let i = 0; i < result.data.length - 1; i++) {
             expect(result.data[i].createdAt.getTime()).toBeGreaterThanOrEqual(
               result.data[i + 1].createdAt.getTime(),
@@ -267,8 +246,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
       { numRuns: 100 },
     );
   });
-
-  // ─── PROPERTY 3: Listing creation preserves input ───────────────────────────
 
   it('Property 3: Listing creation preserves input', async () => {
     await fc.assert(
@@ -320,8 +297,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
       { numRuns: 100 },
     );
   });
-
-  // ─── PROPERTY 4: State machine transition guards ────────────────────────────
 
   it('Property 4: State machine transition guards', async () => {
     await fc.assert(
@@ -411,8 +386,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
     );
   });
 
-  // ─── PROPERTY 5: Owner-only mutation guard ──────────────────────────────────
-
   it('Property 5: Owner-only mutation guard', async () => {
     await fc.assert(
       fc.asyncProperty(
@@ -457,8 +430,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
     );
   });
 
-  // ─── PROPERTY 6: Party-only access guard ────────────────────────────────────
-
   it('Property 6: Party-only access guard', async () => {
     await fc.assert(
       fc.asyncProperty(
@@ -487,8 +458,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
       { numRuns: 100 },
     );
   });
-
-  // ─── PROPERTY 7: Media deletion reorders contiguously ───────────────────────
 
   it('Property 7: Media deletion reorders contiguously', async () => {
     await fc.assert(
@@ -533,8 +502,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
       { numRuns: 100 },
     );
   });
-
-  // ─── PROPERTY 8: Cancellation cascades to transaction ───────────────────────
 
   it('Property 8: Cancellation cascades to transaction', async () => {
     await fc.assert(
@@ -599,8 +566,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
       { numRuns: 100 },
     );
   });
-
-  // ─── PROPERTY 9: Moderation action effect mapping ───────────────────────────
 
   it('Property 9: Moderation action effect mapping', async () => {
     await fc.assert(
@@ -685,8 +650,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
     );
   });
 
-  // ─── PROPERTY 10: SHA-256 integrity round-trip ──────────────────────────────
-
   it('Property 10: SHA-256 integrity round-trip', () => {
     fc.assert(
       fc.property(fc.uint8Array({ minLength: 10 }), (binaryData) => {
@@ -701,8 +664,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
       { numRuns: 100 },
     );
   });
-
-  // ─── PROPERTY 11: Signed document immutability ──────────────────────────────
 
   it('Property 11: Signed document immutability', async () => {
     await fc.assert(
@@ -757,8 +718,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
       { numRuns: 100 },
     );
   });
-
-  // ─── PROPERTY 12: Dual confirmation closes listing ──────────────────────────
 
   it('Property 12: Dual confirmation closes listing', async () => {
     await fc.assert(
@@ -817,19 +776,15 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
           );
 
           try {
-            // 1. First party confirms
             const firstUser = firstToConfirm === 'provider' ? 'p1' : 'r1';
             await smService.confirmExecution('l1', firstUser);
 
-            // Assert listing remains IN_PROGRESS after one confirmation
             expect(listing.status).toBe(ListingStatusEnum.IN_PROGRESS);
             expect(listing.closedAt).toBeNull();
 
-            // 2. Second party confirms
             const secondUser = firstToConfirm === 'provider' ? 'r1' : 'p1';
             await smService.confirmExecution('l1', secondUser);
 
-            // Assert listing becomes CLOSED after both confirmed
             expect(listing.status).toBe(ListingStatusEnum.CLOSED);
             expect(listing.closedAt).toBeInstanceOf(Date);
           } catch (e) {
@@ -856,7 +811,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
         ),
         async (reportedListings) => {
           try {
-            // Programmatically ensure unique IDs by filtering reportedListings
             const uniqueListings: any[] = [];
             const seen = new Set();
             for (const item of reportedListings) {
@@ -872,7 +826,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
               manager: {
                 query: jest.fn().mockImplementation((sql) => {
                   if (sql.includes('COUNT')) {
-                    // Simulate PostgreSQL return sorted by reports_count desc, last_report_at desc
                     const sorted = [...uniqueListings].sort((a, b) => {
                       if (b.reports_count !== a.reports_count) {
                         return b.reports_count - a.reports_count;
@@ -898,7 +851,6 @@ describe('Feature: listings-routes-cdc — Property-Based Tests', () => {
               offset: 0,
             });
 
-            // Verify sort
             for (let i = 0; i < result.data.length - 1; i++) {
               const current = result.data[i];
               const next = result.data[i + 1];

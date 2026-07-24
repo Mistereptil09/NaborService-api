@@ -1,7 +1,6 @@
 import fc from 'fast-check';
 import { BanService, AddressValidationException } from '../../ban.service';
 
-// Feature: geographical-pipeline, Property 3: Address Input Validation
 describe('Property 3: Address Input Validation', () => {
   let banService: BanService;
 
