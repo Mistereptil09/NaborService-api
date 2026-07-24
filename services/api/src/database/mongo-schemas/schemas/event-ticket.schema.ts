@@ -46,7 +46,6 @@ export class EventTicket {
 
 export const EventTicketSchema = SchemaFactory.createForClass(EventTicket);
 
-// Indexes
 EventTicketSchema.index({ pg_event_id: 1, pg_user_id: 1 }, { unique: true });
 EventTicketSchema.index({ 'qr_payload.hmac_sha256': 1 }, { unique: true });
 EventTicketSchema.index({ issued_at: -1 });

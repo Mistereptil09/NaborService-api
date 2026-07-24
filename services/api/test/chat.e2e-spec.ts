@@ -21,13 +21,9 @@ describe('Chat Module (e2e)', () => {
     await clearRedis(app);
   });
 
-  // ── Auth ────────────────────────────────────────────────────
-
   it('should return 401 without token', async () => {
     await request(app.getHttpServer()).get('/v1/chat/groups').expect(401);
   });
-
-  // ── Groups CRUD ─────────────────────────────────────────────
 
   describe('Groups', () => {
     it('POST /v1/chat/groups should create a group', async () => {
@@ -117,8 +113,6 @@ describe('Chat Module (e2e)', () => {
     });
   });
 
-  // ── Members ─────────────────────────────────────────────────
-
   describe('Members', () => {
     it('GET /v1/chat/groups/:id/members should list members', async () => {
       const { email, password } = await createTestUser(app, 'owner');
@@ -161,8 +155,6 @@ describe('Chat Module (e2e)', () => {
     });
   });
 
-  // ── Mute ────────────────────────────────────────────────────
-
   describe('Mute', () => {
     it('POST + DELETE /v1/chat/groups/:id/mute should toggle mute', async () => {
       const { email, password } = await createTestUser(app, 'muter');
@@ -174,14 +166,12 @@ describe('Chat Module (e2e)', () => {
         .send({ name: 'Mute Test' })
         .expect(201);
 
-      // Mute
       await request(app.getHttpServer())
         .post(`/v1/chat/groups/${group.body.id}/mute`)
         .set('Authorization', `Bearer ${token}`)
         .send({ duration_minutes: 60 })
         .expect(201);
 
-      // Unmute
       await request(app.getHttpServer())
         .delete(`/v1/chat/groups/${group.body.id}/mute`)
         .set('Authorization', `Bearer ${token}`)

@@ -35,7 +35,6 @@ describe('Property 4: Per-item binary size enforcement', () => {
         });
 
         const err = doc.validateSync();
-        // Validation should pass since database-level photo size checks are removed and delegated to NestJS services
         expect(err).toBeUndefined();
       }),
       { numRuns: 100 },

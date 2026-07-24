@@ -31,7 +31,6 @@ export class EventModerationService {
       throw new NotFoundException('Event not found');
     }
 
-    // Record action
     const actionRecord = this.moderationRepo.create({
       moderatorId,
       eventId,
@@ -40,7 +39,6 @@ export class EventModerationService {
     });
     await this.moderationRepo.save(actionRecord);
 
-    // Apply status change
     if (dto.action === 'cancelled') {
       event.status = EventStatusEnum.CANCELLED;
       event.cancelledAt = new Date();
@@ -51,15 +49,11 @@ export class EventModerationService {
         `Moderation: ${dto.reason}`,
         event.cancelledAt,
       );
-
-      // Note: Refund logic would normally be triggered here or enqueued.
-      // For brevity, assuming state machine or a worker handles cancellation refunds.
     } else if (dto.action === 'restored') {
       event.status = EventStatusEnum.OPEN; // Or previous state
       event.cancelledAt = null;
       await this.eventRepo.save(event);
     }
-    // 'warned' does not change event status
 
     return actionRecord;
   }

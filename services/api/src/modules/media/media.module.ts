@@ -31,9 +31,6 @@ import { MessagingModule } from '../messaging/messaging.module';
       Evenement,
       EventParticipant,
     ]),
-    // Cycle avec MessagingModule (qui importe MediaModule pour les pièces
-    // jointes de message) — nécessaire pour notifier le groupe en temps réel
-    // (socket) une fois l'upload d'une pièce jointe terminé.
     forwardRef(() => MessagingModule),
   ],
   providers: [GridFSService, UploadPipeline, MediaService],

@@ -43,7 +43,9 @@ export class EventMediaService {
       eventId,
     );
     const ownerType =
-      isImage && existingCover.length === 0 ? 'event_cover' : 'event_attachment';
+      isImage && existingCover.length === 0
+        ? 'event_cover'
+        : 'event_attachment';
 
     const media = await this.mediaService.upload(file, ownerType, eventId);
 
@@ -55,10 +57,6 @@ export class EventMediaService {
     };
   }
 
-  /**
-   * List existing media for an event (public read, no ownership check),
-   * mirroring the listings media contract ({ id, order, caption }).
-   */
   async listMedia(
     eventId: string,
   ): Promise<{ id: string; order: number | null; caption: string | null }[]> {
@@ -114,10 +112,6 @@ export class EventMediaService {
     await this.mediaService.delete(mediaId);
   }
 
-  /**
-   * Cover identifier per event, batched for a page of events — one query for
-   * the whole feed instead of one media call per card.
-   */
   async findCoverMediaIds(eventIds: string[]): Promise<Map<string, string>> {
     if (eventIds.length === 0) return new Map();
     return this.mediaService.findCoverImages('event_cover', eventIds);

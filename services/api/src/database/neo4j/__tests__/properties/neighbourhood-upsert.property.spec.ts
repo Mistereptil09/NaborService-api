@@ -36,7 +36,6 @@ describe('Feature: neo4j-init-service, Property 6: Neighbourhood upsert preserve
           expect(mockNeo4jService.run).toHaveBeenCalledTimes(1);
           const [cypher, params] = mockNeo4jService.run.mock.calls[0];
 
-          // Structural validation
           expect(cypher).toContain('MERGE (n:Neighbourhood { pg_id: $pgId })');
           expect(cypher).toContain(
             "n.centroid = point({latitude: $latitude, longitude: $longitude, crs: 'wgs-84'})",
@@ -44,7 +43,6 @@ describe('Feature: neo4j-init-service, Property 6: Neighbourhood upsert preserve
           expect(cypher).toContain('n.created_at = datetime()');
           expect(cypher).toContain('n.updated_at = datetime()');
 
-          // Parameter matching
           expect(params!.pgId).toBe(dto.pgId);
           expect(params!.latitude).toBe(dto.latitude);
           expect(params!.longitude).toBe(dto.longitude);

@@ -76,7 +76,6 @@ export class DslController {
     try {
       const result = await this.dslService.executeQuery(query);
 
-      // Log audit asynchrone (non-bloquant)
       this.dslService.logQuery({
         userId: req.user.sub,
         userRole: req.user.role,
@@ -96,7 +95,6 @@ export class DslController {
       const errorMessage =
         error instanceof Error ? error.message : 'Erreur inconnue';
 
-      // Log audit asynchrone même en cas d'erreur
       this.dslService.logQuery({
         userId: req.user.sub,
         userRole: req.user.role,

@@ -73,14 +73,12 @@ describe('User & Authentication entities metadata', () => {
       const findCol = (name: string) =>
         metadata.columns.find((c) => c.databaseName === name)!;
 
-      // Non-nullable columns
       expect(findCol('first_name').isNullable).toBe(false);
       expect(findCol('last_name').isNullable).toBe(false);
       expect(findCol('email').isNullable).toBe(false);
       expect(findCol('password_hash').isNullable).toBe(false);
       expect(findCol('locale').isNullable).toBe(false);
 
-      // Nullable columns
       expect(findCol('totp_secret').isNullable).toBe(true);
       expect(findCol('stripe_account_id').isNullable).toBe(true);
       expect(findCol('neighbourhood_id').isNullable).toBe(true);
@@ -92,7 +90,6 @@ describe('User & Authentication entities metadata', () => {
       expect(findCol('updated_at').isNullable).toBe(true);
       expect(findCol('deleted_at').isNullable).toBe(true);
 
-      // Types
       expect(findCol('first_name').type).toBe('varchar');
       expect(findCol('last_name').type).toBe('varchar');
       expect(findCol('email').type).toBe('varchar');
@@ -257,20 +254,17 @@ describe('User & Authentication entities metadata', () => {
       const findCol = (name: string) =>
         metadata.columns.find((c) => c.databaseName === name)!;
 
-      // Non-nullable
       expect(findCol('user_id').isNullable).toBe(false);
       expect(findCol('refresh_token_hash').isNullable).toBe(false);
       expect(findCol('created_at').isNullable).toBe(false);
       expect(findCol('last_used_at').isNullable).toBe(false);
       expect(findCol('expires_at').isNullable).toBe(false);
 
-      // Nullable
       expect(findCol('device_name').isNullable).toBe(true);
       expect(findCol('ip_address').isNullable).toBe(true);
       expect(findCol('user_agent').isNullable).toBe(true);
       expect(findCol('revoked_at').isNullable).toBe(true);
 
-      // Types
       expect(findCol('user_id').type).toBe('uuid');
       expect(findCol('refresh_token_hash').type).toBe('varchar');
       expect(findCol('device_name').type).toBe('varchar');

@@ -55,7 +55,6 @@ describe('IncidentDocument Schema', () => {
   it('should require all non-optional fields', () => {
     const doc = new IncidentDocumentModel({
       pg_incident_id: 'inc_123',
-      // missing body, created_at, updated_at, synced_at
     });
     const err = doc.validateSync();
     expect(err).toBeDefined();

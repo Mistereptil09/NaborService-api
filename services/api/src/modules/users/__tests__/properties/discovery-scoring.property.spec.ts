@@ -1,6 +1,5 @@
 import fc from 'fast-check';
 
-// Feature: geographical-pipeline, Property 14: Discovery Scoring Formula
 describe('Property 14: Discovery Scoring Formula', () => {
   it('should compute total score as geoScore + socialScore + interestScore', () => {
     fc.assert(

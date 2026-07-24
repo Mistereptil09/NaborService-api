@@ -14,7 +14,6 @@ import { ListingStatusEnum } from '../../../../common/enums';
 
 describe('API Module Fixes Spec Verification', () => {
   describe('Property 1: Bug Condition (Exploration Tests)', () => {
-    // 1. WebSocket Auth
     it('1.1: WebSocket gateway handleConnection rejects clients without valid JWT', async () => {
       const mockJwtService = {
         verify: jest.fn().mockImplementation(() => {
@@ -35,7 +34,6 @@ describe('API Module Fixes Spec Verification', () => {
       expect(mockClient.disconnect).toHaveBeenCalled();
     });
 
-    // 2. LoginDto validations
     it('1.2: LoginDto validation rejects invalid payloads', async () => {
       await fc.assert(
         fc.asyncProperty(
@@ -56,7 +54,6 @@ describe('API Module Fixes Spec Verification', () => {
       );
     });
 
-    // 3. Global Broadcast
     it('1.3: ListingsGateway emitStatusChanged does not broadcast globally', () => {
       const mockRoom = {
         emit: jest.fn(),
@@ -75,7 +72,6 @@ describe('API Module Fixes Spec Verification', () => {
       expect(mockServer.emit).not.toHaveBeenCalled();
     });
 
-    // 4. Duplicate transaction expressInterest check
     it('1.5: ListingStateMachineService expressInterest throws ConflictException if transaction exists', async () => {
       const mockListingRepo = {
         update: jest.fn(),
@@ -112,7 +108,6 @@ describe('API Module Fixes Spec Verification', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    // 5. Desktop token 90-day expiry via SSO
     it('1.19: SsoService signs desktop token with 90 days expiry', async () => {
       const mockRedis = {
         get: jest.fn().mockResolvedValue(
@@ -148,7 +143,6 @@ describe('API Module Fixes Spec Verification', () => {
       expect(mockTokenService.generateRefreshToken).toHaveBeenCalled();
     });
 
-    // 6. exportJson DB error propagation
     it('1.13: UsersService exportJson propagates DB errors instead of silent empty arrays', async () => {
       const mockUserRepo = {
         findOne: jest.fn().mockResolvedValue({ id: 'u1' }),
@@ -179,7 +173,6 @@ describe('API Module Fixes Spec Verification', () => {
   });
 
   describe('Property 2: Preservation (Regression Testing)', () => {
-    // 1. Valid login values validation passes
     it('3.2: LoginDto validation passes for valid credentials', async () => {
       await fc.assert(
         fc.asyncProperty(
@@ -208,7 +201,6 @@ describe('API Module Fixes Spec Verification', () => {
       );
     });
 
-    // 2. WebSocket gateway allows connection with valid JWT
     it('3.1: WebSocket gateway allows connection when token is valid', () => {
       const mockJwtService = {
         verify: jest.fn().mockReturnValue({ sub: 'user-1' }),
@@ -227,7 +219,6 @@ describe('API Module Fixes Spec Verification', () => {
       expect(mockClient.disconnect).not.toHaveBeenCalled();
     });
 
-    // 3. Single expressInterest creates a transaction
     it('3.5: ListingStateMachineService expressInterest creates transaction when no transaction exists', async () => {
       const mockListingRepo = {
         update: jest.fn().mockResolvedValue({ affected: 1 }),

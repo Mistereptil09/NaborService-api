@@ -21,12 +21,9 @@ describe('Feature: neo4j-init-service, Property 3: Init service graceful skip of
 
           const mockNeo4jService = {
             run: jest.fn().mockImplementation(async (cypher: string) => {
-              // Extract the index name from the Cypher query: CREATE RANGE INDEX index_name ...
               const match = cypher.match(/INDEX\s+(\w+)\s+IF/i);
               const name = match ? match[1] : '';
 
-              // Find if this index name corresponds to a skipped one
-              // INDEX_DEFINITIONS names are: user_pg_id (idx 0), listing_pg_id (idx 1), etc.
               const names = [
                 'user_pg_id',
                 'listing_pg_id',
@@ -53,7 +50,6 @@ describe('Feature: neo4j-init-service, Property 3: Init service graceful skip of
 
           const service = new Neo4jInitService(mockDriver, mockNeo4jService);
 
-          // Should succeed
           await service.onModuleInit();
 
           expect(mockNeo4jService.run).toHaveBeenCalledTimes(10);

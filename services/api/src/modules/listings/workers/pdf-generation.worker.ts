@@ -96,8 +96,6 @@ export class PdfGenerationWorker extends WorkerHost {
     const requesterName = `${transaction.requester.firstName} ${transaction.requester.lastName}`;
     const date = new Date().toISOString();
 
-    // Clauses par type de service : première catégorie connue en remontant
-    // la chaîne des parents, sinon clauses génériques.
     const categoryChain = await this.getCategoryChain(listing.categoryId);
     const templateKey = this.templateService.resolveTemplateKey(categoryChain);
     const categoryName = categoryChain[0] ?? null;
@@ -131,7 +129,6 @@ export class PdfGenerationWorker extends WorkerHost {
       throw new Error(`Type de job ${jobName} inconnu`);
     }
 
-    // 1. Upload PDF to GridFS
     const filename = `${type}_${transaction.id}.pdf`;
     const gridfsFileId = await this.gridfsService.upload(
       pdfBuffer,
@@ -144,7 +141,6 @@ export class PdfGenerationWorker extends WorkerHost {
       .update(pdfBuffer)
       .digest('hex');
 
-    // 2. Create media_file metadata document for retrieval
     const mediaDoc = new this.mediaFileModel({
       owner_type: 'contract',
       owner_id: transaction.id,
@@ -158,7 +154,6 @@ export class PdfGenerationWorker extends WorkerHost {
     });
     await mediaDoc.save();
 
-    // 3. Store contract metadata in MongoDB contracts collection
     const contract = new this.contractModel({
       pg_transaction_id: transaction.id,
       type,
@@ -197,7 +192,6 @@ export class PdfGenerationWorker extends WorkerHost {
 
     const savedContract = await contract.save();
 
-    // 4. Update transaction references in PostgreSQL
     if (type === 'contract') {
       transaction.contractMongoId = savedContract._id.toString();
     } else {
@@ -206,8 +200,6 @@ export class PdfGenerationWorker extends WorkerHost {
 
     await this.transactionRepository.save(transaction);
 
-    // Once the contract is generated, notify both parties that a signature is
-    // pending (transactional — both must sign).
     if (type === 'contract') {
       for (const partyId of [transaction.providerId, transaction.requesterId]) {
         try {
@@ -231,11 +223,6 @@ export class PdfGenerationWorker extends WorkerHost {
     return savedContract;
   }
 
-  /**
-   * Génère le PDF final (signatures embarquées + certificat de signature)
-   * une fois que les deux parties ont signé. Idempotent : no-op si le PDF
-   * signé existe déjà (rejeu BullMQ).
-   */
   private async finalizeSignedContract(transactionId: string): Promise<any> {
     const contract = await this.contractModel.findOne({
       pg_transaction_id: transactionId,
@@ -318,11 +305,9 @@ export class PdfGenerationWorker extends WorkerHost {
     return contract;
   }
 
-  /** Noms de catégorie du plus spécifique au plus général. */
   private async getCategoryChain(categoryId: number | null): Promise<string[]> {
     const chain: string[] = [];
     let currentId = categoryId;
-    // Garde-fou anti-boucle sur la hiérarchie des catégories.
     for (let depth = 0; currentId != null && depth < 10; depth++) {
       const category = await this.categoryRepository.findOne({
         where: { id: currentId },

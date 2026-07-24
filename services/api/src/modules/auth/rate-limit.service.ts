@@ -7,10 +7,6 @@ import { RateLimitResult } from './interfaces/auth.interfaces';
 export class RateLimitService {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
-  /**
-   * Checks if a request is allowed under the rate limit configuration.
-   * Uses Redis INCR + EXPIRE to track requests within a sliding/fixed window.
-   */
   async check(
     key: string,
     limit: number,
@@ -49,9 +45,6 @@ export class RateLimitService {
     };
   }
 
-  /**
-   * Tracks and enforces per-account login attempts.
-   */
   async incrementLoginAttemptByUserId(userId: string): Promise<void> {
     const key = `ratelimit:login:${userId}`;
     const result = await this.check(key, 10, 900);
@@ -63,9 +56,6 @@ export class RateLimitService {
     }
   }
 
-  /**
-   * Tracks and enforces per-account TOTP attempts.
-   */
   async incrementTotpAttempt(userId: string): Promise<void> {
     const key = `ratelimit:totp:${userId}`;
     const result = await this.check(key, 3, 300);

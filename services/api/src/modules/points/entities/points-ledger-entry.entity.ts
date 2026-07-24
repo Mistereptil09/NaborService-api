@@ -20,8 +20,6 @@ export class PointsLedgerEntry {
   @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   id: string;
 
-  // null only for platform-side bookkeeping entries (e.g. commission) that
-  // don't belong to any single user's wallet.
   @Column({ name: 'user_id', type: 'uuid', nullable: true })
   userId: string | null;
 
@@ -32,12 +30,9 @@ export class PointsLedgerEntry {
   })
   type: PointsLedgerEntryTypeEnum;
 
-  // signed: positive = credit, negative = debit
   @Column({ name: 'amount_points', type: 'int', nullable: false })
   amountPoints: number;
 
-  // snapshot of the user's pointsBalance immediately after this entry was
-  // applied; null when userId is null (no wallet was touched).
   @Column({ name: 'balance_after_points', type: 'int', nullable: true })
   balanceAfterPoints: number | null;
 

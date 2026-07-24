@@ -51,8 +51,6 @@ describe('Admin Neighbourhoods (e2e)', () => {
     await clearRedis(app);
   });
 
-  // ── Auth guards ─────────────────────────────────────────────
-
   describe('Authorization', () => {
     it('should return 401 without auth token', async () => {
       await request(app.getHttpServer())
@@ -70,8 +68,6 @@ describe('Admin Neighbourhoods (e2e)', () => {
         .expect(403);
     });
   });
-
-  // ── CRUD with admin ─────────────────────────────────────────
 
   describe('Neighbourhood CRUD (admin)', () => {
     async function setupAdmin() {
@@ -125,7 +121,6 @@ describe('Admin Neighbourhoods (e2e)', () => {
     it('POST /v1/admin/neighbourhoods/overlap-check should detect overlaps', async () => {
       const adminToken = await setupAdmin();
 
-      // First create a neighbourhood
       await request(app.getHttpServer())
         .post('/v1/admin/neighbourhoods')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -139,7 +134,6 @@ describe('Admin Neighbourhoods (e2e)', () => {
         })
         .expect(201);
 
-      // Then check overlap with a polygon that overlaps it
       const res = await request(app.getHttpServer())
         .post('/v1/admin/neighbourhoods/overlap-check')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -165,7 +159,6 @@ describe('Admin Neighbourhoods (e2e)', () => {
     it('PATCH /v1/admin/neighbourhoods/:id should update metadata', async () => {
       const adminToken = await setupAdmin();
 
-      // Create first
       await request(app.getHttpServer())
         .post('/v1/admin/neighbourhoods')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -179,7 +172,6 @@ describe('Admin Neighbourhoods (e2e)', () => {
         })
         .expect(201);
 
-      // Update
       const res = await request(app.getHttpServer())
         .patch('/v1/admin/neighbourhoods/update-me')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -202,7 +194,6 @@ describe('Admin Neighbourhoods (e2e)', () => {
     it('DELETE /v1/admin/neighbourhoods/:id should delete a neighbourhood without residents', async () => {
       const adminToken = await setupAdmin();
 
-      // Create
       await request(app.getHttpServer())
         .post('/v1/admin/neighbourhoods')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -216,7 +207,6 @@ describe('Admin Neighbourhoods (e2e)', () => {
         })
         .expect(201);
 
-      // Delete
       const res = await request(app.getHttpServer())
         .delete('/v1/admin/neighbourhoods/delete-me')
         .set('Authorization', `Bearer ${adminToken}`)

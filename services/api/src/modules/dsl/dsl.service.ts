@@ -145,7 +145,6 @@ export class DslService {
       const entry = this.dslQueryRepository.create(params);
       await this.dslQueryRepository.save(entry);
     } catch (error) {
-      // Non-bloquant : le log d'audit ne doit pas faire échouer la requête
       this.logger.error(`Failed to log DSL query: ${(error as Error).message}`);
     }
   }
@@ -164,8 +163,6 @@ export class DslService {
       take: cappedLimit,
     });
 
-    // { data, meta: { total, offset, limit } } — same pagination envelope
-    // used across the rest of the API.
     return { data, meta: { total, offset, limit: cappedLimit } };
   }
 }

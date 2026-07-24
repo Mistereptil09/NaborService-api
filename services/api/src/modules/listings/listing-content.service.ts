@@ -44,13 +44,11 @@ export class ListingContentService {
       throw new NotFoundException('Contenu introuvable');
     }
 
-    // Exclude photo binary data
     if (doc.photos) {
       doc.photos = doc.photos.map((p: any) => {
         const { data, ...rest } = p;
         return {
           ...rest,
-          // Convert mongo ObjectId/id to string if present
           _id: p._id ? p._id.toString() : undefined,
         };
       });

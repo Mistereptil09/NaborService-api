@@ -34,8 +34,6 @@ describe('Listings Module (e2e)', () => {
     await clearQueueJobs(app);
   });
 
-  // ── CRUD ─────────────────────────────────────────────────────
-
   describe('CRUD', () => {
     it('POST /v1/listings should create a listing', async () => {
       const { email, password } = await createTestUser(app, 'creator');
@@ -164,7 +162,6 @@ describe('Listings Module (e2e)', () => {
 
       expect(res.body).toHaveProperty('success', true);
 
-      // Should now be 404
       await request(app.getHttpServer())
         .get(`/v1/listings/${created.id}`)
         .set('Authorization', `Bearer ${token}`)
@@ -172,11 +169,8 @@ describe('Listings Module (e2e)', () => {
     });
   });
 
-  // ── State Machine ────────────────────────────────────────────
-
   describe('State Machine', () => {
     it('should complete the full lifecycle: open → pending → in_progress → closed', async () => {
-      // Setup two users
       const creator = await createTestUser(app, 'creator');
       const requester = await createTestUser(app, 'requester');
       const { token: creatorToken } = await loginAndGetToken(
@@ -190,13 +184,11 @@ describe('Listings Module (e2e)', () => {
         requester.password,
       );
 
-      // 1. Creator creates a listing → OPEN
       const listing = await createListing(app, creatorToken, {
         title: 'Lifecycle Test',
       });
       expect(listing.status).toBe('open');
 
-      // 2. Requester expresses interest → PENDING
       const interestRes = await request(app.getHttpServer())
         .post(`/v1/listings/${listing.id}/interest`)
         .set('Authorization', `Bearer ${requesterToken}`)
@@ -205,7 +197,6 @@ describe('Listings Module (e2e)', () => {
       expect(interestRes.body.listing).toHaveProperty('status', 'pending');
       const transactionId = interestRes.body.transaction.id;
 
-      // 3. Creator accepts → IN_PROGRESS
       const acceptRes = await request(app.getHttpServer())
         .post(`/v1/listings/${listing.id}/accept`)
         .set('Authorization', `Bearer ${creatorToken}`)
@@ -213,7 +204,6 @@ describe('Listings Module (e2e)', () => {
 
       expect(acceptRes.body).toHaveProperty('status', 'in_progress');
 
-      // 4. Both parties confirm → CLOSED
       await request(app.getHttpServer())
         .post(`/v1/listings/${listing.id}/confirm`)
         .set('Authorization', `Bearer ${creatorToken}`)
@@ -281,22 +271,18 @@ describe('Listings Module (e2e)', () => {
         other.password,
       );
 
-      // Creator makes listing, other expresses interest
       const listing = await createListing(app, creatorToken);
       await request(app.getHttpServer())
         .post(`/v1/listings/${listing.id}/interest`)
         .set('Authorization', `Bearer ${otherToken}`)
         .expect(201);
 
-      // Other tries to accept (should fail — only creator can accept)
       await request(app.getHttpServer())
         .post(`/v1/listings/${listing.id}/accept`)
         .set('Authorization', `Bearer ${otherToken}`)
         .expect(403);
     });
   });
-
-  // ── Report ───────────────────────────────────────────────────
 
   describe('Report', () => {
     it('POST /v1/listings/:id/report should report a listing', async () => {
@@ -347,8 +333,6 @@ describe('Listings Module (e2e)', () => {
         .expect(400);
     });
   });
-
-  // ── Auth Guards ──────────────────────────────────────────────
 
   describe('Auth', () => {
     it('should return 401 without auth token', async () => {

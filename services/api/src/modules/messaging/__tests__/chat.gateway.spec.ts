@@ -80,7 +80,6 @@ describe('ChatGateway', () => {
     }).compile();
 
     gateway = module.get(ChatGateway);
-    // Mock the server
     (gateway as any).server = {
       to: jest.fn().mockReturnValue({ emit: jest.fn() }),
       emit: jest.fn(),
@@ -88,8 +87,6 @@ describe('ChatGateway', () => {
   });
 
   it('should be defined', () => expect(gateway).toBeDefined());
-
-  // ── Connection ──────────────────────────────────────────
 
   describe('handleConnection', () => {
     it('should authenticate with valid token', async () => {
@@ -114,8 +111,6 @@ describe('ChatGateway', () => {
       expect(client.disconnect).toHaveBeenCalled();
     });
   });
-
-  // ── message:send ────────────────────────────────────────
 
   describe('message:send', () => {
     it('should send and broadcast to group', async () => {
@@ -153,8 +148,6 @@ describe('ChatGateway', () => {
     });
   });
 
-  // ── message:react / message:unreact ─────────────────────
-
   describe('message:react', () => {
     it('should react and broadcast the updated reaction list to the group room', async () => {
       const client = mockSocket();
@@ -190,8 +183,6 @@ describe('ChatGateway', () => {
     });
   });
 
-  // ── message:read ────────────────────────────────────────
-
   describe('message:read', () => {
     it('should mark read and broadcast ack', async () => {
       const client = mockSocket();
@@ -205,8 +196,6 @@ describe('ChatGateway', () => {
     });
   });
 
-  // ── message:edit ────────────────────────────────────────
-
   describe('message:edit', () => {
     it('should edit and broadcast', async () => {
       const client = mockSocket();
@@ -219,8 +208,6 @@ describe('ChatGateway', () => {
     });
   });
 
-  // ── message:delete ──────────────────────────────────────
-
   describe('message:delete', () => {
     it('should delete and broadcast', async () => {
       const client = mockSocket();
@@ -232,8 +219,6 @@ describe('ChatGateway', () => {
       expect(result.deleted).toBe(true);
     });
   });
-
-  // ── message:pin / message:unpin ─────────────────────────
 
   describe('message:pin', () => {
     it('should pin and broadcast to the group room', async () => {
@@ -266,8 +251,6 @@ describe('ChatGateway', () => {
     });
   });
 
-  // ── group:read ───────────────────────────────────────────
-
   describe('group:read', () => {
     it('should mark the conversation read', async () => {
       const client = mockSocket();
@@ -281,16 +264,12 @@ describe('ChatGateway', () => {
     });
   });
 
-  // ── emitToGroup ──────────────────────────────────────────
-
   describe('emitToGroup', () => {
     it('should emit the given event to the group room', () => {
       gateway.emitToGroup('g1', 'message:received', { id: 'm1' });
       expect((gateway as any).server.to).toHaveBeenCalledWith('chat:group:g1');
     });
   });
-
-  // ── typing ──────────────────────────────────────────────
 
   describe('typing:start', () => {
     it('should set Redis TTL and broadcast', async () => {
@@ -309,8 +288,6 @@ describe('ChatGateway', () => {
       expect(redis.del).toHaveBeenCalledWith('typing:g1:u1');
     });
   });
-
-  // ── room management ─────────────────────────────────────
 
   describe('join_group', () => {
     it('should join room if member', async () => {

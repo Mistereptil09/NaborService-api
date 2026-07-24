@@ -43,8 +43,6 @@ import {
 export class IncidentsController {
   constructor(private readonly incidentsService: IncidentsService) {}
 
-  // ── List ─────────────────────────────────────────────────
-
   @Get()
   @ApiOperation({ summary: 'Lister les incidents (filtrés et paginés)' })
   @ApiOkResponse({
@@ -59,8 +57,6 @@ export class IncidentsController {
     return this.incidentsService.findAll(req.user.sub, filters);
   }
 
-  // ── Create ───────────────────────────────────────────────
-
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Signaler un incident' })
@@ -70,8 +66,6 @@ export class IncidentsController {
   async create(@Body() dto: CreateIncidentDto, @Req() req: any) {
     return this.incidentsService.create(req.user.sub, dto);
   }
-
-  // ── Detail ───────────────────────────────────────────────
 
   @Get(':incident_id')
   @ApiOperation({ summary: "Détail d'un incident" })
@@ -84,8 +78,6 @@ export class IncidentsController {
   async get(@Param('incident_id') id: string) {
     return this.incidentsService.findOne(id);
   }
-
-  // ── Update ───────────────────────────────────────────────
 
   @Patch(':incident_id')
   @ApiOperation({
@@ -103,8 +95,6 @@ export class IncidentsController {
   ) {
     return this.incidentsService.update(id, req.user.sub, dto, req.user.role);
   }
-
-  // ── Assign ───────────────────────────────────────────────
 
   @Post(':incident_id/assign')
   @Roles('moderator', 'admin')
@@ -124,8 +114,6 @@ export class IncidentsController {
     return this.incidentsService.assign(id, req.user.sub, dto.assignee_id);
   }
 
-  // ── Resolve ──────────────────────────────────────────────
-
   @Post(':incident_id/resolve')
   @Roles('moderator', 'admin')
   @UseGuards(RolesGuard)
@@ -139,8 +127,6 @@ export class IncidentsController {
   async resolve(@Param('incident_id') id: string) {
     return this.incidentsService.resolve(id);
   }
-
-  // ── Delete ───────────────────────────────────────────────
 
   @Delete(':incident_id')
   @HttpCode(HttpStatus.OK)

@@ -42,7 +42,6 @@ export class UpdatesService {
       return this.cachedManifest;
     }
 
-    // Déduplique les requêtes concurrentes vers GitHub.
     this.inflight ??= this.fetchManifest().finally(() => {
       this.inflight = null;
     });
@@ -73,7 +72,6 @@ export class UpdatesService {
       return manifest;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      // En cas d'échec GitHub, sert le cache même expiré plutôt que rien.
       if (this.cachedManifest) {
         this.logger.warn(
           `Failed to refresh update manifest, serving stale cache: ${message}`,

@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { PointsCashout } from './entities/points-cashout.entity';
@@ -24,7 +28,10 @@ export class PointsCashoutService {
     private readonly adminConfigService: AdminConfigService,
   ) {}
 
-  async createCashout(userId: string, amountPoints: number): Promise<PointsCashout> {
+  async createCashout(
+    userId: string,
+    amountPoints: number,
+  ): Promise<PointsCashout> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('Utilisateur introuvable');
@@ -48,8 +55,6 @@ export class PointsCashoutService {
       });
       await manager.save(cashout);
 
-      // Débit immédiat (verrou pessimiste dans PointsService) pour empêcher
-      // tout double retrait pendant l'appel réseau vers Stripe ci-dessous.
       await this.pointsService.debit(
         {
           userId,
@@ -73,8 +78,6 @@ export class PointsCashoutService {
         cashout.completedAt = new Date();
         return manager.save(cashout);
       } catch (err: any) {
-        // Le virement Stripe a échoué : on recrédite les points débités
-        // au lieu de laisser l'utilisateur perdre son solde pour rien.
         await this.pointsService.credit(
           {
             userId,

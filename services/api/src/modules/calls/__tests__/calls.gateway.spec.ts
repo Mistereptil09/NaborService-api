@@ -83,10 +83,6 @@ describe('CallsGateway', () => {
       expect(callsService.joinCall).toHaveBeenCalledWith('call1', 'u1');
       expect(client.join).toHaveBeenCalledWith('call:call1');
       expect(gateway.server.to).toHaveBeenCalledWith('call:call1');
-      // Must NOT be named `event` — @nestjs/platform-socket.io's IoAdapter
-      // treats a truthy `.event` key on the return value as a fire-and-forget
-      // socket.emit(response.event, response.data) instead of delivering it
-      // as the caller's ack, silently dropping `participants`.
       expect(result).not.toHaveProperty('event');
       expect(result.status).toBe('joined');
     });

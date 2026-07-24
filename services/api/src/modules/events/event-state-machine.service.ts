@@ -56,7 +56,6 @@ export class EventStateMachineService {
     event.status = EventStatusEnum.PUBLISHED;
     event.publishedAt = new Date();
 
-    // Create chat group
     const chatGroup = this.chatGroupRepo.create({
       name: `Chat: ${event.title}`,
       createdBy: organiserId,
@@ -155,7 +154,6 @@ export class EventStateMachineService {
         }
       }
 
-      // Distribute completion rewards to all registered participants
       if (event.rewardPoints > 0) {
         const registeredParticipants = await manager.find(EventParticipant, {
           where: {
@@ -211,7 +209,6 @@ export class EventStateMachineService {
     event.cancelledAt = new Date();
     await this.eventRepo.save(event);
 
-    // Refund logic
     const participants = await this.participantRepo.find({
       where: {
         eventId,
@@ -244,10 +241,8 @@ export class EventStateMachineService {
       }
     });
 
-    // Emit Socket.io event
     this.eventsGateway.emitEventCancelled(eventId, reason, event.cancelledAt);
 
-    // Notify every registered participant (essential — they must be informed).
     const registered = await this.participantRepo.find({
       where: { eventId, status: ParticipantStatusEnum.REGISTERED },
       select: ['userId'],

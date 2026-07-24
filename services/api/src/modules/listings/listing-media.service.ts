@@ -17,9 +17,6 @@ export class ListingMediaService {
     private readonly mediaService: MediaService,
   ) {}
 
-  /**
-   * List existing photos for a listing (public read, no ownership check).
-   */
   async listMedia(
     listingId: string,
   ): Promise<{ id: string; order: number | null; caption: string | null }[]> {
@@ -41,9 +38,6 @@ export class ListingMediaService {
     }));
   }
 
-  /**
-   * Upload media for a listing. Delegates to the new MediaService.
-   */
   async uploadMedia(
     userId: string,
     listingId: string,
@@ -76,9 +70,6 @@ export class ListingMediaService {
     };
   }
 
-  /**
-   * Delete media for a listing. Delegates to the new MediaService.
-   */
   async deleteMedia(
     userId: string,
     listingId: string,

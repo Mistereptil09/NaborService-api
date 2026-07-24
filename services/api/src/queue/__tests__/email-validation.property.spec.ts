@@ -1,7 +1,6 @@
 import fc from 'fast-check';
 import { validateEmailPayload } from '../validators/email-payload.validator';
 
-// Feature: bullmq-integration, Property 3: Email payload validation accepts valid payloads and rejects invalid ones
 describe('Email Payload Validation', () => {
   it('should accept valid payloads', () => {
     const validEmailArb = fc.emailAddress().filter((e) => e.length <= 254);

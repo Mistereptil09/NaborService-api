@@ -73,8 +73,6 @@ export class UsersController {
     private readonly socialService: UserSocialService,
   ) {}
 
-  // --- Profile ---
-
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -119,8 +117,6 @@ export class UsersController {
     await this.usersService.softDelete(req.user.sub, totpCode);
   }
 
-  // --- RGPD Export ---
-
   @Get('me/export')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -158,8 +154,6 @@ export class UsersController {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.send(csv);
   }
-
-  // --- Media ---
 
   @Post('me/avatar')
   @UseGuards(JwtAuthGuard)
@@ -233,8 +227,6 @@ export class UsersController {
     await this.mediaService.deleteMedia(req.user.sub, 'banner');
   }
 
-  // --- Security ---
-
   @Patch('me/password')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -266,8 +258,6 @@ export class UsersController {
   async changeEmail(@Req() req: any, @Body() dto: ChangeEmailDto) {
     await this.securityService.changeEmail(req.user.sub, dto);
   }
-
-  // --- Preferences ---
 
   @Get('me/locale')
   @UseGuards(JwtAuthGuard)
@@ -323,8 +313,6 @@ export class UsersController {
       dto,
     );
   }
-
-  // --- RGPD Right of Rectification / Restriction / Opposition ---
 
   @Patch('me/personal-data')
   @UseGuards(JwtAuthGuard)
@@ -412,8 +400,6 @@ export class UsersController {
   async unrestrict(@Req() req: { user: JwtPayload }) {
     await this.rgpdService.deactivateRestriction(req.user.sub);
   }
-
-  // --- Discovery / Search ---
 
   @Get('search')
   @UseGuards(JwtAuthGuard)

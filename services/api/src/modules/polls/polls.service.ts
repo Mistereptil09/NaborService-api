@@ -24,14 +24,6 @@ export class PollsService {
     @InjectRepository(User) private readonly userRepo: Repository<User>,
   ) {}
 
-  // ── Polls CRUD ──────────────────────────────────────────
-
-  /**
-   * Liste les sondages visibles d'un groupe / quartier. Seuls les sondages
-   * supprimés sont masqués — les sondages clôturés (closedAt) restent affichés
-   * en lecture seule (résultats figés, statut "clôturé" côté client), au lieu
-   * de disparaître du fil dès la clôture.
-   */
   async listPolls(neighbourhoodId?: string, groupId?: string) {
     const where: any = { deletedAt: IsNull() };
     if (groupId) where.groupId = groupId;
@@ -49,8 +41,6 @@ export class PollsService {
       title: dto.title,
       description: dto.description ?? null,
       creatorId,
-      // group_id est prioritaire : un sondage est rattaché à un groupe OU à un
-      // quartier, jamais aux deux.
       groupId: dto.group_id ?? null,
       neighbourhoodId: dto.group_id ? null : (dto.neighbourhood_id ?? null),
       pollType: dto.poll_type ?? PollTypeEnum.SINGLE,
@@ -70,9 +60,6 @@ export class PollsService {
     if (!poll) throw new NotFoundException('Sondage introuvable');
 
     const [withResults] = await this.attachResults([poll]);
-    // attachResults étale l'entité (`...poll`), donc `creator`/`closedByUser`
-    // (relations User complètes) fuiteraient — on les retire et on ne renvoie
-    // que des DTO d'identité (qui a créé / qui a clôturé le sondage).
     const { creator, closedByUser, ...rest } =
       withResults as typeof withResults & {
         creator?: User | null;
@@ -121,8 +108,6 @@ export class PollsService {
     return this.pollRepo.save(poll);
   }
 
-  // ── Options ─────────────────────────────────────────────
-
   async addOption(
     pollId: string,
     userId: string,
@@ -167,8 +152,6 @@ export class PollsService {
     return this.optionRepo.remove(option);
   }
 
-  // ── Voting ──────────────────────────────────────────────
-
   async getMyVote(pollId: string, userId: string) {
     const poll = await this.getPoll(pollId);
     const votes = await this.voteRepo.find({
@@ -189,8 +172,6 @@ export class PollsService {
     });
     if (!option) throw new NotFoundException('Option introuvable');
 
-    // SINGLE et WEIGHTED sont à choix unique : on retire tout vote antérieur
-    // de cet utilisateur sur ce sondage avant d'enregistrer le nouveau.
     if (
       poll.pollType === PollTypeEnum.SINGLE ||
       poll.pollType === PollTypeEnum.WEIGHTED
@@ -203,8 +184,6 @@ export class PollsService {
       }
     }
 
-    // Le poids du vote provient toujours de l'option (fixé par le créateur du
-    // sondage), jamais du votant.
     const existing = await this.voteRepo.findOne({
       where: { userId, optionId },
     });
@@ -237,11 +216,9 @@ export class PollsService {
     if (poll.closedAt) throw new ForbiddenException('Sondage clôturé');
 
     if (optionId) {
-      // Remove a specific vote
       const vote = await this.voteRepo.findOne({ where: { userId, optionId } });
       if (vote) await this.voteRepo.remove(vote);
     } else {
-      // Remove all votes on this poll
       const votes = await this.voteRepo.find({
         where: { userId, option: { pollId } },
       });
@@ -253,14 +230,6 @@ export class PollsService {
     return { deleted: true };
   }
 
-  // ── Helpers ─────────────────────────────────────────────
-
-  /**
-   * Calcule les résultats agrégés (et, pour les sondages non anonymes, les
-   * votants par option) pour un lot de sondages — 2 requêtes au total quel
-   * que soit le nombre de sondages, pas une par sondage (utilisé par
-   * `listPolls` ET `getPoll`, pour ne jamais avoir la liste sans résultats).
-   */
   private async attachResults(polls: Poll[]) {
     if (polls.length === 0) return [];
     const pollIds = polls.map((p) => p.id);
@@ -292,10 +261,6 @@ export class PollsService {
         return {
           option_id: opt.id,
           label: opt.label,
-          // `weight` est une colonne `numeric` : pg/TypeORM la renvoie en
-          // string ("1.00") pour ne pas perdre de précision — sans Number(),
-          // le reduce fait de la concaténation de chaînes ("0" + "1.00" +
-          // "1.00" = "01.001.00") au lieu d'une somme.
           vote_count: optionVotes.reduce((s, v) => s + Number(v.weight), 0),
           ...(includeVoters && {
             voters: optionVotes

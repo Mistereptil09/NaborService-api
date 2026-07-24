@@ -57,8 +57,6 @@ describe('CategoriesController', () => {
     expect(controller).toBeDefined();
   });
 
-  // ── GET tree ──────────────────────────────────────────
-
   describe('GET /categories/listings', () => {
     it('should return tree for listings', async () => {
       const root = {
@@ -109,8 +107,6 @@ describe('CategoriesController', () => {
       expect(result[0].categoryName).toBe('Sports');
     });
   });
-
-  // ── POST (admin) ─────────────────────────────────────
 
   describe('POST /categories/listings', () => {
     it('should create a root category', async () => {
@@ -175,8 +171,6 @@ describe('CategoriesController', () => {
     });
   });
 
-  // ── PATCH (admin) ────────────────────────────────────
-
   describe('PATCH /categories/listings/:id', () => {
     it('should update category name', async () => {
       const existing = {
@@ -211,8 +205,6 @@ describe('CategoriesController', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
-
-  // ── DELETE (admin, cascade) ──────────────────────────
 
   describe('DELETE /categories/listings/:id', () => {
     it('should delete category and children', async () => {

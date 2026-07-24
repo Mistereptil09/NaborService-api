@@ -130,10 +130,6 @@ describe('Feature: gridfs-media-storage, Property 7: Range Header Partial Conten
           expect(res.headers['content-length']).toBe(
             (end - start + 1).toString(),
           );
-          // GridFS's `end` option is EXCLUSIVE, unlike the inclusive HTTP
-          // Range end — passing `end` unshifted streams one byte fewer than
-          // Content-Length promises, hanging every ranged client until its
-          // own timeout (media elements always use Range requests).
           expect(mockGridFSService.openDownloadStream).toHaveBeenCalledWith(
             gridfsFileId,
             { start, end: end + 1 },

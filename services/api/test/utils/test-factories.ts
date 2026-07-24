@@ -24,7 +24,6 @@ export async function createTestUser(
   const userRepository = app.get('UserRepository');
   const dbUser = await userRepository.findOne({ where: { email } });
 
-  // Register endpoint returns only { message: '...' }, so we use DB fields directly
   return {
     email,
     password,
@@ -51,15 +50,9 @@ export async function loginUser(
   }
   expect(res.status).toBe(200);
 
-  // Note: if TOTP is mandatory, this will return { challenge_token } instead of { access_token }
-  // We handle that dynamically if needed.
   return res;
 }
 
-/**
- * Logs in a user and automatically handles TOTP setup if required.
- * Returns a JWT token and TOTP secret (empty string if no TOTP).
- */
 export async function loginAndGetToken(
   app: INestApplication,
   email: string,
@@ -84,10 +77,6 @@ export async function loginAndGetToken(
   return { token, secret };
 }
 
-/**
- * Creates a user with the admin role.
- * Uses the UserRepository to directly set the role after registration.
- */
 export async function createAdminUser(
   app: INestApplication,
   emailPrefix = 'admin',
@@ -102,10 +91,6 @@ export async function createAdminUser(
   return { email, password, user: { ...user, role: 'admin' }, token, secret };
 }
 
-/**
- * Creates a user with the moderator role.
- * Uses the UserRepository to directly set the role after registration.
- */
 export async function createModeratorUser(
   app: INestApplication,
   emailPrefix = 'moderator',
@@ -126,10 +111,6 @@ export async function createModeratorUser(
   };
 }
 
-/**
- * Creates a listing via POST /v1/listings.
- * Returns the created listing entity.
- */
 export async function createListing(
   app: INestApplication,
   token: string,
@@ -160,10 +141,6 @@ export async function createListing(
   return res.body;
 }
 
-/**
- * Creates an event via POST /v1/events.
- * Returns the created Evenement entity (status: 'draft').
- */
 export async function createEvent(
   app: INestApplication,
   token: string,

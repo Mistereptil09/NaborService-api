@@ -84,10 +84,6 @@ export class PointsService {
     });
   }
 
-  /**
-   * Admin-only signed adjustment. Positive amounts add points, negative amounts
-   * remove points. The resulting balance cannot drop below zero.
-   */
   async adminAdjust(
     params: MutationParams & { description?: string | null },
     manager?: EntityManager,
@@ -112,8 +108,6 @@ export class PointsService {
     });
   }
 
-  // Platform-side bookkeeping entry (e.g. commission) that isn't credited to
-  // any user's wallet — kept purely for ledger/audit completeness.
   async recordCommission(
     params: CommissionParams,
     manager?: EntityManager,

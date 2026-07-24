@@ -40,7 +40,6 @@ export class NotificationsService {
     });
     const saved = await this.repo.save(notif);
 
-    // Emit real-time
     this.gateway.emitToUser(params.userId, 'notification:new', {
       id: saved.id,
       type: saved.type,
@@ -49,18 +48,11 @@ export class NotificationsService {
       created_at: saved.createdAt,
     });
 
-    // Relay by email when the recipient is offline. Best-effort: a relay
-    // failure must never break in-app notification creation.
     await this.relayEmailIfOffline(params.userId, params.type, params.payload);
 
     return saved;
   }
 
-  /**
-   * Enqueues an email for `userId` only when they are offline (no Redis
-   * presence). Opt-out and locale are applied downstream by the mail worker
-   * via the payload's `essential` / `preferenceKey`.
-   */
   private async relayEmailIfOffline(
     userId: string,
     type: NotificationType,
@@ -84,10 +76,6 @@ export class NotificationsService {
         subject: route.subject,
         subjectEn: route.subjectEn,
         templateName: route.templateName,
-        // `firstName` must always be the RECIPIENT's name (used by the
-        // template greeting). In-app payloads may carry the actor's name
-        // instead (e.g. new_follower carries the follower's firstName), so
-        // it is kept under `actorFirstName` and never greets the email.
         templateVariables: {
           ...payload,
           actorFirstName: payload?.firstName,

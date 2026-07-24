@@ -11,10 +11,6 @@ const AES_ALGO = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96 bits
 const GROUP_KEY_CACHE_TTL = 3600; // Redis cache TTL: 1 hour — PG is the source of truth
 
-/**
- * Per-ChatGroup AES-256-GCM key management, shared by any feature that
- * encrypts content at rest scoped to a group (chat messages, polls, ...).
- */
 @Injectable()
 export class GroupKeyService {
   constructor(
@@ -24,7 +20,6 @@ export class GroupKeyService {
     private readonly configService: ConfigService,
   ) {}
 
-  /** Encrypts plaintext with the given key, returning base64 ciphertext/iv/authTag. */
   encrypt(
     plaintext: string,
     key: Buffer,
@@ -43,7 +38,6 @@ export class GroupKeyService {
     };
   }
 
-  /** Decrypts base64 ciphertext/iv/authTag with the given key. Returns null on failure. */
   decrypt(
     ciphertext: string,
     iv: string,
@@ -67,7 +61,6 @@ export class GroupKeyService {
     }
   }
 
-  /** Encrypts a group key for safe storage in PostgreSQL. */
   private encryptGroupKeyForStorage(rawKey: Buffer): {
     encrypted: string;
     iv: string;
@@ -88,7 +81,6 @@ export class GroupKeyService {
     };
   }
 
-  /** Decrypts a group key retrieved from PostgreSQL. */
   private decryptStoredGroupKey(
     encryptedB64: string,
     ivB64: string,
@@ -110,23 +102,14 @@ export class GroupKeyService {
     ]);
   }
 
-  /**
-   * Fetches or creates the AES-256 group key.
-   * 1. Try Redis (fast path)
-   * 2. Fall back to PostgreSQL (encrypted copy)
-   * 3. If neither exists, generate new key — store in Redis AND PG
-   */
   async getOrCreateGroupKey(groupId: string): Promise<Buffer> {
     const redisKey = `group_key:${groupId}`;
 
-    // 1. Redis fast path
     const fromRedis = await this.redis.get(redisKey);
     if (fromRedis) return Buffer.from(fromRedis, 'base64');
 
-    // 2. Fall back to PostgreSQL
     const fromDb = await this.getGroupKeyFromDb(groupId);
     if (fromDb) {
-      // Restore to Redis so next read hits the fast path
       await this.redis.set(
         redisKey,
         fromDb.toString('base64'),
@@ -136,7 +119,6 @@ export class GroupKeyService {
       return fromDb;
     }
 
-    // 3. Generate new key — store in both places
     const newKey = crypto.randomBytes(32);
     const packed = this.encryptGroupKeyForStorage(newKey);
     await this.groupRepo.update(
@@ -154,7 +136,6 @@ export class GroupKeyService {
     return newKey;
   }
 
-  /** Tries to fetch and decrypt the group key from the chat_groups table. */
   private async getGroupKeyFromDb(groupId: string): Promise<Buffer | null> {
     try {
       const group = await this.groupRepo.findOne({
@@ -172,15 +153,12 @@ export class GroupKeyService {
     }
   }
 
-  /** Reads the group key without creating one if it doesn't exist yet. */
   async getGroupKey(groupId: string): Promise<Buffer | null> {
     const redisKey = `group_key:${groupId}`;
 
-    // 1. Redis fast path
     const fromRedis = await this.redis.get(redisKey);
     if (fromRedis) return Buffer.from(fromRedis, 'base64');
 
-    // 2. Fall back to PostgreSQL + restore to Redis
     const fromDb = await this.getGroupKeyFromDb(groupId);
     if (fromDb) {
       await this.redis.set(

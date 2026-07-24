@@ -28,8 +28,6 @@ export class PointsTopup {
   @Column({ name: 'points_purchased', type: 'int', nullable: false })
   pointsPurchased: number;
 
-  // exchange-rate snapshot at creation time, so later admin config changes
-  // never retroactively alter an already-created topup.
   @Column({ name: 'cents_per_point', type: 'int', nullable: false })
   centsPerPoint: number;
 

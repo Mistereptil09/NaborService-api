@@ -103,14 +103,12 @@ export class UsersService {
   ): Promise<Partial<User>> {
     const user = await this.findById(userId);
 
-    // If sensitive field (email) is provided, verify TOTP
     if (dto.email && dto.email !== user.email) {
       if (!dto.totpCode) {
         throw new ForbiddenException('TOTP requis');
       }
       await this.verifyUserTotp(userId, dto.totpCode);
 
-      // Check unique email constraint
       const existing = await this.userRepository.findOne({
         where: { email: dto.email },
       });
@@ -148,8 +146,6 @@ export class UsersService {
           neighbourhoodId: dto.neighbourhoodId,
         });
 
-        // Le staff (mod/admin) a déjà accès à tous les groupes de quartier —
-        // son adhésion ne dépend pas de sa résidence, donc on ne la touche pas ici.
         if (!isModeratorOrAdmin(user.role)) {
           await this.chatService.syncResidentNeighbourhoodMembership(
             userId,
@@ -173,14 +169,12 @@ export class UsersService {
     user.deletedAt = now;
     await this.userRepository.save(user);
 
-    // Publish to Neo4j Sync Queue and Anonymise queue
     await this.enqueueSync('user.soft_delete', {
       userId,
       deletedAt: now,
     });
     await this.rgpdAnonymiseQueue.add('user.anonymise', { userId });
 
-    // Revoke all sessions
     await this.sessionService.revokeAllUserSessions(userId);
   }
 
@@ -283,30 +277,24 @@ export class UsersService {
     const data = await this.exportJson(userId);
     let csv = 'Format,Table,RecordID,Details\n';
 
-    // 1. Profile
     csv += `JSON,users,${data.profile.id},"firstName: ${data.profile.firstName}; lastName: ${data.profile.lastName}; email: ${data.profile.email}; locale: ${data.profile.locale}"\n`;
 
-    // 2. Listings
     for (const l of data.listings) {
       csv += `JSON,listings,${l.id},"title: ${l.title}; type: ${l.listing_type}; status: ${l.status}"\n`;
     }
 
-    // 3. Messages
     for (const m of data.messages) {
       csv += `JSON,message_metadata,${m.id},"groupId: ${m.group_id}; sentAt: ${m.sent_at}"\n`;
     }
 
-    // 4. Event participations
     for (const ep of data.eventParticipations) {
       csv += `JSON,event_participants,${ep.event_id},"status: ${ep.status}; payment: ${ep.payment_status}"\n`;
     }
 
-    // 5. Votes
     for (const v of data.votes) {
       csv += `JSON,votes,${v.option_id},"weight: ${v.weight}"\n`;
     }
 
-    // 6. Social Graph
     for (const f of data.socialGraph.following) {
       csv += `JSON,follows,${f.id},"followedId: ${f.followed_id}; followedAt: ${f.created_at}"\n`;
     }
@@ -317,7 +305,6 @@ export class UsersService {
       csv += `JSON,user_blocks,${b.id},"blockedId: ${b.blocked_id}; blockedAt: ${b.created_at}"\n`;
     }
 
-    // 7. Incidents
     for (const i of data.incidents) {
       csv += `JSON,user_reports,${i.id},"reportedId: ${i.reported_id}; reason: ${i.reason}; status: ${i.status}"\n`;
     }
@@ -326,7 +313,6 @@ export class UsersService {
   }
 
   async getPublicProfile(requesterId: string, targetId: string): Promise<any> {
-    // Check target exists and not deleted
     const target = await this.userRepository.findOne({
       where: { id: targetId, deletedAt: IsNull() },
     });
@@ -334,7 +320,6 @@ export class UsersService {
       throw new NotFoundException('Utilisateur introuvable');
     }
 
-    // Check block relationship in either direction
     const isBlocked = await this.userSocialService.isBlocked(
       requesterId,
       targetId,
@@ -343,10 +328,6 @@ export class UsersService {
       throw new NotFoundException('Utilisateur introuvable'); // Masking block relationship
     }
 
-    // Relationship from the requester's point of view. isFriend (mutual
-    // follow) tells the front whether a direct_message group already
-    // exists — it's only auto-created between mutual follows (see
-    // UserSocialService.follow).
     const [follow, followBack, blockByMe] = await Promise.all([
       this.followRepository.findOne({
         where: { followerId: requesterId, followedId: targetId },
@@ -383,7 +364,6 @@ export class UsersService {
       };
     }
 
-    // Otherwise return full public profile
     return {
       id: target.id,
       firstName: target.firstName,
@@ -434,8 +414,6 @@ export class UsersService {
       .take(query.limit)
       .getManyAndCount();
 
-    // { data, meta: { total, offset, limit } } — same pagination envelope
-    // used across the rest of the API.
     return { data, meta: { total, offset: query.offset, limit: query.limit } };
   }
 
@@ -457,7 +435,6 @@ export class UsersService {
     user.updatedAt = new Date();
     await this.userRepository.save(user);
 
-    // Sync role to Neo4j
     await this.enqueueSync('upsert-user', {
       pgId: user.id,
       visibility: user.visibility,
@@ -483,7 +460,6 @@ export class UsersService {
     user.updatedAt = new Date();
     await this.userRepository.save(user);
 
-    // Revoke all sessions
     await this.sessionService.revokeAllUserSessions(userId);
 
     return user;
@@ -509,14 +485,12 @@ export class UsersService {
     user.deletedAt = now;
     await this.userRepository.save(user);
 
-    // Publish to Neo4j Sync Queue and Anonymise queue
     await this.enqueueSync('user.soft_delete', {
       userId,
       deletedAt: now,
     });
     await this.rgpdAnonymiseQueue.add('user.anonymise', { userId });
 
-    // Revoke all sessions
     await this.sessionService.revokeAllUserSessions(userId);
   }
 

@@ -37,7 +37,6 @@ export class GridFSService {
     }
   }
 
-  /** Throws 503 if MongoDB is unavailable, so callers get a clean HTTP error. */
   private ensureAvailable(): void {
     if (this.healthService && !this.healthService.isHealthy()) {
       throw new ServiceUnavailableException(
@@ -45,7 +44,6 @@ export class GridFSService {
       );
     }
     if (!this.isConnected()) {
-      // Try lazy init on reconnect
       this.initBucket();
       if (!this.bucket) {
         throw new ServiceUnavailableException(
@@ -55,10 +53,6 @@ export class GridFSService {
     }
   }
 
-  /**
-   * Upload binary data to GridFS.
-   * @returns The ObjectId of the stored file in fs.files
-   */
   async upload(
     buffer: Buffer,
     filename: string,
@@ -94,9 +88,6 @@ export class GridFSService {
     });
   }
 
-  /**
-   * Download file content from GridFS as a Buffer.
-   */
   async download(fileId: Types.ObjectId): Promise<{
     buffer: Buffer;
     contentType: string;
@@ -131,10 +122,6 @@ export class GridFSService {
     });
   }
 
-  /**
-   * Open a readable stream for a GridFS file (for HTTP streaming).
-   * Supports optional byte range for partial content.
-   */
   openDownloadStream(
     fileId: Types.ObjectId,
     options?: { start?: number; end?: number },
@@ -148,9 +135,6 @@ export class GridFSService {
     }
   }
 
-  /**
-   * Get file metadata from fs.files without downloading content.
-   */
   async getFileInfo(fileId: Types.ObjectId): Promise<{
     length: number;
     contentType: string;
@@ -171,9 +155,6 @@ export class GridFSService {
     };
   }
 
-  /**
-   * Delete a file and all its chunks from GridFS.
-   */
   async delete(fileId: Types.ObjectId): Promise<void> {
     this.ensureAvailable();
     try {

@@ -70,7 +70,6 @@ export class UserSecurityService {
     user.passwordChangedAt = new Date();
     await this.userRepository.save(user);
 
-    // Revoke other sessions
     let currentSessionId: string | null = null;
     if (currentRefreshToken) {
       const hash = this.tokenService.hashRefreshToken(currentRefreshToken);

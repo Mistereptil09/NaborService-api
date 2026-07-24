@@ -12,7 +12,6 @@ describe('redisRetryStrategy', () => {
   });
 
   it('should cap at 30s (30000ms)', () => {
-    // 500 * 2^6 = 32000
     expect(redisRetryStrategy(7)).toBe(30000);
     expect(redisRetryStrategy(10)).toBe(30000);
   });

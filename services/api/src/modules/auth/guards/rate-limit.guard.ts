@@ -43,7 +43,6 @@ export class RateLimitGuard implements CanActivate {
     } else if (options.prefix === 'refresh') {
       const token = this.extractRefreshTokenFromCookie(request);
       if (!token) {
-        // Allow request to proceed, handler will throw 401
         return true;
       }
       const hash = crypto.createHash('sha256').update(token).digest('hex');

@@ -1,7 +1,6 @@
 import fc from 'fast-check';
 import { parseFeatureCollection } from '../../geojson-parser';
 
-// Feature: geographical-pipeline, Property 2: Best-Score Feature Selection
 describe('Property 2: Best-Score Feature Selection', () => {
   it('should select features sorted by score descending', () => {
     fc.assert(
@@ -31,10 +30,8 @@ describe('Property 2: Best-Score Feature Selection', () => {
 
           const result = parseFeatureCollection(raw);
 
-          // Verify that it parsed successfully and has the same length
           expect(result.length).toBe(features.length);
 
-          // Verify sorting (descending)
           for (let i = 0; i < result.length - 1; i++) {
             expect(result[i].score).toBeGreaterThanOrEqual(result[i + 1].score);
           }

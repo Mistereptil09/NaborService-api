@@ -254,7 +254,6 @@ export class Neo4jGeoService {
   ): Promise<NeighbourhoodWithAdjacencies> {
     this.validatePolygon(polygon);
 
-    // Reject duplicate pg_id
     const existsQuery = `MATCH (n:Neighbourhood {pg_id: $pgId}) RETURN n.pg_id AS id`;
     const existsResult = await this.neo4jService.run(existsQuery, {
       pgId: metadata.pg_id,
@@ -307,11 +306,6 @@ export class Neo4jGeoService {
       areaM2,
     );
 
-    // Brand-new neighbourhood has no residents yet — create the auto-managed
-    // group empty; residents (and the neighbourhood rep) join as they set
-    // their neighbourhoodId (see UsersService.updateProfile). Platform staff
-    // moderate via ChatAdminController, independent of group membership, so
-    // they're not force-joined here.
     await this.chatService.ensureNeighbourhoodGroup(
       metadata.pg_id,
       metadata.name,
@@ -321,7 +315,6 @@ export class Neo4jGeoService {
     return result;
   }
 
-  /** (Re)crée le groupe de discussion du quartier et resynchronise tous ses résidents. Idempotent — sert de backfill/réparation. */
   async syncNeighbourhoodChatGroup(pgId: string) {
     const nb = await this.neighbourhoodService.findByPgId(pgId);
     if (!nb) throw new NotFoundException('Neighbourhood not found');
@@ -458,11 +451,6 @@ export class Neo4jGeoService {
     };
   }
 
-  // ── Admin: Delete ───────────────────────────────────────
-
-  /**
-   * Deletes a neighbourhood. Blocked if any user still LIVES_IN it.
-   */
   async deleteNeighbourhood(pgId: string): Promise<void> {
     const checkQuery = `
       MATCH (u:User)-[:LIVES_IN]->(n:Neighbourhood {pg_id: $pgId})
@@ -485,19 +473,11 @@ export class Neo4jGeoService {
     await this.neo4jService.run(deleteQuery, { pgId });
   }
 
-  // ── Admin: Overlap check ────────────────────────────────
-
-  /**
-   * Checks a candidate geometry against all existing neighbourhoods.
-   * Returns pg_ids of overlapping and adjacent neighbourhoods.
-   * Adjacency uses a 0.001° tolerance per CDC §6.12.
-   */
   async checkOverlap(
     candidate: GeoJSON.Polygon,
   ): Promise<{ overlapping: string[]; adjacent: string[] }> {
     this.validatePolygon(candidate);
     const candidateFeature = turf.polygon(candidate.coordinates);
-    // Buffer for adjacency detection (0.001° ≈ ~111m at the equator)
     const buffered = turf.buffer(candidateFeature, 0.001, { units: 'degrees' });
 
     const query = `MATCH (n:Neighbourhood) RETURN n.pg_id AS pg_id, n.geometry AS geometry`;
@@ -520,7 +500,6 @@ export class Neo4jGeoService {
           geom.type === 'Polygon' ? geom.coordinates : geom.coordinates[0],
         );
 
-        // True overlap: area intersection > 0
         if (turf.booleanIntersects(candidateFeature, existingFeature)) {
           try {
             const intersection = turf.intersect(
@@ -535,7 +514,6 @@ export class Neo4jGeoService {
           }
         }
 
-        // Adjacent: touches the buffered polygon but does not overlap
         if (turf.booleanIntersects(buffered as any, existingFeature as any)) {
           adjacent.push(pgId);
         }
@@ -547,12 +525,6 @@ export class Neo4jGeoService {
     return { overlapping, adjacent };
   }
 
-  // ── Admin: Update metadata + optional geometry ──────────
-
-  /**
-   * Updates neighbourhood metadata and optionally recomputes
-   * centroid, area, and adjacencies when a new geometry is provided.
-   */
   async updateNeighbourhood(
     pgId: string,
     updates: {
@@ -563,14 +535,12 @@ export class Neo4jGeoService {
       geometry?: GeoJSON.Polygon;
     },
   ): Promise<NeighbourhoodWithAdjacencies> {
-    // Verify the neighbourhood exists
     const existsQuery = `MATCH (n:Neighbourhood {pg_id: $pgId}) RETURN n.pg_id AS id`;
     const existsResult = await this.neo4jService.run(existsQuery, { pgId });
     if (existsResult.records.length === 0) {
       throw new NotFoundException('Neighbourhood not found');
     }
 
-    // Build SET clause from provided metadata fields
     const setParts: string[] = ['n.updated_at = datetime()'];
     const params: any = { pgId };
 
@@ -596,7 +566,6 @@ export class Neo4jGeoService {
       params,
     );
 
-    // If geometry was provided, recompute centroid + area + adjacencies
     if (updates.geometry) {
       this.validatePolygon(updates.geometry);
       const centroidFeature = turf.centroid(updates.geometry);
@@ -612,7 +581,6 @@ export class Neo4jGeoService {
         { pgId, lat, lng, geometry: geomStr, area: areaM2 },
       );
 
-      // Recompute adjacencies
       await this.neo4jService.run(
         `MATCH (n:Neighbourhood {pg_id: $pgId})-[r:ADJACENT_TO]-() DELETE r`,
         { pgId },
@@ -621,7 +589,6 @@ export class Neo4jGeoService {
       return this.updateAdjacencies(pgId, updates.geometry, lat, lng, areaM2);
     }
 
-    // No geometry change — return current state
     const centroidQuery = `
       MATCH (n:Neighbourhood {pg_id: $pgId})
       RETURN n.centroid AS centroid, n.area_m2 AS area

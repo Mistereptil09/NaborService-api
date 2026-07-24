@@ -7,15 +7,6 @@ import {
   rgb,
 } from 'pdf-lib';
 
-/**
- * Petit assistant de mise en page au-dessus de pdf-lib pour les documents
- * Nabor (contrats, reçus). Gère le flux vertical, le retour à la ligne
- * automatique, les sauts de page et la numérotation.
- *
- * Attention : polices standard (Helvetica) => encodage WinAnsi uniquement.
- * Les accents français passent, mais pas les symboles type '✓'.
- */
-
 const A4_WIDTH = 595.28;
 const A4_HEIGHT = 841.89;
 const MARGIN = 56;
@@ -48,7 +39,6 @@ export class PdfBuilder {
     return new PdfBuilder(doc, font, fontBold);
   }
 
-  /** Saut de page si moins de `needed` points restants. */
   private ensureSpace(needed: number): void {
     if (this.y - needed < MARGIN) {
       this.newPage();
@@ -60,7 +50,6 @@ export class PdfBuilder {
     this.y = A4_HEIGHT - MARGIN;
   }
 
-  /** Bandeau de marque + titre du document. */
   header(title: string, subtitle?: string): void {
     this.page.drawRectangle({
       x: 0,
@@ -123,7 +112,6 @@ export class PdfBuilder {
     this.y -= 22;
   }
 
-  /** Découpe un texte en lignes tenant dans `maxWidth`. */
   private wrap(text: string, size: number, maxWidth: number): string[] {
     const lines: string[] = [];
     for (const raw of text.split('\n')) {
@@ -192,10 +180,6 @@ export class PdfBuilder {
     this.y -= points;
   }
 
-  /**
-   * Deux cadres de signature côte à côte. `pngDataUrl` embarque l'image de la
-   * signature dessinée ; sinon le cadre reste vide (document à signer).
-   */
   async signatureBoxes(
     boxes: Array<{
       roleLabel: string;
@@ -263,7 +247,6 @@ export class PdfBuilder {
     this.y -= boxHeight + 16;
   }
 
-  /** Numérote les pages et sérialise le document. */
   async toBuffer(): Promise<Buffer> {
     const pages = this.doc.getPages();
     pages.forEach((page, i) => {

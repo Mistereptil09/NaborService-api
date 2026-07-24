@@ -24,8 +24,6 @@ import { GeoNearbyQueryDto } from './dto/geo-routes.dtos';
 export class NeighbourhoodController {
   constructor(private readonly neighbourhoodService: NeighbourhoodService) {}
 
-  // ── GET /neighbourhoods (public) ───────────────────────
-
   @Get()
   @ApiOperation({ summary: 'Lister tous les quartiers' })
   @ApiOkResponse({
@@ -34,8 +32,6 @@ export class NeighbourhoodController {
   async listAll() {
     return this.neighbourhoodService.findAll();
   }
-
-  // ── GET /neighbourhoods/nearby (public) ────────────────
 
   @Get('nearby')
   @ApiOperation({
@@ -52,8 +48,6 @@ export class NeighbourhoodController {
     );
   }
 
-  // ── GET /neighbourhoods/:neighbourhood_id (auth) ───────
-
   @Get(':neighbourhood_id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -69,8 +63,6 @@ export class NeighbourhoodController {
     return nb;
   }
 
-  // ── GET /neighbourhoods/:neighbourhood_id/members (auth)
-
   @Get(':neighbourhood_id/members')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -84,8 +76,6 @@ export class NeighbourhoodController {
     return this.neighbourhoodService.findMembers(pgId);
   }
 
-  // ── GET /neighbourhoods/:neighbourhood_id/adjacent (auth)
-
   @Get(':neighbourhood_id/adjacent')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -98,7 +88,6 @@ export class NeighbourhoodController {
     if (!nb) throw new NotFoundException('Quartier introuvable');
     if (!nb.adjacentIds || nb.adjacentIds.length === 0) return [];
 
-    // Fetch details for each adjacent neighbourhood
     const adjacents = await Promise.all(
       nb.adjacentIds.map((id) => this.neighbourhoodService.findByPgId(id)),
     );

@@ -9,7 +9,6 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import * as crypto from 'crypto';
 
-// Services
 import { AuthService } from './modules/auth/auth.service';
 import { UsersService } from './modules/users/users.service';
 import { UserSocialService } from './modules/users/user-social.service';
@@ -25,7 +24,6 @@ import { Neo4jGeoService } from './modules/geo/neo4j-geo.service';
 import { Neo4jService } from './database/neo4j/neo4j.service';
 import { PointsService } from './modules/points/points.service';
 
-// Enums
 import {
   UserRoleEnum,
   VisibilityEnum,
@@ -45,7 +43,6 @@ import {
   SwipeDirectionEnum,
 } from './common/enums';
 
-// Postgres Entities
 import { User } from './modules/users/entities/user.entity';
 import { Listing } from './modules/listings/entities/listing.entity';
 import { Evenement } from './modules/events/entities/evenement.entity';
@@ -66,7 +63,6 @@ import { Follow } from './modules/social/entities/follow.entity';
 import { UserBlock } from './modules/social/entities/user-block.entity';
 import { UserSwipe } from './modules/social/entities/user-swipe.entity';
 
-// MongoDB Schemas
 import { UserMedia } from './database/mongo-schemas/schemas/user-media.schema';
 import { ListingDocument } from './database/mongo-schemas/schemas/listing-document.schema';
 import { Contract } from './database/mongo-schemas/schemas/contract.schema';
@@ -97,9 +93,6 @@ async function bootstrap() {
     const dataSource = app.get(DataSource);
     const neo4jService = app.get(Neo4jService);
 
-    // ==========================================
-    // STEP 1: CLEANING DATABASES
-    // ==========================================
     console.log('Cleaning PostgreSQL database...');
     const entities = dataSource.entityMetadatas;
     const tableNames = entities
@@ -127,9 +120,6 @@ async function bootstrap() {
       await model.deleteMany({});
     }
 
-    // ==========================================
-    // STEP 2: SEED CATEGORIES
-    // ==========================================
     console.log('Seeding categories...');
     const listingCatRepo = app.get<Repository<ListingCategory>>(
       getRepositoryToken(ListingCategory),
@@ -176,9 +166,6 @@ async function bootstrap() {
       eventCatRepo.create({ categoryName: 'Culture & Sorties' }),
     );
 
-    // ==========================================
-    // STEP 3: SEED NEIGHBOURHOODS (NEO4J)
-    // ==========================================
     console.log('Seeding neighbourhoods in Neo4j...');
     const geoService = app.get(Neo4jGeoService);
 
@@ -245,9 +232,6 @@ async function bootstrap() {
       `Neighbourhoods created. Downton adjacencies: ${nb1.adjacent_pg_ids.length}`,
     );
 
-    // ==========================================
-    // STEP 4: SEED USERS
-    // ==========================================
     console.log('Registering users via AuthService...');
     const authService = app.get(AuthService);
     const usersService = app.get(UsersService);
@@ -417,18 +401,12 @@ async function bootstrap() {
       uOscar,
     ] = seededUsers;
 
-    // ==========================================
-    // STEP 5: SEED SOCIAL RELATIONSHIPS
-    // ==========================================
     console.log('Seeding social graph...');
     const socialService = app.get(UserSocialService);
     const friendshipRepo = app.get<Repository<Friendship>>(
       getRepositoryToken(Friendship),
     );
 
-    // Mutual-follow ring: user[i] <-> user[i+1] (wrapping) — guarantees every
-    // seeded user has at least one friend (and a DM group + messages, seeded
-    // in STEP 12), regardless of how many users are in the list.
     for (let i = 0; i < seededUsers.length; i++) {
       const a = seededUsers[i];
       const b = seededUsers[(i + 1) % seededUsers.length];
@@ -436,7 +414,6 @@ async function bootstrap() {
       await socialService.follow(b.id, a.id);
     }
 
-    // Extra one-way follows for a less uniform-looking social graph
     await socialService.follow(uCharlie.id, uAlice.id);
     await socialService.follow(uEmma.id, uAlice.id);
     await socialService.follow(uFelix.id, uBob.id);
@@ -444,10 +421,8 @@ async function bootstrap() {
     await socialService.follow(uNora.id, uHelene.id);
     await socialService.follow(uOscar.id, uIsmael.id);
 
-    // Blocks
     await socialService.block(uAlice.id, uDavid.id);
 
-    // Swipes (discovery data)
     const swipeRepo = app.get<Repository<UserSwipe>>(
       getRepositoryToken(UserSwipe),
     );
@@ -488,15 +463,11 @@ async function bootstrap() {
       `Social graph seeded (${seededUsers.length} users, ${seededUsers.length} mutual friendships via ring, extra follows, 1 block, 6 swipes).`,
     );
 
-    // ==========================================
-    // STEP 6: SEED LISTINGS
-    // ==========================================
     console.log('Seeding listings...');
     const listingsService = app.get(ListingsService);
     const listingContentService = app.get(ListingContentService);
     const transactionService = app.get(ListingTransactionService);
 
-    // Listing 1: Alice offers garden tools (free)
     const l1 = await listingsService.create(uAlice.id, {
       title: 'Tondeuse à gazon performante',
       description: 'Je prête ma tondeuse à gazon pour le week-end.',
@@ -510,7 +481,6 @@ async function bootstrap() {
       tags: ['jardin', 'outil', 'gratuit'],
     });
 
-    // Listing 2: Bob requests moving help (paid)
     const l2 = await listingsService.create(uBob.id, {
       title: 'Aide déménagement canapé',
       description: 'Besoin de deux bras pour descendre un canapé du 3ème.',
@@ -525,7 +495,6 @@ async function bootstrap() {
       tags: ['déménagement', 'canapé', 'aide'],
     });
 
-    // Listing 3: Emma offers tutoring
     const l3 = await listingsService.create(uEmma.id, {
       title: 'Cours de maths niveau collège',
       description: 'Professeure retraitée propose aide aux devoirs.',
@@ -539,7 +508,6 @@ async function bootstrap() {
       tags: ['cours', 'maths', 'collège'],
     });
 
-    // Listing 4: Félix offers laptop repair
     const l4 = await listingsService.create(uFelix.id, {
       title: 'Réparation PC et téléphones',
       description: 'Diagnostic gratuit, devis sous 24h.',
@@ -553,7 +521,6 @@ async function bootstrap() {
       tags: ['informatique', 'réparation', 'pc', 'téléphone'],
     });
 
-    // Listing 5: Gabriel offers bike repair
     const l5 = await listingsService.create(uGabriel.id, {
       title: 'Réparation de vélos à domicile',
       description: 'Crevaison, freins, dérailleur : je passe chez vous.',
@@ -568,7 +535,6 @@ async function bootstrap() {
       tags: ['vélo', 'réparation', 'mobilité'],
     });
 
-    // Listing 6: Hélène requests babysitting
     const l6 = await listingsService.create(uHelene.id, {
       title: 'Recherche baby-sitter le mercredi',
       description: 'Deux enfants (6 et 9 ans), mercredi après-midi.',
@@ -582,7 +548,6 @@ async function bootstrap() {
       tags: ['baby-sitting', 'enfants', 'mercredi'],
     });
 
-    // Listing 7: Ismaël offers language lessons
     const l7 = await listingsService.create(uIsmael.id, {
       title: "Cours d'arabe pour débutants",
       description: 'Cours particuliers ou en petit groupe, tous niveaux.',
@@ -596,7 +561,6 @@ async function bootstrap() {
       tags: ['langue', 'arabe', 'cours'],
     });
 
-    // Listing 8: Julie offers a dining table + chairs
     const l8 = await listingsService.create(uJulie.id, {
       title: 'Table à manger + 4 chaises',
       description: 'Bon état, à venir démonter/récupérer sur place.',
@@ -611,7 +575,6 @@ async function bootstrap() {
       tags: ['mobilier', 'table', 'chaises'],
     });
 
-    // Listing 9: Karim offers spare storage space
     const l9 = await listingsService.create(uKarim.id, {
       title: 'Cartons de déménagement à donner',
       description: 'Une trentaine de cartons, tailles variées, pliés à plat.',
@@ -626,7 +589,6 @@ async function bootstrap() {
       tags: ['cartons', 'déménagement', 'gratuit'],
     });
 
-    // Listing 10: Léa offers cooking classes
     const l10 = await listingsService.create(uLea.id, {
       title: 'Ateliers cuisine du monde',
       description: 'Deux heures pour apprendre 2-3 recettes de saison.',
@@ -640,7 +602,6 @@ async function bootstrap() {
       tags: ['cuisine', 'atelier', 'convivial'],
     });
 
-    // Listing 11: Nora offers pet-sitting
     const l11 = await listingsService.create(uNora.id, {
       title: 'Garde de chats et chiens',
       description: 'Disponible week-ends et vacances scolaires.',
@@ -654,7 +615,6 @@ async function bootstrap() {
       tags: ['animaux', 'garde', 'week-end'],
     });
 
-    // Listing 12: Oscar offers computer setup help
     const l12 = await listingsService.create(uOscar.id, {
       title: 'Installation et configuration PC/imprimante',
       description: 'Installation, mises à jour, Wi-Fi, imprimante.',
@@ -668,7 +628,6 @@ async function bootstrap() {
       tags: ['informatique', 'installation', 'aide'],
     });
 
-    // Transaction: Alice requests Bob's moving help
     const tx1 = await transactionService.create(
       l2.id,
       uBob.id,
@@ -677,7 +636,6 @@ async function bootstrap() {
       150,
     );
 
-    // Transaction + contract: Félix requests Emma's tutoring
     const tx2 = await transactionService.create(
       l3.id,
       uEmma.id,
@@ -686,7 +644,6 @@ async function bootstrap() {
       200,
     );
 
-    // Transaction: Nora requests Julie's dining table
     const tx3 = await transactionService.create(
       l8.id,
       uJulie.id,
@@ -695,7 +652,6 @@ async function bootstrap() {
       400,
     );
 
-    // Listing reports (moderation queue data)
     const listingReportService = app.get(ListingReportService);
     await listingReportService.createReport(
       uOscar.id,
@@ -717,9 +673,6 @@ async function bootstrap() {
       `12 listings seeded. 3 transactions created. 3 listing reports created.`,
     );
 
-    // ==========================================
-    // STEP 7: SEED CONTRACTS (MONGODB)
-    // ==========================================
     console.log('Seeding contracts in MongoDB...');
     const contractModel = app.get<Model<any>>(getModelToken(Contract.name));
 
@@ -839,20 +792,18 @@ async function bootstrap() {
 
     console.log('3 contracts seeded.');
 
-    // ==========================================
-    // STEP 8: SEED EVENTS
-    // ==========================================
     console.log('Seeding events...');
     const eventsService = app.get(EventsService);
     const eventContentService = app.get(EventContentService);
     const stateMachineService = app.get(EventStateMachineService);
     const pointsService = app.get(PointsService);
-    const eventRepo = app.get<Repository<Evenement>>(getRepositoryToken(Evenement));
+    const eventRepo = app.get<Repository<Evenement>>(
+      getRepositoryToken(Evenement),
+    );
     const eventParticipantRepo = app.get<Repository<EventParticipant>>(
       getRepositoryToken(EventParticipant),
     );
 
-    // Event 1: Downtown BBQ (future, open)
     const e1 = await eventsService.create(uAlice.id, {
       title: 'Barbecue du quartier',
       description: 'Apportez vos grillades et votre bonne humeur !',
@@ -878,7 +829,6 @@ async function bootstrap() {
     await eventsService.swipe(uBob.id, e1.id, 'like');
     await eventsService.swipe(uEmma.id, e1.id, 'like');
 
-    // Event 2: Park cleanup (future, paid)
     const e2 = await eventsService.create(uEmma.id, {
       title: 'Nettoyage du parc - opération écocitoyenne',
       description: 'Gants et sacs fournis. Goûter offert aux participants !',
@@ -899,7 +849,6 @@ async function bootstrap() {
     await stateMachineService.publish(e2.id, uEmma.id);
     await stateMachineService.open(e2.id, uEmma.id);
 
-    // Credit participants with enough points for paid event registrations
     await pointsService.adminAdjust({
       userId: uAlice.id,
       amountPoints: 500,
@@ -916,7 +865,6 @@ async function bootstrap() {
     await eventsService.register(e2.id, uAlice.id);
     await eventsService.register(e2.id, uFelix.id);
 
-    // Event 3: Past yoga workshop
     const e3 = await eventsService.create(uCharlie.id, {
       title: 'Yoga au jardin (passé)',
       description: 'Session de yoga en plein air.',
@@ -934,8 +882,6 @@ async function bootstrap() {
     });
     await stateMachineService.publish(e3.id, uCharlie.id);
     await stateMachineService.open(e3.id, uCharlie.id);
-    // e3 is intentionally in the past; registration is rejected by the API,
-    // so insert the historical participant record directly for seed data.
     await eventParticipantRepo.save(
       eventParticipantRepo.create({
         eventId: e3.id,
@@ -946,7 +892,6 @@ async function bootstrap() {
       }),
     );
 
-    // Event 4: Bike repair workshop (Villette)
     const e4 = await eventsService.create(uGabriel.id, {
       title: 'Atelier réparation de vélos',
       description: 'Apportez votre vélo, on répare ensemble.',
@@ -971,7 +916,6 @@ async function bootstrap() {
     await eventsService.register(e4.id, uJulie.id);
     await eventsService.register(e4.id, uMathis.id);
 
-    // Event 5: Pétanque tournament (Downtown)
     const e5 = await eventsService.create(uKarim.id, {
       title: 'Tournoi de pétanque amical',
       description: 'Équipes de 2, inscriptions sur place.',
@@ -991,7 +935,6 @@ async function bootstrap() {
     await stateMachineService.publish(e5.id, uKarim.id);
     await stateMachineService.open(e5.id, uKarim.id);
 
-    // Alice spent her 500 points on e2; credit her again for e5
     await pointsService.adminAdjust({
       userId: uAlice.id,
       amountPoints: 300,
@@ -1015,7 +958,6 @@ async function bootstrap() {
     await eventsService.register(e5.id, uHelene.id);
     await eventsService.register(e5.id, uNora.id);
 
-    // Event 6: Language exchange meetup (Marais)
     const e6 = await eventsService.create(uLea.id, {
       title: 'Soirée échange linguistique',
       description: 'Français, arabe, anglais... venez pratiquer !',
@@ -1038,7 +980,6 @@ async function bootstrap() {
     await eventsService.register(e6.id, uIsmael.id);
     await eventsService.register(e6.id, uOscar.id);
 
-    // Event 7: Free concert (published but not yet open)
     const e7 = await eventsService.create(uDavid.id, {
       title: 'Concert jazz en plein air',
       description: 'Groupe local et ambiance conviviale.',
@@ -1053,12 +994,13 @@ async function bootstrap() {
     });
     await eventContentService.updateContent(uDavid.id, e7.id, {
       body_html: '<p>Apportez votre chaise et votre bonne humeur.</p>',
-      location: { address: 'Parc de la Villette, Paris', geocode: '48.867,2.358' },
+      location: {
+        address: 'Parc de la Villette, Paris',
+        geocode: '48.867,2.358',
+      },
     });
     await stateMachineService.publish(e7.id, uDavid.id);
-    // intentionally not opened — tests the "published" state
 
-    // Event 8: Paid cooking class with reward
     const e8 = await eventsService.create(uLea.id, {
       title: 'Atelier pâtisserie française',
       description: 'Apprenez à faire des macarons maison.',
@@ -1092,10 +1034,9 @@ async function bootstrap() {
     await eventsService.register(e8.id, uBob.id);
     await eventsService.register(e8.id, uJulie.id);
 
-    // Event 9: Free outdoor cinema
     const e9 = await eventsService.create(uOscar.id, {
       title: 'Cinéma en plein air',
-      description: 'Projection d\'un film classique sous les étoiles.',
+      description: "Projection d'un film classique sous les étoiles.",
       cost_cents: 0,
       reward_points: 10,
       max_participants: 50,
@@ -1115,10 +1056,9 @@ async function bootstrap() {
     await eventsService.register(e9.id, uEmma.id);
     await eventsService.register(e9.id, uGabriel.id);
 
-    // Event 10: Paid tech meetup
     const e10 = await eventsService.create(uFelix.id, {
       title: 'Meetup IA et société',
-      description: 'Discussions autour de l\'intelligence artificielle locale.',
+      description: "Discussions autour de l'intelligence artificielle locale.",
       cost_cents: 600,
       reward_points: 40,
       max_participants: 30,
@@ -1130,7 +1070,10 @@ async function bootstrap() {
     });
     await eventContentService.updateContent(uFelix.id, e10.id, {
       body_html: '<p>Intervenants passionnés et buffet networking.</p>',
-      location: { address: 'Espace coworking downtown, Paris', geocode: '48.854,2.344' },
+      location: {
+        address: 'Espace coworking downtown, Paris',
+        geocode: '48.854,2.344',
+      },
     });
     await stateMachineService.publish(e10.id, uFelix.id);
     await stateMachineService.open(e10.id, uFelix.id);
@@ -1149,7 +1092,6 @@ async function bootstrap() {
     await eventsService.register(e10.id, uAlice.id);
     await eventsService.register(e10.id, uMathis.id);
 
-    // Event 11: Cancelled event
     const e11 = await eventsService.create(uHelene.id, {
       title: 'Randonnée urbaine (annulée)',
       description: 'Départ depuis le centre-ville.',
@@ -1165,13 +1107,8 @@ async function bootstrap() {
     await stateMachineService.publish(e11.id, uHelene.id);
     await stateMachineService.open(e11.id, uHelene.id);
     await eventsService.register(e11.id, uBob.id);
-    await stateMachineService.cancel(
-      e11.id,
-      uHelene.id,
-      'Météo défavorable',
-    );
+    await stateMachineService.cancel(e11.id, uHelene.id, 'Météo défavorable');
 
-    // Event 12: Completed event (past, with direct participant seeding)
     const e12 = await eventsService.create(uCharlie.id, {
       title: 'Atelier poterie (terminé)',
       description: 'Initiation à la poterie.',
@@ -1201,7 +1138,6 @@ async function bootstrap() {
         registeredAt: new Date(Date.now() - 6 * 86400000),
       }),
     );
-    // Mark as completed directly to bypass the state-machine check
     const completedEvent = await eventRepo.findOne({ where: { id: e12.id } });
     if (completedEvent) {
       completedEvent.status = EventStatusEnum.COMPLETED;
@@ -1209,7 +1145,6 @@ async function bootstrap() {
       await eventRepo.save(completedEvent);
     }
 
-    // Swipe data for discovery cards
     await eventsService.swipe(uAlice.id, e5.id, 'like');
     await eventsService.swipe(uBob.id, e5.id, 'like');
     await eventsService.swipe(uFelix.id, e5.id, 'dislike');
@@ -1219,7 +1154,6 @@ async function bootstrap() {
     await eventsService.swipe(uIsmael.id, e9.id, 'dislike');
     await eventsService.swipe(uGabriel.id, e10.id, 'like');
 
-    // Event reports (moderation queue data)
     const eventReportService = app.get(EventReportService);
     await eventReportService.createReport(
       uJulie.id,
@@ -1234,9 +1168,6 @@ async function bootstrap() {
 
     console.log('12 events seeded. 2 event reports created.');
 
-    // ==========================================
-    // STEP 9: SEED EVENT TICKETS (MONGODB)
-    // ==========================================
     console.log('Seeding event tickets...');
     const ticketModel = app.get<Model<any>>(getModelToken(EventTicket.name));
     const crypto = require('crypto');
@@ -1284,9 +1215,6 @@ async function bootstrap() {
 
     console.log('20 event tickets seeded.');
 
-    // ==========================================
-    // STEP 10: SEED INCIDENTS
-    // ==========================================
     console.log('Seeding incidents...');
     const incidentRepo = app.get<Repository<Incident>>(
       getRepositoryToken(Incident),
@@ -1456,9 +1384,6 @@ async function bootstrap() {
 
     console.log(`${incidents.length} incidents seeded.`);
 
-    // ==========================================
-    // STEP 11: SEED POLLS
-    // ==========================================
     console.log('Seeding polls...');
     const pollRepo = app.get<Repository<Poll>>(getRepositoryToken(Poll));
     const pollOptRepo = app.get<Repository<PollOption>>(
@@ -1466,7 +1391,6 @@ async function bootstrap() {
     );
     const voteRepo = app.get<Repository<Vote>>(getRepositoryToken(Vote));
 
-    // Poll 1: Single choice — bench color (Downtown)
     const p1 = await pollRepo.save(
       pollRepo.create({
         title: 'Couleur des bancs publics',
@@ -1495,7 +1419,6 @@ async function bootstrap() {
       voteRepo.create({ userId: uBob.id, optionId: oBleu.id, weight: 1 }),
     );
 
-    // Poll 2: Multiple choice — activities (Downtown)
     const p2 = await pollRepo.save(
       pollRepo.create({
         title: 'Activités à développer au centre social',
@@ -1541,7 +1464,6 @@ async function bootstrap() {
       }),
     );
 
-    // Poll 3: Single choice — market square layout (Marais)
     const p3 = await pollRepo.save(
       pollRepo.create({
         title: 'Aménagement de la place du marché',
@@ -1577,7 +1499,6 @@ async function bootstrap() {
       voteRepo.create({ userId: uLea.id, optionId: oFontaine.id, weight: 1 }),
     );
 
-    // Poll 4: Multiple choice — neighbourhood party theme (Villette)
     const p4 = await pollRepo.save(
       pollRepo.create({
         title: 'Thème de la fête de quartier',
@@ -1626,9 +1547,6 @@ async function bootstrap() {
 
     console.log('4 polls seeded (2 single, 2 multiple, 13 votes).');
 
-    // ==========================================
-    // STEP 12: SEED GROUP CHATS + MESSAGES
-    // ==========================================
     console.log('Seeding group chats and messages...');
     const chatGroupRepo = app.get<Repository<ChatGroup>>(
       getRepositoryToken(ChatGroup),
@@ -1641,7 +1559,6 @@ async function bootstrap() {
     );
     const msgMongoModel = app.get<Model<any>>(getModelToken(Message.name));
 
-    // ── AES-256-GCM helpers (mirrors chat-message.service.ts) ──
     const AES_ALGO = 'aes-256-gcm';
     const IV_LENGTH = 12; // 96 bits
     const masterKey = Buffer.from(process.env.AES_MASTER_KEY!, 'hex');
@@ -1705,7 +1622,6 @@ async function bootstrap() {
       }).save();
     }
 
-    // ── Multi-person neighbourhood group chats ──
     const neighbourhoodGroups: {
       name: string;
       description: string;
@@ -1818,8 +1734,6 @@ async function bootstrap() {
         ),
       );
 
-      // Sequential (not parallel) so sentAt ordering matches array order and
-      // Mongo writes don't race each other for the same group.
       const baseMs = Date.now() - 600000;
       for (let idx = 0; idx < g.messages.length; idx++) {
         const msg = g.messages[idx];
@@ -1838,8 +1752,6 @@ async function bootstrap() {
       `${neighbourhoodGroups.length} neighbourhood group chats seeded (${totalGroupMessages} messages).`,
     );
 
-    // ── DM threads for every ring friendship (guarantees every seeded user
-    // has at least one 1:1 conversation with messages) ──
     const dmTemplates: [string, string][] = [
       [
         "Salut ! Contente qu'on soit voisins :)",
@@ -1895,9 +1807,6 @@ async function bootstrap() {
       `${dmCount} DM threads seeded (${dmCount * 2} messages) — every user has at least one friend + conversation.`,
     );
 
-    // ==========================================
-    // STEP 13: SEED USER MEDIA (AVATARS)
-    // ==========================================
     console.log('Seeding user avatars...');
     const userMediaModel = app.get<Model<any>>(getModelToken(UserMedia.name));
 
@@ -1925,9 +1834,6 @@ async function bootstrap() {
 
     console.log('2 user avatars seeded.');
 
-    // ==========================================
-    // STEP 14: AWAIT QUEUE DRAINING
-    // ==========================================
     console.log('Waiting for BullMQ workers to drain pending jobs...');
     const queueNames = [
       'neo4j-sync',

@@ -32,8 +32,6 @@ export class ChatService {
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
-  // ── Groups ──────────────────────────────────────────────
-
   async getAllGroups(): Promise<
     {
       id: string;
@@ -72,9 +70,6 @@ export class ChatService {
       ]),
     );
 
-    // Participants (both/all sides) — permet à un modérateur/admin d'identifier
-    // qui échange avec qui, notamment pour les messages privés (direct_message)
-    // qui n'ont pas de nom de groupe humain.
     const participantsMap = new Map<
       string,
       { id: string; first_name: string; last_name: string }[]
@@ -127,11 +122,6 @@ export class ChatService {
     }));
   }
 
-  /**
-   * Enriches raw groups with `memberCount` (for all groups) and `otherParticipant`
-   * (for direct_message groups only — the other active member, for display purposes
-   * since a DM's `name` is often not human-assigned). Batched (2 queries), not N+1.
-   */
   private async enrichGroups(groups: ChatGroup[], requestingUserId: string) {
     if (groups.length === 0) return [];
     const ids = groups.map((g) => g.id);
@@ -152,9 +142,6 @@ export class ChatService {
       ]),
     );
 
-    // Mute state se lit depuis Redis (source de vérité pour l'expiration TTL des
-    // mutes temporaires) plutôt que la colonne `isMuted`, qui elle ne se remet
-    // jamais à false automatiquement quand un mute temporaire expire.
     const muteKeys = ids.map((id) => `mute:${requestingUserId}:${id}`);
     const muteValues = ids.length > 0 ? await this.redis.mget(...muteKeys) : [];
     const mutedSet = new Set(ids.filter((_, i) => muteValues[i] !== null));
@@ -191,9 +178,6 @@ export class ChatService {
       }
     }
 
-    // Non-lus : un COUNT par groupe (borné au nombre de groupes de l'utilisateur,
-    // donc pas de N+1 réel) comparé au pointeur de dernière lecture de ce membre
-    // (ou à sa date d'adhésion s'il n'a encore jamais rien lu).
     const membershipRows = await this.uigRepo.find({
       where: { userId: requestingUserId, groupId: In(ids) },
       select: ['groupId', 'lastReadAt', 'joinedAt'],
@@ -217,9 +201,6 @@ export class ChatService {
     );
     const unreadMap = new Map(unreadCounts);
 
-    // Nouveaux champs en snake_case (convention des objets de réponse construits
-    // à la main dans ce module, ex. toPlainMessage()) ; les champs existants de
-    // l'entité restent inchangés (spread) pour ne pas élargir la portée du correctif.
     return groups.map((g) => ({
       ...g,
       member_count: countMap.get(g.id) ?? 0,
@@ -228,8 +209,6 @@ export class ChatService {
       unread_count: unreadMap.get(g.id) ?? 0,
     }));
   }
-
-  // ── Neighbourhood groups ────────────────────────────────
 
   async getNeighbourhoodGroup(
     neighbourhoodId: string,
@@ -243,7 +222,6 @@ export class ChatService {
     });
   }
 
-  /** Crée le groupe du quartier s'il n'existe pas encore, puis (ré)applique la liste de membres fournie. Idempotent. */
   async ensureNeighbourhoodGroup(
     neighbourhoodId: string,
     name: string,
@@ -267,7 +245,6 @@ export class ChatService {
     return group;
   }
 
-  /** Crée ou réactive une adhésion avec le rôle donné (généralisation de la logique de re-join d'addMember()). */
   async upsertMembership(
     groupId: string,
     userId: string,
@@ -292,7 +269,6 @@ export class ChatService {
     );
   }
 
-  /** Retire l'adhésion active (soft-leave), no-op si aucune adhésion active n'existe. */
   async revokeMembership(groupId: string, userId: string): Promise<void> {
     const existing = await this.uigRepo.findOne({
       where: { groupId, userId, leftAt: IsNull(), kickedAt: IsNull() },
@@ -302,7 +278,6 @@ export class ChatService {
     await this.uigRepo.save(existing);
   }
 
-  /** Synchronise l'adhésion d'un résident (non-staff) suite à un changement de quartier. */
   async syncResidentNeighbourhoodMembership(
     userId: string,
     oldNeighbourhoodId: string | null,
@@ -315,13 +290,10 @@ export class ChatService {
     }
     if (newNeighbourhoodId) {
       const newGroup = await this.getNeighbourhoodGroup(newNeighbourhoodId);
-      // Pas de groupe pour ce quartier (créé avant cette fonctionnalité) : auto-cicatrisé
-      // via l'endpoint de backfill admin, pas d'échec de la mise à jour du profil ici.
       if (newGroup) await this.upsertMembership(newGroup.id, userId, groupRole);
     }
   }
 
-  /** Resynchronise l'adhésion au groupe de quartier courant suite à un changement de rôle global. */
   async resyncNeighbourhoodGroupMembershipForRoleChange(
     userId: string,
     newRole: UserRoleEnum,
@@ -346,7 +318,6 @@ export class ChatService {
     });
     const saved = await this.groupRepo.save(group);
 
-    // Creator is admin
     await this.uigRepo.save(
       this.uigRepo.create({
         userId: creatorId,
@@ -355,7 +326,6 @@ export class ChatService {
       }),
     );
 
-    // Add initial members
     if (dto.memberIds?.length) {
       const members = dto.memberIds
         .filter((id) => id !== creatorId)
@@ -379,7 +349,6 @@ export class ChatService {
     return group;
   }
 
-  /** Enriched variant of getGroupDetail for API responses (adds memberCount/otherParticipant/myRole). */
   async getGroupDetailForUser(groupId: string, requestingUserId: string) {
     const group = await this.getGroupDetail(groupId);
     const [enriched] = await this.enrichGroups([group], requestingUserId);
@@ -412,8 +381,6 @@ export class ChatService {
     return this.groupRepo.save(group);
   }
 
-  // ── Members ─────────────────────────────────────────────
-
   async getMembers(groupId: string) {
     await this.getGroupDetail(groupId); // ensure exists
     return this.uigRepo.find({
@@ -434,7 +401,6 @@ export class ChatService {
       return existing; // already active member
     }
     if (existing) {
-      // Re-join: reset left/kicked
       existing.leftAt = null;
       existing.kickedAt = null;
       existing.roleInGroup = GroupRoleEnum.MESSAGE;
@@ -475,8 +441,6 @@ export class ChatService {
     return this.uigRepo.save(membership);
   }
 
-  // ── Mute ────────────────────────────────────────────────
-
   async mute(groupId: string, userId: string, durationMinutes?: number) {
     await this.getMembership(groupId, userId);
     const mutedUntil = durationMinutes
@@ -488,7 +452,6 @@ export class ChatService {
       { isMuted: true, mutedUntil },
     );
 
-    // Redis TTL for fast send-time check
     const ttl = durationMinutes ? durationMinutes * 60 : 86400 * 365;
     await this.redis.set(`mute:${userId}:${groupId}`, '1', 'EX', ttl);
     return { muted_until: mutedUntil };
@@ -509,13 +472,10 @@ export class ChatService {
     return exists !== null;
   }
 
-  /** Déplace le pointeur "dernière lecture" du membre à maintenant (base du badge non-lus). */
   async markGroupRead(groupId: string, userId: string): Promise<void> {
     await this.getMembership(groupId, userId);
     await this.uigRepo.update({ groupId, userId }, { lastReadAt: new Date() });
   }
-
-  // ── Permission helpers ──────────────────────────────────
 
   async isMember(groupId: string, userId: string): Promise<boolean> {
     const m = await this.uigRepo.findOne({
@@ -524,7 +484,6 @@ export class ChatService {
     return m !== null;
   }
 
-  /** Rôle "watch" = lecture seule : ne peut ni envoyer de message ni réagir. */
   async assertCanParticipate(
     groupId: string,
     userId: string,
@@ -561,7 +520,6 @@ export class ChatService {
     return m;
   }
 
-  /** Variante publique de requireRole(), pour les modules externes (ex. PollsController) qui doivent vérifier un rôle de groupe. */
   async assertGroupRole(
     groupId: string,
     userId: string,

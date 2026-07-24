@@ -38,27 +38,21 @@ export class MediaFile {
   @Prop({ required: true, type: Date })
   uploaded_at: Date;
 
-  // Image-specific fields (present when mimetype starts with "image/")
   @Prop({ type: Number, default: null, min: 1 })
   width_px: number | null;
 
   @Prop({ type: Number, default: null, min: 1 })
   height_px: number | null;
 
-  // Audio-specific field (present when mimetype starts with "audio/") — Ogg
-  // has no header-level duration, so this is probed server-side at transcode
-  // time rather than left to the browser to figure out from the stream.
   @Prop({ type: Number, default: null, min: 0 })
   duration_seconds: number | null;
 
-  // Listing photo-specific fields
   @Prop({ type: Number, default: null, min: 0 })
   order: number | null;
 
   @Prop({ type: String, default: null, maxlength: 280 })
   caption: string | null;
 
-  // Contract-specific fields
   @Prop({ type: String, default: null })
   sha256_hash: string | null;
 
@@ -69,7 +63,6 @@ export class MediaFile {
   })
   contract_type: string | null;
 
-  // Incident photo-specific fields
   @Prop({ type: Date, default: null })
   taken_at: Date | null;
 
@@ -79,7 +72,6 @@ export class MediaFile {
 
 export const MediaFileSchema = SchemaFactory.createForClass(MediaFile);
 
-// Indexes
 MediaFileSchema.index({ owner_type: 1, owner_id: 1 });
 MediaFileSchema.index({ gridfs_file_id: 1 }, { unique: true });
 MediaFileSchema.index({ sha256_hash: 1 }, { sparse: true });

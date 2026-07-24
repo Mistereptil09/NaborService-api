@@ -17,8 +17,6 @@ describe('Feature: gridfs-media-storage, Property: multipart filename re-decodin
     const file = {
       buffer,
       size: buffer.length,
-      // What multer/busboy hand back for "Déclaration du 2ème trimestre 2026.pdf"
-      // sent as UTF-8 over multipart/form-data.
       originalname: 'DÃ©claration du 2Ã¨me trimestre 2026.pdf',
       mimetype: 'application/pdf',
     } as Express.Multer.File;

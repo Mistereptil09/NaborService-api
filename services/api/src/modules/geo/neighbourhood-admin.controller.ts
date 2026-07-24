@@ -44,8 +44,6 @@ export class NeighbourhoodAdminController {
     private readonly geoReconciliationService: GeoReconciliationService,
   ) {}
 
-  // ── Reconciliation trigger ──────────────────────────────
-
   @Post('reconcile')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Déclencher une réconciliation géographique' })
@@ -59,8 +57,6 @@ export class NeighbourhoodAdminController {
     };
   }
 
-  // ── List all ─────────────────────────────────────────────
-
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -73,8 +69,6 @@ export class NeighbourhoodAdminController {
     return this.neo4jGeoService.listNeighbourhoodPolygons();
   }
 
-  // ── Overlap check ────────────────────────────────────────
-
   @Post('overlap-check')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -86,8 +80,6 @@ export class NeighbourhoodAdminController {
   async overlapCheck(@Body() dto: OverlapCheckDto) {
     return this.neo4jGeoService.checkOverlap(dto.geometry);
   }
-
-  // ── Create ───────────────────────────────────────────────
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -106,8 +98,6 @@ export class NeighbourhoodAdminController {
     });
   }
 
-  // ── Update (metadata + optional geometry) ────────────────
-
   @Patch(':neighbourhood_id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -125,8 +115,6 @@ export class NeighbourhoodAdminController {
     return this.neo4jGeoService.updateNeighbourhood(pgId, dto);
   }
 
-  // ── Chat group sync (backfill / repair) ─────────────────
-
   @Post(':neighbourhood_id/sync-chat-group')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -140,8 +128,6 @@ export class NeighbourhoodAdminController {
   async syncChatGroup(@Param('neighbourhood_id') pgId: string) {
     return this.neo4jGeoService.syncNeighbourhoodChatGroup(pgId);
   }
-
-  // ── Delete ───────────────────────────────────────────────
 
   @Delete(':neighbourhood_id')
   @HttpCode(HttpStatus.OK)

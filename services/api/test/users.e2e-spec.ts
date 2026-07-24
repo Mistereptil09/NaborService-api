@@ -27,14 +27,11 @@ describe('Users & Social Modules (e2e)', () => {
     await clearRedis(app);
   });
 
-  // ── Preferences and Security ────────────────────────────────
-
   describe('Users Controller - Preferences and Security', () => {
     it('should get and update locale', async () => {
       const { email, password } = await createTestUser(app);
       const { token } = await loginAndGetToken(app, email, password);
 
-      // GET locale
       const getRes = await request(app.getHttpServer())
         .get('/v1/users/me/locale')
         .set('Authorization', `Bearer ${token}`)
@@ -42,7 +39,6 @@ describe('Users & Social Modules (e2e)', () => {
 
       expect(getRes.body.locale).toBe('fr'); // Default is 'fr' according to entity
 
-      // PATCH locale
       const patchRes = await request(app.getHttpServer())
         .patch('/v1/users/me/locale')
         .set('Authorization', `Bearer ${token}`)
@@ -60,7 +56,6 @@ describe('Users & Social Modules (e2e)', () => {
       const otp = require('otplib');
       const code = otp.generateSync({ secret });
 
-      // PATCH email
       await request(app.getHttpServer())
         .patch('/v1/users/me/email')
         .set('Authorization', `Bearer ${token}`)
@@ -68,8 +63,6 @@ describe('Users & Social Modules (e2e)', () => {
         .expect(204);
     });
   });
-
-  // ── Profile ─────────────────────────────────────────────────
 
   describe('Users Controller - Profile', () => {
     it('GET /v1/users/me should return the authenticated user profile', async () => {
@@ -130,8 +123,6 @@ describe('Users & Social Modules (e2e)', () => {
         .expect(404);
     });
   });
-
-  // ── Search ──────────────────────────────────────────────────
 
   describe('Users Controller - Search', () => {
     it('should search users by name with valid q', async () => {
@@ -199,13 +190,11 @@ describe('Users & Social Modules (e2e)', () => {
         user1.password,
       );
 
-      // User1 blocks User2
       await request(app.getHttpServer())
         .post(`/v1/users/${user2.user.id}/block`)
         .set('Authorization', `Bearer ${token1}`)
         .expect(200);
 
-      // User1 searches — should not see User2
       const res = await request(app.getHttpServer())
         .get('/v1/users/search')
         .set('Authorization', `Bearer ${token1}`)
@@ -218,8 +207,6 @@ describe('Users & Social Modules (e2e)', () => {
       expect(foundBlocked).toBe(false);
     });
   });
-
-  // ── Discover ────────────────────────────────────────────────
 
   describe('Users Controller - Discover', () => {
     it('GET /v1/users/discover should return a paginated feed', async () => {
@@ -251,8 +238,6 @@ describe('Users & Social Modules (e2e)', () => {
     });
   });
 
-  // ── Follow & Block ──────────────────────────────────────────
-
   describe('Social Module - Follow & Block', () => {
     it('should follow and unfollow a user', async () => {
       const user1 = await createTestUser(app, 'user1');
@@ -265,13 +250,11 @@ describe('Users & Social Modules (e2e)', () => {
       );
       const targetId = user2.user.id;
 
-      // Follow
       await request(app.getHttpServer())
         .post(`/v1/users/${targetId}/follow`)
         .set('Authorization', `Bearer ${token1}`)
         .expect(200);
 
-      // Verify followers list
       const getFollowers = await request(app.getHttpServer())
         .get(`/v1/users/${targetId}/followers`)
         .set('Authorization', `Bearer ${token1}`)
@@ -281,7 +264,6 @@ describe('Users & Social Modules (e2e)', () => {
         getFollowers.body.data.some((item: any) => item.id === user1.user.id),
       ).toBe(true);
 
-      // Unfollow
       await request(app.getHttpServer())
         .delete(`/v1/users/${targetId}/follow`)
         .set('Authorization', `Bearer ${token1}`)
@@ -299,13 +281,11 @@ describe('Users & Social Modules (e2e)', () => {
       );
       const targetId = user2.user.id;
 
-      // Block
       await request(app.getHttpServer())
         .post(`/v1/users/${targetId}/block`)
         .set('Authorization', `Bearer ${token1}`)
         .expect(200);
 
-      // Verify block list
       const getBlocks = await request(app.getHttpServer())
         .get(`/v1/users/me/blocks`)
         .set('Authorization', `Bearer ${token1}`)
@@ -315,15 +295,12 @@ describe('Users & Social Modules (e2e)', () => {
         getBlocks.body.data.some((item: any) => item.id === targetId),
       ).toBe(true);
 
-      // Unblock
       await request(app.getHttpServer())
         .delete(`/v1/users/${targetId}/block`)
         .set('Authorization', `Bearer ${token1}`)
         .expect(204);
     });
   });
-
-  // ── Swipes ──────────────────────────────────────────────────
 
   describe('Social Module - Swipes', () => {
     it('POST /v1/users/:user_id/swipe should register a like', async () => {
@@ -385,14 +362,12 @@ describe('Users & Social Modules (e2e)', () => {
         user1.password,
       );
 
-      // First create a swipe
       await request(app.getHttpServer())
         .post(`/v1/users/${user2.user.id}/swipe`)
         .set('Authorization', `Bearer ${token}`)
         .send({ direction: 'like' })
         .expect(200);
 
-      // Then fetch history
       const res = await request(app.getHttpServer())
         .get('/v1/users/me/swipes')
         .set('Authorization', `Bearer ${token}`)
@@ -405,8 +380,6 @@ describe('Users & Social Modules (e2e)', () => {
     });
   });
 
-  // ── Following & Friends ─────────────────────────────────────
-
   describe('Social Module - Following & Friends', () => {
     it('GET /v1/users/:user_id/following should return paginated following list', async () => {
       const user1 = await createTestUser(app, 'follower');
@@ -417,13 +390,11 @@ describe('Users & Social Modules (e2e)', () => {
         user1.password,
       );
 
-      // User1 follows User2
       await request(app.getHttpServer())
         .post(`/v1/users/${user2.user.id}/follow`)
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
-      // Check User1's following list
       const res = await request(app.getHttpServer())
         .get(`/v1/users/${user1.user.id}/following`)
         .set('Authorization', `Bearer ${token}`)
@@ -451,7 +422,6 @@ describe('Users & Social Modules (e2e)', () => {
         user2.password,
       );
 
-      // Both follow each other (mutual)
       await request(app.getHttpServer())
         .post(`/v1/users/${user2.user.id}/follow`)
         .set('Authorization', `Bearer ${token1}`)
@@ -462,7 +432,6 @@ describe('Users & Social Modules (e2e)', () => {
         .set('Authorization', `Bearer ${token2}`)
         .expect(200);
 
-      // Check friends (from user1's perspective)
       const res = await request(app.getHttpServer())
         .get(`/v1/users/${user1.user.id}/friends`)
         .set('Authorization', `Bearer ${token1}`)
@@ -492,8 +461,6 @@ describe('Users & Social Modules (e2e)', () => {
       expect(res.body.meta.limit).toBe(5);
     });
   });
-
-  // ── Report ──────────────────────────────────────────────────
 
   describe('Social Module - Report', () => {
     it('POST /v1/users/:user_id/report should register a report', async () => {
@@ -531,8 +498,6 @@ describe('Users & Social Modules (e2e)', () => {
     });
   });
 
-  // ── Notification Preferences ────────────────────────────────
-
   describe('Users Controller - Notification Preferences', () => {
     it('GET /v1/users/me/notifications/preferences should return defaults', async () => {
       const { email, password } = await createTestUser(app);
@@ -568,13 +533,11 @@ describe('Users & Social Modules (e2e)', () => {
       const { email, password } = await createTestUser(app);
       const { token } = await loginAndGetToken(app, email, password);
 
-      // Get current state
       const before = await request(app.getHttpServer())
         .get('/v1/users/me/notifications/preferences')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
-      // Update only one field
       const res = await request(app.getHttpServer())
         .patch('/v1/users/me/notifications/preferences')
         .set('Authorization', `Bearer ${token}`)
@@ -582,23 +545,18 @@ describe('Users & Social Modules (e2e)', () => {
         .expect(200);
 
       expect(res.body.notifMessage).toBe(false);
-      // PATCH only returns changed fields + userId/updatedAt — verify the update stuck
       expect(res.body).toHaveProperty('userId');
 
-      // Re-fetch to confirm other fields were preserved
       const after = await request(app.getHttpServer())
         .get('/v1/users/me/notifications/preferences')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
       expect(after.body.notifMessage).toBe(false);
-      // Other fields should still be their defaults (true)
       expect(after.body.notifNewFollower).toBe(true);
       expect(after.body.notifNewListing).toBe(true);
     });
   });
-
-  // ── Change Password ─────────────────────────────────────────
 
   describe('Users Controller - Change Password', () => {
     it('PATCH /v1/users/me/password should return 401 with wrong current password', async () => {
@@ -655,20 +613,16 @@ describe('Users & Social Modules (e2e)', () => {
         })
         .expect(204);
 
-      // Verify we can login with the new password
       const loginRes = await request(app.getHttpServer())
         .post('/v1/auth/login')
         .send({ email, password: newPassword })
         .expect(200);
 
-      // Login succeeded if we got an access_token or a TOTP challenge
       const loggedIn =
         !!loginRes.body.access_token || !!loginRes.body.challenge_token;
       expect(loggedIn).toBe(true);
     });
   });
-
-  // ── RGPD ────────────────────────────────────────────────────
 
   describe('Users Controller - RGPD', () => {
     it('GET /v1/users/me/export should return user data export', async () => {
@@ -712,7 +666,6 @@ describe('Users & Social Modules (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send({ firstName: 'Corrected', totpCode: code });
 
-      // 204 (No Content) = success, 200 = success with body, 500 = otplib API mismatch
       expect([200, 204, 500]).toContain(res.status);
       if (res.status === 200) {
         expect(res.body).toHaveProperty('firstName', 'Corrected');
@@ -734,7 +687,6 @@ describe('Users & Social Modules (e2e)', () => {
       const { email, password } = await createTestUser(app, 'listopts');
       const { token } = await loginAndGetToken(app, email, password);
 
-      // Create an opt-out first
       await request(app.getHttpServer())
         .post('/v1/users/me/data-processing/opt-out')
         .set('Authorization', `Bearer ${token}`)

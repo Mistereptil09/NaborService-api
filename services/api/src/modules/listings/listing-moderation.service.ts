@@ -62,7 +62,6 @@ export class ListingModerationService {
 
     const listing = await this.listingsService.findOne(listingId);
 
-    // 1. Create ListingModerationAction
     const modAction = this.moderationRepository.create({
       listingId,
       moderatorId,
@@ -72,13 +71,11 @@ export class ListingModerationService {
     });
     await this.moderationRepository.save(modAction);
 
-    // 2. Resolve all unresolved reports
     await this.reportRepository.update(
       { listingId, resolvedAt: IsNull() },
       { resolvedAt: new Date() },
     );
 
-    // 3. Apply action effects
     const oldStatus = listing.status;
     if (dto.action === 'cancelled') {
       listing.status = ListingStatusEnum.CANCELLED;
@@ -97,12 +94,10 @@ export class ListingModerationService {
     } else if (dto.action === 'restored') {
       listing.status = ListingStatusEnum.OPEN;
     }
-    // 'warned' does not change listing status
 
     listing.updatedAt = new Date();
     await this.listingRepository.save(listing);
 
-    // 4. Sync Neo4j
     await this.neo4jSyncQueue.add('upsert-listing', {
       id: listing.id,
       title: listing.title,
@@ -112,7 +107,6 @@ export class ListingModerationService {
       created_at: listing.createdAt,
     });
 
-    // 5. Send notification email to creator (essential — must be informed).
     const creator = await this.userRepository.findOne({
       where: { id: listing.creatorId },
       select: ['id', 'email', 'firstName'],

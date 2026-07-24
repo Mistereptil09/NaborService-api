@@ -11,11 +11,6 @@ import { CallTypeEnum, CallStatusEnum } from '../../../common/enums';
 import { User } from '../../users/entities/user.entity';
 import { ChatGroup } from '../../messaging/entities/chat-group.entity';
 
-/**
- * Durable record of a resolved call, written once at resolution
- * (ended/missed/declined) from the live Redis snapshot. 'ringing'/'active'
- * states only ever exist in Redis (see CallsService) — never in this table.
- */
 @Entity('call_logs')
 @Index('idx_call_logs_group', ['groupId'])
 export class CallLog {

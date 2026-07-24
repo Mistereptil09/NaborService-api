@@ -4,13 +4,6 @@ import { Driver } from 'neo4j-driver';
 
 export type Neo4jHealthState = 'healthy' | 'degraded' | 'down';
 
-/**
- * Circuit breaker for Neo4j.
- *
- * Tracks consecutive sync job failures. After a threshold, marks Neo4j as
- * "down" so that services stop enqueuing doomed sync jobs. Probes Neo4j
- * periodically when down, and resets to "healthy" when connectivity returns.
- */
 @Injectable()
 export class Neo4jHealthService implements OnModuleInit {
   private readonly logger = new Logger(Neo4jHealthService.name);
@@ -18,35 +11,27 @@ export class Neo4jHealthService implements OnModuleInit {
   private consecutiveFailures = 0;
   private probeTimer: ReturnType<typeof setInterval> | null = null;
 
-  /** Number of consecutive failures before marking Neo4j as down. */
   private readonly failureThreshold = 5;
 
-  /** Delay between probes when down (ms). */
   private readonly probeIntervalMs = 60_000;
 
   constructor(@Inject(NEO4J_DRIVER) private readonly driver: Driver) {}
 
   onModuleInit() {
-    // Proactively verify connectivity at startup
     this.probeConnectivity().catch(() => {
       this.logger.warn('Neo4j not available at startup — marking degraded');
       this.state = 'degraded';
     });
   }
 
-  // ── Public API ───────────────────────────────────────────────
-
-  /** Whether services should enqueue neo4j-sync jobs. */
   isHealthy(): boolean {
     return this.state === 'healthy' || this.state === 'degraded';
   }
 
-  /** Current health state. */
   getState(): Neo4jHealthState {
     return this.state;
   }
 
-  /** Called by the Neo4jSyncWorker when a job fails. */
   recordFailure(): void {
     this.consecutiveFailures++;
 
@@ -67,7 +52,6 @@ export class Neo4jHealthService implements OnModuleInit {
     }
   }
 
-  /** Called by the Neo4jSyncWorker when a job succeeds. */
   recordSuccess(): void {
     this.consecutiveFailures = 0;
     if (this.state !== 'healthy') {
@@ -76,8 +60,6 @@ export class Neo4jHealthService implements OnModuleInit {
       this.logger.log('Neo4j recovered — marked HEALTHY.');
     }
   }
-
-  // ── Probing ──────────────────────────────────────────────────
 
   private startProbing(): void {
     if (this.probeTimer) return;

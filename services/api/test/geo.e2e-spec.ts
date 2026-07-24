@@ -9,7 +9,6 @@ describe('Geo Module (e2e)', () => {
   beforeAll(async () => {
     app = await createTestingApp();
 
-    // Quick probe to see if BAN is reachable
     try {
       const res = await request(app.getHttpServer())
         .get('/v1/geo/autocomplete')
@@ -38,8 +37,6 @@ describe('Geo Module (e2e)', () => {
   });
 
   const banOnly = (test: jest.It) => (banAvailable ? test : test.skip);
-
-  // ── GET /v1/geo/autocomplete ────────────────────────────────
 
   describe('GET /v1/geo/autocomplete', () => {
     it('should return 400 when q is missing', async () => {
@@ -103,8 +100,6 @@ describe('Geo Module (e2e)', () => {
     }, 5000);
   });
 
-  // ── GET /v1/geo/resolve-neighbourhood ────────────────────────
-
   describe('GET /v1/geo/resolve-neighbourhood', () => {
     it('should return 400 when q is missing', async () => {
       await request(app.getHttpServer())
@@ -131,7 +126,6 @@ describe('Geo Module (e2e)', () => {
       const res = await request(app.getHttpServer())
         .get('/v1/geo/resolve-neighbourhood')
         .query({ q: 'xyzunknownlocation123456' });
-      // Our fix: NoResultsError → NotFoundException (404), never 500
       expect(res.status).not.toBe(500);
       expect([200, 404]).toContain(res.status);
     }, 5000);

@@ -3,13 +3,6 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
-/**
- * Periodically requeues failed neo4j-sync jobs so they are retried
- * even after exhausting their initial attempts.
- *
- * Runs every 15 minutes — complements the per-job 10-attempt backoff
- * (~7h recovery window) by providing an infinite safety net.
- */
 @Injectable()
 export class Neo4jRecoveryService {
   private readonly logger = new Logger(Neo4jRecoveryService.name);
@@ -33,7 +26,6 @@ export class Neo4jRecoveryService {
           await job.retry();
           recovered++;
         } catch {
-          // Job may have been removed or is in an un-retryable state
           skipped++;
         }
       }
@@ -44,7 +36,6 @@ export class Neo4jRecoveryService {
         );
       }
     } catch (error) {
-      // Redis might be down — that's fine, we'll try again in 15 min
       this.logger.warn(`Neo4j recovery skipped: ${(error as Error).message}`);
     }
   }

@@ -23,8 +23,6 @@ describe('Categories Module (e2e)', () => {
     await clearRedis(app);
   });
 
-  // ── Public routes ──────────────────────────────────────
-
   describe('GET /v1/categories/listings (public)', () => {
     it('should return 200 without auth', async () => {
       const res = await request(app.getHttpServer())
@@ -44,8 +42,6 @@ describe('Categories Module (e2e)', () => {
       expect(Array.isArray(res.body)).toBe(true);
     });
   });
-
-  // ── Admin write routes ─────────────────────────────────
 
   describe('POST /v1/categories/listings (admin)', () => {
     let adminToken: string;
@@ -122,8 +118,6 @@ describe('Categories Module (e2e)', () => {
     });
   });
 
-  // ── PATCH ──────────────────────────────────────────────
-
   describe('PATCH /v1/categories/listings/:id (admin)', () => {
     let adminToken: string;
     let categoryId: number;
@@ -167,8 +161,6 @@ describe('Categories Module (e2e)', () => {
     });
   });
 
-  // ── DELETE cascade ─────────────────────────────────────
-
   describe('DELETE /v1/categories/listings/:id (admin)', () => {
     let adminToken: string;
     let parentId: number;
@@ -199,7 +191,6 @@ describe('Categories Module (e2e)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
-      // Verify both are gone
       await request(app.getHttpServer())
         .patch(`/v1/categories/listings/${childId}`)
         .set('Authorization', `Bearer ${adminToken}`)
@@ -215,8 +206,6 @@ describe('Categories Module (e2e)', () => {
     });
   });
 
-  // ── Tree structure ─────────────────────────────────────
-
   describe('Category tree hierarchy', () => {
     let adminToken: string;
 
@@ -226,7 +215,6 @@ describe('Categories Module (e2e)', () => {
     });
 
     it('should build correct tree from flat categories', async () => {
-      // Create a hierarchy: Root > Sub1, Sub2
       const root = await request(app.getHttpServer())
         .post('/v1/categories/events')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -245,12 +233,10 @@ describe('Categories Module (e2e)', () => {
         .send({ category_name: 'Tennis', parent_category: root.body.id })
         .expect(201);
 
-      // GET tree
       const res = await request(app.getHttpServer())
         .get('/v1/categories/events')
         .expect(200);
 
-      // Root should have children
       const tree = res.body;
       expect(tree).toHaveLength(1);
       const rootNode = tree.find((n: any) => n.categoryName === 'Sports');

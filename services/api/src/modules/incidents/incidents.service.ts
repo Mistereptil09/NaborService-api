@@ -30,10 +30,7 @@ export class IncidentsService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  // ── List with filters ───────────────────────────────────
-
   async findAll(userId: string, filters: ListIncidentsDto) {
-    // If no neighbourhood filter, scope to the caller's neighbourhood
     let neighbourhoodId = filters.neighbourhood_id;
     if (!neighbourhoodId) {
       const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -53,17 +50,11 @@ export class IncidentsService {
       order: { createdAt: 'DESC' },
     });
 
-    // { data, meta: { total, offset, limit } } — same pagination envelope
-    // used across the rest of the API (UserSocialService, UserDiscoveryService).
-    // This previously returned a flat { data, total, offset, limit } shape,
-    // which broke frontend clients built against the shared Paginated<T> type.
     return {
       data,
       meta: { total, offset: filters.offset ?? 0, limit: filters.limit ?? 20 },
     };
   }
-
-  // ── Detail ──────────────────────────────────────────────
 
   async findOne(id: string) {
     const incident = await this.incidentRepository.findOne({
@@ -76,8 +67,6 @@ export class IncidentsService {
     return incident;
   }
 
-  // ── Create ───────────────────────────────────────────────
-
   async create(userId: string, dto: CreateIncidentDto): Promise<Incident> {
     const incident = this.incidentRepository.create({
       reporterId: userId,
@@ -89,8 +78,6 @@ export class IncidentsService {
     } as Partial<Incident>);
     return this.incidentRepository.save(incident);
   }
-
-  // ── Update ───────────────────────────────────────────────
 
   async update(
     incidentId: string,
@@ -109,8 +96,6 @@ export class IncidentsService {
     return this.incidentRepository.save(incident);
   }
 
-  // ── Assign ───────────────────────────────────────────────
-
   async assign(
     incidentId: string,
     moderatorId: string,
@@ -119,7 +104,6 @@ export class IncidentsService {
     const incident = await this.findOne(incidentId);
     const targetId = assigneeId ?? moderatorId;
 
-    // Verify the assignee exists
     const assignee = await this.userRepository.findOne({
       where: { id: targetId },
     });
@@ -129,7 +113,6 @@ export class IncidentsService {
 
     incident.assignedTo = targetId;
     incident.assignedAt = new Date();
-    // Transition to in_progress if still open
     if (incident.status === IncidentStatusEnum.OPEN) {
       incident.status = IncidentStatusEnum.IN_PROGRESS;
     }
@@ -138,8 +121,6 @@ export class IncidentsService {
     return this.incidentRepository.save(incident);
   }
 
-  // ── Resolve ──────────────────────────────────────────────
-
   async resolve(incidentId: string): Promise<Incident> {
     const incident = await this.findOne(incidentId);
     incident.status = IncidentStatusEnum.RESOLVED;
@@ -147,7 +128,6 @@ export class IncidentsService {
     incident.updatedAt = new Date();
     const saved = await this.incidentRepository.save(incident);
 
-    // Notify the reporter that their incident was resolved (transactional).
     if (saved.reporterId) {
       try {
         await this.notificationsService.create({
@@ -164,8 +144,6 @@ export class IncidentsService {
 
     return saved;
   }
-
-  // ── Delete (hard) ────────────────────────────────────────
 
   async delete(
     incidentId: string,
@@ -186,8 +164,6 @@ export class IncidentsService {
 
     await this.incidentRepository.delete(incidentId);
   }
-
-  // ── Authorization helper ─────────────────────────────────
 
   private assertCanEdit(
     incident: Incident,

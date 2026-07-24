@@ -134,11 +134,8 @@ describe('ChatMessageService', () => {
 
   it('should be defined', () => expect(service).toBeDefined());
 
-  // ── sendMessage ─────────────────────────────────────────
-
   describe('sendMessage', () => {
     it('should encrypt and round-trip a message', async () => {
-      // Mock create to return the encrypted data that was passed in (so decryption works)
       messageModel.create.mockImplementation((dto: any) =>
         Promise.resolve({
           ...makeMongoMsg(),
@@ -236,8 +233,6 @@ describe('ChatMessageService', () => {
     });
   });
 
-  // ── getMessage ──────────────────────────────────────────
-
   describe('getMessage', () => {
     it('should return a single decrypted message', async () => {
       msgRepo.findOne.mockResolvedValue({
@@ -278,8 +273,6 @@ describe('ChatMessageService', () => {
       );
     });
   });
-
-  // ── getMessages (pagination) ────────────────────────────
 
   describe('getMessages', () => {
     it('should return paginated results with has_more and cursor', async () => {
@@ -477,8 +470,6 @@ describe('ChatMessageService', () => {
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
-        // Renvoyé par la requête ASC (le plus proche du curseur en premier) —
-        // le service doit re-trier en DESC avant de construire la page.
         getMany: jest.fn().mockResolvedValue([older, newer]),
       };
       msgRepo.createQueryBuilder.mockReturnValue(qbMock);
@@ -541,8 +532,6 @@ describe('ChatMessageService', () => {
     });
   });
 
-  // ── getPinnedMessages ────────────────────────────────────
-
   describe('getPinnedMessages', () => {
     it('should return hydrated pinned messages ordered by pinnedAt desc', async () => {
       msgRepo.find = jest.fn().mockResolvedValue([
@@ -583,11 +572,8 @@ describe('ChatMessageService', () => {
     });
   });
 
-  // ── getGroupAttachments ─────────────────────────────────
-
   describe('getGroupAttachments', () => {
     it('should list every attachment of the group, independent of feed pagination', async () => {
-      // Deux messages non supprimés du groupe, un seul portant une pièce jointe.
       msgRepo.find = jest.fn().mockResolvedValue([
         { id: 'm1', senderId: 'u1', sentAt: new Date('2024-01-01') },
         { id: 'm2', senderId: 'u2', sentAt: new Date('2024-01-02') },
@@ -618,7 +604,6 @@ describe('ChatMessageService', () => {
         filename: 'doc.pdf',
         size_bytes: 2048,
       });
-      // Ne scanne que les messages non supprimés du groupe.
       expect(msgRepo.find).toHaveBeenCalledWith({
         where: { groupId: 'g1', isDeleted: false },
         select: ['id', 'senderId', 'sentAt'],
@@ -639,8 +624,6 @@ describe('ChatMessageService', () => {
       );
     });
   });
-
-  // ── editMessage ─────────────────────────────────────────
 
   describe('editMessage', () => {
     it('should re-encrypt edited content', async () => {
@@ -685,8 +668,6 @@ describe('ChatMessageService', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
-
-  // ── reactions ────────────────────────────────────────────
 
   describe('setReaction', () => {
     it('should replace any existing reaction from the same user then push the new one', async () => {
@@ -783,8 +764,6 @@ describe('ChatMessageService', () => {
       );
     });
   });
-
-  // ── softDeleteMessage ───────────────────────────────────
 
   describe('softDeleteMessage', () => {
     it('should allow author to delete their own message', async () => {
@@ -888,8 +867,6 @@ describe('ChatMessageService', () => {
     });
   });
 
-  // ── markRead ────────────────────────────────────────────
-
   describe('markRead', () => {
     it('should upsert read receipt', async () => {
       msgRepo.findOne.mockResolvedValue({
@@ -912,8 +889,6 @@ describe('ChatMessageService', () => {
       );
     });
   });
-
-  // ── pin / unpin ─────────────────────────────────────────
 
   describe('pinMessage', () => {
     it('should pin a message when the caller has actions/admin group role', async () => {
@@ -1066,8 +1041,6 @@ describe('ChatMessageService', () => {
     });
   });
 
-  // ── Admin / moderator operations (bypass membership & group role) ──
-
   describe('editMessageAsModerator', () => {
     it('should re-encrypt any message without the author-only check', async () => {
       msgRepo.findOne.mockResolvedValue({
@@ -1085,7 +1058,6 @@ describe('ChatMessageService', () => {
         'Corrigé par la modération',
       );
 
-      // Un modérateur (u1) modifie le message d'un autre (u2) — jamais rejeté.
       expect(edited.content).toBe('Corrigé par la modération');
       expect(mongoDoc.save).toHaveBeenCalled();
       expect(msgRepo.save).toHaveBeenCalledWith(

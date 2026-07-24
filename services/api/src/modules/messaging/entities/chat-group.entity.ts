@@ -42,7 +42,6 @@ export class ChatGroup {
   @Column({ name: 'listing_id', type: 'uuid', nullable: true })
   listingId: string | null;
 
-  /** Plain text, non-FK (no Postgres `neighbourhoods` table — neighbourhoods live in Neo4j only). */
   @Column({ name: 'neighbourhood_id', type: 'text', nullable: true })
   neighbourhoodId: string | null;
 

@@ -70,8 +70,6 @@ export class EventsController {
     private readonly moderationService: EventModerationService,
   ) {}
 
-  // --- Moderation Routes ---
-
   @Get('reported')
   @Roles('moderator', 'admin')
   @UseGuards(RolesGuard)
@@ -135,8 +133,6 @@ export class EventsController {
   async getModerationHistory(@Param('event_id') id: string) {
     return this.moderationService.getModerationHistory(id);
   }
-
-  // --- Core CRUD ---
 
   @Get()
   @ApiOperation({ summary: 'Lister les évènements' })
@@ -230,8 +226,6 @@ export class EventsController {
     return { success: true };
   }
 
-  // --- Content & Media (MongoDB) ---
-
   @Get(':event_id/content')
   @ApiOperation({ summary: "Lire le contenu enrichi HTML d'un évènement" })
   async getContent(@Param('event_id') id: string) {
@@ -289,8 +283,6 @@ export class EventsController {
     );
   }
 
-  // --- Lifecycle & State Machine ---
-
   @Post(':event_id/publish')
   @ApiOperation({ summary: 'Publier un évènement' })
   async publishEvent(@Param('event_id') id: string, @Req() req: any) {
@@ -324,8 +316,6 @@ export class EventsController {
     );
   }
 
-  // --- Participants & Waitlist ---
-
   @Post(':event_id/register')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: "S'inscrire à un évènement (async, 202)" })
@@ -351,8 +341,6 @@ export class EventsController {
   async getWaitlist(@Param('event_id') id: string, @Req() req: any) {
     return this.eventsService.getWaitlist(id, req.user.sub, req.user.role);
   }
-
-  // --- Tickets ---
 
   @Get(':event_id/ticket')
   @ApiOperation({ summary: 'Télécharger son billet PDF' })
@@ -381,8 +369,6 @@ export class EventsController {
   ) {
     return this.ticketService.scanTicket(id, dto.hmac, req.user.sub); // req.user.sub pour le scanner (ownership check peut aussi être fait dans le service)
   }
-
-  // --- Interactions ---
 
   @Post(':event_id/swipe')
   @ApiOperation({ summary: 'Liker ou disliker un évènement' })

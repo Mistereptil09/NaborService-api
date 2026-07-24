@@ -26,7 +26,6 @@ describe('Auth Module (e2e)', () => {
     await clearRedis(app);
   });
 
-  /** Extracts the refresh_token cookie from a login/totp-verify response. */
   function extractRefreshCookie(res: request.Response): string | null {
     const raw = res.headers['set-cookie'];
     if (!raw) return null;
@@ -35,8 +34,6 @@ describe('Auth Module (e2e)', () => {
     if (!refreshCookie) return null;
     return refreshCookie.split(';')[0]; // "refresh_token=<value>"
   }
-
-  // ── SSO QR ───────────────────────────────────────────────────
 
   describe('SSO QR Flow', () => {
     it('should generate a QR code', async () => {
@@ -64,8 +61,6 @@ describe('Auth Module (e2e)', () => {
       );
     });
   });
-
-  // ── Password Reset ───────────────────────────────────────────
 
   describe('Password Reset', () => {
     it('Property: No email enumeration', async () => {
@@ -95,8 +90,6 @@ describe('Auth Module (e2e)', () => {
     });
   });
 
-  // ── Rate Limiting ────────────────────────────────────────────
-
   describe('Rate Limiting', () => {
     it('should limit logins per account to 10 attempts / 15m', async () => {
       const { email } = await createTestUser(app);
@@ -115,14 +108,11 @@ describe('Auth Module (e2e)', () => {
     });
   });
 
-  // ── Refresh Token ────────────────────────────────────────────
-
   describe('POST /v1/auth/refresh', () => {
     it('should refresh tokens with a valid refresh cookie', async () => {
       const { email, password } = await createTestUser(app);
       const loginRes = await loginUser(app, email, password);
 
-      // Handle TOTP setup flow
       let refreshCookie = extractRefreshCookie(loginRes);
       let accessToken = loginRes.body.access_token;
 
@@ -142,7 +132,6 @@ describe('Auth Module (e2e)', () => {
 
       expect(refreshCookie).toBeTruthy();
 
-      // Refresh
       const refreshRes = await request(app.getHttpServer())
         .post('/v1/auth/refresh')
         .set('Cookie', refreshCookie!)
@@ -150,7 +139,6 @@ describe('Auth Module (e2e)', () => {
 
       expect(refreshRes.body).toHaveProperty('access_token');
       expect(refreshRes.body).toHaveProperty('refresh_token');
-      // New refresh token should be different (token rotation)
       expect(refreshRes.body.refresh_token).not.toBe(
         refreshCookie!.replace('refresh_token=', ''),
       );
@@ -168,14 +156,11 @@ describe('Auth Module (e2e)', () => {
     });
   });
 
-  // ── Logout ───────────────────────────────────────────────────
-
   describe('POST /v1/auth/logout', () => {
     it('should logout and revoke session', async () => {
       const { email, password } = await createTestUser(app);
       const { token } = await loginAndGetToken(app, email, password);
 
-      // Login again to get a refresh cookie
       const loginRes = await loginUser(app, email, password);
       const refreshCookie = extractRefreshCookie(loginRes);
 
@@ -187,7 +172,6 @@ describe('Auth Module (e2e)', () => {
 
         expect(res.body).toHaveProperty('message', 'Deconnecte avec succes');
 
-        // Refresh with the same cookie should now fail
         await request(app.getHttpServer())
           .post('/v1/auth/refresh')
           .set('Cookie', refreshCookie)
@@ -199,8 +183,6 @@ describe('Auth Module (e2e)', () => {
       await request(app.getHttpServer()).post('/v1/auth/logout').expect(401);
     });
   });
-
-  // ── Logout All ───────────────────────────────────────────────
 
   describe('POST /v1/auth/logout/all', () => {
     it('should revoke all sessions for the authenticated user', async () => {
@@ -221,8 +203,6 @@ describe('Auth Module (e2e)', () => {
         .expect(401);
     });
   });
-
-  // ── Sessions ─────────────────────────────────────────────────
 
   describe('GET /v1/auth/sessions', () => {
     it('should list active sessions for the authenticated user', async () => {
@@ -247,14 +227,11 @@ describe('Auth Module (e2e)', () => {
     });
   });
 
-  // ── Delete Session ───────────────────────────────────────────
-
   describe('DELETE /v1/auth/sessions/:id', () => {
     it('should revoke a specific session', async () => {
       const { email, password } = await createTestUser(app);
       const { token } = await loginAndGetToken(app, email, password);
 
-      // Get sessions
       const sessionsRes = await request(app.getHttpServer())
         .get('/v1/auth/sessions')
         .set('Authorization', `Bearer ${token}`)
@@ -295,14 +272,12 @@ describe('Auth Module (e2e)', () => {
         user2.password,
       );
 
-      // Get user2's session
       const sessionsRes = await request(app.getHttpServer())
         .get('/v1/auth/sessions')
         .set('Authorization', `Bearer ${token2}`)
         .expect(200);
 
       if (sessionsRes.body.length > 0) {
-        // User1 tries to revoke user2's session
         await request(app.getHttpServer())
           .delete(`/v1/auth/sessions/${sessionsRes.body[0].id}`)
           .set('Authorization', `Bearer ${token1}`)
@@ -311,15 +286,11 @@ describe('Auth Module (e2e)', () => {
     });
   });
 
-  // ── TOTP Setup ───────────────────────────────────────────────
-
   describe('POST /v1/auth/totp/setup', () => {
     it('should return otpauth URL for setup', async () => {
       const { email, password } = await createTestUser(app);
       const loginRes = await loginUser(app, email, password);
 
-      // Users created via register may already have TOTP configured
-      // If login returns access_token directly, TOTP is not yet set up
       if (loginRes.body.access_token) {
         const res = await request(app.getHttpServer())
           .post('/v1/auth/totp/setup')
@@ -337,8 +308,6 @@ describe('Auth Module (e2e)', () => {
         .expect(401);
     });
   });
-
-  // ── TOTP Disable ─────────────────────────────────────────────
 
   describe('POST /v1/auth/totp/disable', () => {
     it('should disable TOTP with a valid code', async () => {

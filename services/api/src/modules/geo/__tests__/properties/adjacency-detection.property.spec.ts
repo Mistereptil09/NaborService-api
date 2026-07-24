@@ -1,7 +1,6 @@
 import fc from 'fast-check';
 import * as turf from '@turf/turf';
 
-// Feature: geographical-pipeline, Property 12: Adjacency Detection
 describe('Property 12: Adjacency Detection via Polygon Intersection', () => {
   it('should be adjacent if and only if polygons intersect', () => {
     fc.assert(

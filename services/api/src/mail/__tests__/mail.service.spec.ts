@@ -47,7 +47,6 @@ describe('MailService', () => {
     expect(sent.from).toBe('noreply@nabor.fr');
     expect(sent.to).toBe('alice@example.com');
     expect(sent.subject).toBe('Réinitialisation');
-    // The compiled body must contain the injected variables, wrapped in the layout.
     expect(sent.html).toContain('https://app.nabor.fr/reset?token=abc');
     expect(sent.html).toContain('Alice');
     expect(sent.html).toContain('Nabor'); // layout header

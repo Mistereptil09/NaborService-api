@@ -20,8 +20,6 @@ import { isModeratorOrAdmin } from '../../common/ownership';
 import { UserBlock } from '../social/entities/user-block.entity';
 import { MediaService } from '../media/services/media.service';
 
-// Champs de l'auteur exposés au client — jamais l'entité User complète, qui
-// porte email/passwordHash/totpSecret/etc.
 const CREATOR_SAFE_FIELDS = [
   'creator.id',
   'creator.firstName',
@@ -86,7 +84,6 @@ export class ListingsService {
       query.andWhere('listing.listingType = :type', { type: dto.type });
     }
 
-    // Status filter : 'all' or omitted means no status filtering.
     if (dto.status && dto.status !== 'all') {
       query.andWhere('listing.status = :status', { status: dto.status });
     }
@@ -104,19 +101,12 @@ export class ListingsService {
       coverMediaId: covers.get(l.id) ?? null,
     }));
 
-    // { data, meta: { total, offset, limit } } — same pagination envelope
-    // used across the rest of the API (incidents, users social/discovery).
     return {
       data: enriched,
       meta: { total, offset: dto.offset, limit: dto.limit },
     };
   }
 
-  /**
-   * Liste les annonces où l'utilisateur est partie prenante d'une transaction
-   * (provider ou requester). Exclut les annonces supprimées et les créateurs
-   * bloqués. Utile pour l'espace "Mes opérations".
-   */
   async findUserOperations(
     userId: string,
     dto: ListListingsDto,
@@ -198,7 +188,6 @@ export class ListingsService {
 
     const savedListing = await this.listingRepository.save(listing);
 
-    // Sync with Neo4j
     await this.neo4jSyncQueue.add('upsert-listing', {
       id: savedListing.id,
       title: savedListing.title,
@@ -272,7 +261,6 @@ export class ListingsService {
 
     const savedListing = await this.listingRepository.save(listing);
 
-    // Update Neo4j relation if neighbourhood changed
     if (
       dto.neighbourhood_id !== undefined &&
       dto.neighbourhood_id !== oldNeighbourhoodId
@@ -283,7 +271,6 @@ export class ListingsService {
       });
     }
 
-    // Upsert listing status/properties in Neo4j
     await this.neo4jSyncQueue.add('upsert-listing', {
       id: savedListing.id,
       title: savedListing.title,
@@ -310,7 +297,6 @@ export class ListingsService {
     listing.deletedAt = new Date();
     await this.listingRepository.save(listing);
 
-    // Sync detach delete in Neo4j
     await this.neo4jSyncQueue.add('delete-listing', { id: listing.id });
   }
 }

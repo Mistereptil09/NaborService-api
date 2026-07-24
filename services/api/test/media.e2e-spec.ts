@@ -25,8 +25,6 @@ describe('Media Module (e2e)', () => {
     await clearRedis(app);
   });
 
-  // ── Auth Guards ──────────────────────────────────────────────
-
   describe('Auth', () => {
     const guardedPaths = [
       { method: 'post' as const, path: '/v1/media/listings/fake-id/photos' },
@@ -40,8 +38,6 @@ describe('Media Module (e2e)', () => {
       });
     }
   });
-
-  // ── Streaming ────────────────────────────────────────────────
 
   describe('GET /v1/media/:id/stream', () => {
     it('should return 400 for invalid ObjectId format', async () => {
@@ -57,14 +53,11 @@ describe('Media Module (e2e)', () => {
     });
 
     it('should return 404 for valid but non-existent ObjectId', async () => {
-      // Valid 24-char hex but doesn't exist
       await request(app.getHttpServer())
         .get('/v1/media/aaaaaaaaaaaaaaaaaaaaaaaa/stream')
         .expect(404);
     });
   });
-
-  // ── Upload Validation ────────────────────────────────────────
 
   describe('POST upload routes', () => {
     it('should return 400 (or 500 if multer crashes) when no file is attached', async () => {
@@ -87,15 +80,12 @@ describe('Media Module (e2e)', () => {
         user1.password,
       );
 
-      // User1 tries to upload avatar for User2
       await request(app.getHttpServer())
         .post(`/v1/media/users/${user2.user.id}/avatar`)
         .set('Authorization', `Bearer ${token1}`)
         .expect(403);
     });
   });
-
-  // ── Caption Validation ───────────────────────────────────────
 
   describe('PATCH /v1/media/:id/caption', () => {
     it('should return 400 for caption exceeding 280 chars', async () => {
@@ -109,8 +99,6 @@ describe('Media Module (e2e)', () => {
         .expect(400);
     });
   });
-
-  // ── Reorder Validation ───────────────────────────────────────
 
   describe('PATCH /v1/media/listings/:id/photos/reorder', () => {
     it('should return 400 when mediaIds is missing', async () => {
@@ -158,8 +146,6 @@ describe('Media Module (e2e)', () => {
         .expect(403);
     });
   });
-
-  // ── MongoDB-dependent (skip if Mongo unavailable) ────────────
 
   describe('Integration (requires MongoDB)', () => {
     it('DELETE /v1/media/:id should return 404 for non-existent media', async () => {

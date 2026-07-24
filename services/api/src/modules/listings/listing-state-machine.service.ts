@@ -78,7 +78,6 @@ export class ListingStateMachineService {
       );
     }
 
-    // Fetch config for commission percentage
     let commissionPercent = 5;
     try {
       const config = await this.configService.getConfig();
@@ -91,7 +90,6 @@ export class ListingStateMachineService {
       (listing.priceCents * commissionPercent) / 100,
     );
 
-    // Create transaction
     const transaction = await this.transactionService.create(
       listingId,
       listing.creatorId,
@@ -100,7 +98,6 @@ export class ListingStateMachineService {
       commissionPoints,
     );
 
-    // Update listing status
     const result = await this.listingRepository.update(
       { id: listingId, status: ListingStatusEnum.OPEN },
       { status: ListingStatusEnum.PENDING, updatedAt: new Date() },
@@ -112,7 +109,6 @@ export class ListingStateMachineService {
 
     const updatedListing = await this.listingsService.findOne(listingId);
 
-    // Neo4j Sync
     await this.neo4jSyncQueue.add('upsert-listing', {
       id: updatedListing.id,
       title: updatedListing.title,
@@ -122,7 +118,6 @@ export class ListingStateMachineService {
       created_at: updatedListing.createdAt,
     });
 
-    // Gateway Room and Status change
     this.listingsGateway.joinPartiesToRoom(
       listingId,
       listing.creatorId,
@@ -134,7 +129,6 @@ export class ListingStateMachineService {
       updatedListing.updatedAt || new Date(),
     );
 
-    // Notify the listing creator that someone is interested (transactional).
     try {
       await this.notificationsService.create({
         userId: listing.creatorId,
@@ -182,12 +176,10 @@ export class ListingStateMachineService {
     const transaction =
       await this.transactionService.findByListingId(listingId);
 
-    // Enqueue PDF contract generation
     await this.pdfGenerationQueue.add('generate-contract', {
       transactionId: transaction.id,
     });
 
-    // Fetch config for contract expiration delay
     let contractExpirationHours = 24;
     try {
       const config = await this.configService.getConfig();
@@ -196,14 +188,12 @@ export class ListingStateMachineService {
       // Fallback
     }
 
-    // Enqueue delayed expiration job (24h default)
     await this.contractExpirationQueue.add(
       'expire-unsigned-contract',
       { transactionId: transaction.id },
       { delay: contractExpirationHours * 60 * 60 * 1000 },
     );
 
-    // Neo4j Sync
     await this.neo4jSyncQueue.add('upsert-listing', {
       id: updatedListing.id,
       title: updatedListing.title,
@@ -213,14 +203,12 @@ export class ListingStateMachineService {
       created_at: updatedListing.createdAt,
     });
 
-    // Gateway status change
     this.listingsGateway.emitStatusChanged(
       listingId,
       ListingStatusEnum.IN_PROGRESS,
       updatedListing.updatedAt || new Date(),
     );
 
-    // Notify the interested party that their request was accepted (transactional).
     try {
       await this.notificationsService.create({
         userId: transaction.requesterId,
@@ -303,7 +291,6 @@ export class ListingStateMachineService {
 
     let savedTransaction = await this.transactionService.save(transaction);
 
-    // If both confirmed, close listing and release payment to the provider
     if (
       savedTransaction.providerConfirmedAt &&
       savedTransaction.requesterConfirmedAt
@@ -358,12 +345,10 @@ export class ListingStateMachineService {
 
       const updatedListing = await this.listingsService.findOne(listingId);
 
-      // PDF Receipt generation
       await this.pdfGenerationQueue.add('generate-receipt', {
         transactionId: savedTransaction.id,
       });
 
-      // Neo4j Sync
       await this.neo4jSyncQueue.add('upsert-listing', {
         id: updatedListing.id,
         title: updatedListing.title,
@@ -373,7 +358,6 @@ export class ListingStateMachineService {
         created_at: updatedListing.createdAt,
       });
 
-      // Emit gateway
       this.listingsGateway.emitStatusChanged(
         listingId,
         ListingStatusEnum.CLOSED,
@@ -407,7 +391,6 @@ export class ListingStateMachineService {
       // Transaction might not exist if cancelled from OPEN
     }
 
-    // Party guard
     if (listing.status === ListingStatusEnum.OPEN) {
       if (listing.creatorId !== userId && !isModeratorOrAdmin(userRole)) {
         throw new ForbiddenException('Action non autorisée');
@@ -456,7 +439,6 @@ export class ListingStateMachineService {
 
     const updatedListing = await this.listingsService.findOne(listingId);
 
-    // Neo4j Sync
     await this.neo4jSyncQueue.add('upsert-listing', {
       id: updatedListing.id,
       title: updatedListing.title,
@@ -466,7 +448,6 @@ export class ListingStateMachineService {
       created_at: updatedListing.createdAt,
     });
 
-    // Gateway
     this.listingsGateway.emitStatusChanged(
       listingId,
       ListingStatusEnum.CANCELLED,

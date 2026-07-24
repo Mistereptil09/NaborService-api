@@ -82,7 +82,6 @@ export class MediaController {
     private readonly chatGateway: ChatGateway,
   ) {}
 
-  /** Vérifie que `userId` est membre actif du groupe du message. */
   private async isMessageGroupMember(
     groupId: string,
     userId: string,
@@ -93,7 +92,6 @@ export class MediaController {
     return membership !== null;
   }
 
-  /** owner_type lisibles par tout utilisateur authentifié, sans vérification supplémentaire. */
   private static readonly PUBLIC_TO_AUTHENTICATED = new Set([
     'user_avatar',
     'user_banner',
@@ -105,7 +103,6 @@ export class MediaController {
     return role === 'admin' || role === 'moderator';
   }
 
-  /** Vérifie que l'utilisateur authentifié peut lire (streamer/télécharger) ce média. */
   private async assertCanReadMedia(
     doc: MediaFileDocument,
     user: JwtPayload,
@@ -188,8 +185,6 @@ export class MediaController {
     }
   }
 
-  // --- Streaming Endpoint ---
-
   @Get(':mediaId/stream')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -266,18 +261,12 @@ export class MediaController {
     res.setHeader('Content-Length', chunkSize.toString());
     res.status(206);
 
-    // HTTP Range `end` is inclusive, but GridFSBucket.openDownloadStream's
-    // `end` option is an EXCLUSIVE byte offset — passing it through unshifted
-    // streams one byte fewer than the Content-Length promised above, so the
-    // response never completes and the client hangs until its own timeout.
     const downloadStream = this.gridfsService.openDownloadStream(fileId, {
       start,
       end: end + 1,
     });
     downloadStream.pipe(res);
   }
-
-  // --- Upload Endpoints ---
 
   @Post('listings/:listingId/photos')
   @UseGuards(JwtAuthGuard)
@@ -480,11 +469,6 @@ export class MediaController {
       'message_attachment',
       messageId,
     );
-    // L'upload se fait après la création du message (contrainte de l'API
-    // media) et ne passe pas par le gateway — sans cette diffusion, les
-    // autres membres du groupe ne voient la pièce jointe qu'au rechargement
-    // de la page (le panneau "fichiers partagés" comme l'aperçu inline dans
-    // le fil restent basés sur ce même événement `message:received`).
     const enrichedMessage = await this.chatMessageService.getMessage(
       messageId,
       req.user.sub,
@@ -518,8 +502,6 @@ export class MediaController {
     return this.mediaService.upload(file, 'contract', transactionId);
   }
 
-  // --- Deletion, Captioning & Reordering ---
-
   @Delete(':mediaId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -536,7 +518,6 @@ export class MediaController {
   ) {
     const doc = await this.mediaService.findById(mediaId);
 
-    // Enforce authorization constraints
     if (doc.owner_type === 'user_avatar' || doc.owner_type === 'user_banner') {
       if (doc.owner_id !== req.user.sub) {
         throw new ForbiddenException('Action non autorisée');

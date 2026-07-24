@@ -40,8 +40,6 @@ describe('ChatService', () => {
     ...overrides,
   });
 
-  // Chainable mock for uigRepo.createQueryBuilder(), used by enrichGroups()
-  // (member_count + other_participant batched queries).
   const makeQueryBuilder = (
     overrides: { getRawMany?: any[]; getMany?: any[] } = {},
   ) => {
@@ -115,8 +113,6 @@ describe('ChatService', () => {
 
   it('should be defined', () => expect(service).toBeDefined());
 
-  // ── getUserGroups ───────────────────────────────────────
-
   describe('getUserGroups', () => {
     it('should return active groups for a user', async () => {
       uigRepo.find.mockResolvedValue([
@@ -130,10 +126,6 @@ describe('ChatService', () => {
     it('should exclude groups where user has left', async () => {
       const membership = makeMembership({ leftAt: new Date() });
       uigRepo.find.mockResolvedValue([{ ...membership, group: makeGroup() }]);
-      // find() filters leftAt IS NULL, but the mock returns everything
-      // The service filters by leftAt === null after find, so the group still appears in results
-      // Actually the service filters leftAt/kickedAt in the query, then filters deletedAt in JS
-      // Let's test the JS filtering: group.deletedAt !== null → excluded
       uigRepo.find.mockResolvedValue([
         { ...makeMembership(), group: makeGroup({ deletedAt: new Date() }) },
       ]);
@@ -238,8 +230,6 @@ describe('ChatService', () => {
     });
   });
 
-  // ── assertCanParticipate ─────────────────────────────────
-
   describe('assertCanParticipate', () => {
     it('should allow non-watch roles', async () => {
       uigRepo.findOne.mockResolvedValue(
@@ -266,8 +256,6 @@ describe('ChatService', () => {
       );
     });
   });
-
-  // ── assertGroupRole ──────────────────────────────────────
 
   describe('assertGroupRole', () => {
     it('should allow a member holding one of the given roles', async () => {
@@ -299,8 +287,6 @@ describe('ChatService', () => {
     });
   });
 
-  // ── markGroupRead ────────────────────────────────────────
-
   describe('markGroupRead', () => {
     it('should stamp the last-read pointer for an active member', async () => {
       uigRepo.findOne.mockResolvedValue(makeMembership());
@@ -319,8 +305,6 @@ describe('ChatService', () => {
     });
   });
 
-  // ── createGroup ─────────────────────────────────────────
-
   describe('createGroup', () => {
     it('should create a group with creator as admin', async () => {
       groupRepo.create.mockReturnValue(makeGroup());
@@ -337,7 +321,6 @@ describe('ChatService', () => {
         name: 'With Members',
         memberIds: ['u2', 'u3'],
       });
-      // First save: creator as admin. Second save: initial members.
       expect(uigRepo.save).toHaveBeenCalledTimes(2);
     });
 
@@ -348,8 +331,6 @@ describe('ChatService', () => {
       expect(secondSave.every((m: any) => m.userId !== 'u1')).toBe(true);
     });
   });
-
-  // ── getGroupDetail ──────────────────────────────────────
 
   describe('getGroupDetail', () => {
     it('should return group if exists and not deleted', async () => {
@@ -373,8 +354,6 @@ describe('ChatService', () => {
     });
   });
 
-  // ── updateGroup ─────────────────────────────────────────
-
   describe('updateGroup', () => {
     it('should update name and description for admin', async () => {
       uigRepo.findOne.mockResolvedValue(makeMembership()); // admin
@@ -392,8 +371,6 @@ describe('ChatService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
   });
-
-  // ── softDeleteGroup ─────────────────────────────────────
 
   describe('softDeleteGroup', () => {
     it('should soft-delete for admin', async () => {
@@ -413,8 +390,6 @@ describe('ChatService', () => {
     });
   });
 
-  // ── getMembers ──────────────────────────────────────────
-
   describe('getMembers', () => {
     it('should return active members', async () => {
       groupRepo.findOne.mockResolvedValue(makeGroup());
@@ -433,8 +408,6 @@ describe('ChatService', () => {
       );
     });
   });
-
-  // ── addMember ───────────────────────────────────────────
 
   describe('addMember', () => {
     it('should add a new member as inviter with actions role', async () => {
@@ -470,8 +443,6 @@ describe('ChatService', () => {
     });
   });
 
-  // ── removeMember ────────────────────────────────────────
-
   describe('removeMember', () => {
     it('should allow self-leave', async () => {
       uigRepo.findOne.mockResolvedValue(
@@ -482,7 +453,6 @@ describe('ChatService', () => {
     });
 
     it('should allow admin to kick someone', async () => {
-      // First findOne: admin look-up (requirer), Second: target member
       uigRepo.findOne
         .mockResolvedValueOnce(
           makeMembership({ userId: 'u1', roleInGroup: GroupRoleEnum.ADMIN }),
@@ -504,11 +474,8 @@ describe('ChatService', () => {
     });
   });
 
-  // ── changeRole ──────────────────────────────────────────
-
   describe('changeRole', () => {
     it('should change role when admin requests', async () => {
-      // First findOne: admin requirer, Second: target member
       uigRepo.findOne
         .mockResolvedValueOnce(
           makeMembership({ userId: 'u1', roleInGroup: GroupRoleEnum.ADMIN }),
@@ -529,8 +496,6 @@ describe('ChatService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
   });
-
-  // ── mute / unmute ───────────────────────────────────────
 
   describe('mute', () => {
     it('should mute for a duration', async () => {
@@ -581,8 +546,6 @@ describe('ChatService', () => {
     });
   });
 
-  // ── isMember ────────────────────────────────────────────
-
   describe('isMember', () => {
     it('should return true for active member', async () => {
       uigRepo.findOne.mockResolvedValue(makeMembership());
@@ -594,8 +557,6 @@ describe('ChatService', () => {
       expect(await service.isMember('g1', 'u9')).toBe(false);
     });
   });
-
-  // ── Neighbourhood groups ─────────────────────────────────
 
   const makeNeighbourhoodGroup = (overrides = {}) =>
     makeGroup({

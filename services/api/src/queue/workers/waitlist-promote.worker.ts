@@ -75,9 +75,6 @@ export class WaitlistPromoteWorker extends WorkerHost {
           participant.promotedAt = new Date();
           await manager.save(participant);
 
-          // In-app notification + offline email relay are centralised in
-          // NotificationsService.create (waitlist_place → 'waitlist-promoted'
-          // template, gated by notifWaitlist).
           try {
             await this.notificationsService.create({
               userId: participant.userId,

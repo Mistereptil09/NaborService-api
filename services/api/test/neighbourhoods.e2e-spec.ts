@@ -19,8 +19,6 @@ describe('Neighbourhoods Module (e2e)', () => {
     await clearRedis(app);
   });
 
-  // ── Public routes ──────────────────────────────────────
-
   describe('GET /v1/neighbourhoods (public)', () => {
     it('should return 200 without auth', async () => {
       const res = await request(app.getHttpServer())
@@ -42,7 +40,6 @@ describe('Neighbourhoods Module (e2e)', () => {
         expect(nb).toHaveProperty('city');
         expect(nb).toHaveProperty('zipCode');
         expect(nb).toHaveProperty('country');
-        // No geometry/centroid in public listing
         expect(nb).not.toHaveProperty('geometry');
         expect(nb).not.toHaveProperty('centroid');
       }
@@ -75,8 +72,6 @@ describe('Neighbourhoods Module (e2e)', () => {
         .expect(400);
     });
   });
-
-  // ── Auth routes ────────────────────────────────────────
 
   describe('Auth-required routes', () => {
     let token: string;

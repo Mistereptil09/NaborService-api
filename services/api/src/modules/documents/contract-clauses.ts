@@ -1,14 +1,5 @@
-/**
- * Registre de clauses contractuelles par type de service.
- *
- * Les catégories Postgres n'ont pas de slug — la résolution passe par
- * slugifyCategory(categoryName), en remontant la chaîne des parents, avec
- * repli sur les clauses génériques.
- */
-
 export interface ClauseSet {
   key: string;
-  /** Suffixe optionnel ajouté au titre du contrat, ex. « Garde d'enfants ». */
   titleSuffix?: string;
   clauses: string[];
 }
@@ -68,7 +59,6 @@ export const CONTRACT_CLAUSES: Record<string, ClauseSet> = {
   },
 };
 
-/** Normalise un nom de catégorie en slug : minuscules, sans accents ni apostrophes. */
 export function slugifyCategory(name: string): string {
   return name
     .normalize('NFD')
@@ -79,10 +69,6 @@ export function slugifyCategory(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-/**
- * Résout la première clause correspondante dans la chaîne
- * [catégorie, parent, grand-parent...], sinon 'generic'.
- */
 export function resolveTemplateKey(categoryNames: string[]): string {
   for (const name of categoryNames) {
     const slug = slugifyCategory(name);

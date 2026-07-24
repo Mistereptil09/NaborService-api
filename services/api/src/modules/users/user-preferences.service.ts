@@ -74,7 +74,6 @@ export class UserPreferencesService {
       throw new NotFoundException('Préférences de notifications introuvables');
     }
 
-    // Apply partial updates
     Object.assign(prefs, dto);
     prefs.updatedAt = new Date();
 
@@ -121,11 +120,6 @@ export class UserPreferencesService {
     return true;
   }
 
-  /**
-   * Returns whether a non-essential email gated by `preferenceKey` may be sent
-   * to the user. Honours the global "notifications" opt-out, then the specific
-   * notification flag. Defaults to true when no preferences row exists.
-   */
   async isPreferenceEnabled(
     userId: string,
     preferenceKey: NotifPreferenceKey,

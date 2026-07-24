@@ -2,7 +2,6 @@ import fc from 'fast-check';
 import { Neo4jGeoService } from '../../neo4j-geo.service';
 import { Neo4jService } from '../../../../database/neo4j/neo4j.service';
 
-// Feature: geographical-pipeline, Property 13: Invalid Polygon Rejection
 describe('Property 13: Invalid Polygon Rejection', () => {
   let neo4jGeoService: Neo4jGeoService;
 
@@ -19,9 +18,7 @@ describe('Property 13: Invalid Polygon Rejection', () => {
     await fc.assert(
       fc.asyncProperty(
         fc.oneof(
-          // Not a polygon
           fc.constant({ type: 'Point', coordinates: [0, 0] }),
-          // Too few positions (< 4)
           fc.constant({
             type: 'Polygon',
             coordinates: [
@@ -32,7 +29,6 @@ describe('Property 13: Invalid Polygon Rejection', () => {
               ],
             ],
           }),
-          // Unclosed ring
           fc.constant({
             type: 'Polygon',
             coordinates: [

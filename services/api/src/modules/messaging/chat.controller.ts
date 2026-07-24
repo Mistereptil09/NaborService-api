@@ -39,8 +39,6 @@ export class ChatController {
     private readonly chatMessageService: ChatMessageService,
   ) {}
 
-  // ── Groups ──────────────────────────────────────────────
-
   @Get('groups')
   @ApiOperation({ summary: "Groupes de l'utilisateur connecté" })
   async getGroups(@Req() req: any) {
@@ -79,15 +77,10 @@ export class ChatController {
     return this.chatService.softDeleteGroup(groupId, req.user.sub);
   }
 
-  // ── Members ─────────────────────────────────────────────
-
   @Get('groups/:group_id/members')
   @ApiOperation({ summary: 'Liste des membres du groupe' })
   async getMembers(@Param('group_id') groupId: string) {
     const memberships = await this.chatService.getMembers(groupId);
-    // Réponse en snake_case (convention REST du module) avec l'identité de
-    // l'utilisateur déjà jointe (relation `user` chargée par le service) —
-    // évite tout lookup N+1 côté client pour afficher la liste des membres.
     return memberships.map((m) => ({
       user_id: m.userId,
       role: m.roleInGroup,
@@ -130,8 +123,6 @@ export class ChatController {
     return this.chatService.changeRole(groupId, userId, dto.role, req.user.sub);
   }
 
-  // ── Read pointer ────────────────────────────────────────
-
   @Post('groups/:group_id/read')
   @ApiOperation({
     summary: 'Marquer la conversation comme lue (badge non-lus)',
@@ -143,8 +134,6 @@ export class ChatController {
     await this.chatService.markGroupRead(groupId, req.user.sub);
     return { group_id: groupId, read: true };
   }
-
-  // ── Mute ────────────────────────────────────────────────
 
   @Post('groups/:group_id/mute')
   @ApiOperation({ summary: 'Activer la sourdine pour soi-même' })
@@ -162,8 +151,6 @@ export class ChatController {
   async unmute(@Param('group_id') groupId: string, @Req() req: any) {
     return this.chatService.unmute(groupId, req.user.sub);
   }
-
-  // ── Messages ────────────────────────────────────────────
 
   @Get('groups/:group_id/messages')
   @ApiOperation({ summary: 'Historique paginé (cursor-based, déchiffré)' })
@@ -270,8 +257,6 @@ export class ChatController {
   ) {
     return this.chatMessageService.softDeleteMessage(messageId, req.user.sub);
   }
-
-  // ── Pin ─────────────────────────────────────────────────
 
   @Post('messages/:message_id/pin')
   @ApiOperation({

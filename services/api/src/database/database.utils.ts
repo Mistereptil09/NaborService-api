@@ -1,18 +1,11 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-/**
- * Default retry configuration for all database connections.
- */
 export const DB_RETRY_CONFIG = {
   maxAttempts: 5,
   delayMs: 3000,
 } as const;
 
-/**
- * Validates that a required environment variable is defined.
- * Throws with a clear error message naming the service and missing var.
- */
 export function requireEnv(
   config: ConfigService,
   varName: string,
@@ -31,12 +24,6 @@ export function requireEnv(
   return value;
 }
 
-/**
- * Wraps an async connection/health-check attempt with retry logic and consistent logging.
- * Returns the result of `connectFn` on success, or throws after exhausting retries.
- *
- * Use this to verify connectivity after creating a client/driver instance.
- */
 export async function connectWithRetry<T>(
   serviceName: string,
   connectFn: () => Promise<T>,

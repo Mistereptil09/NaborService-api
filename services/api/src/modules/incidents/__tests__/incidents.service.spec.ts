@@ -47,10 +47,6 @@ describe('IncidentsService', () => {
         data: rows,
         meta: { total: 2, offset: 0, limit: 20 },
       });
-      // Regression guard: this shape must match the pagination envelope used
-      // elsewhere in the API ({ data, meta: {...} }), not a flat
-      // { data, total, offset, limit } object — the frontend's generic
-      // Paginated<T> type assumes the nested `meta` and crashes without it.
       expect((result as any).total).toBeUndefined();
     });
 

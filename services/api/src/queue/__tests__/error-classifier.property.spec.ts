@@ -2,7 +2,6 @@ import fc from 'fast-check';
 import { UnrecoverableError } from 'bullmq';
 import { classifyAndThrow } from '../utils/error-classifier';
 
-// Feature: bullmq-integration, Property 2: Error classification correctly distinguishes transient from non-transient errors
 describe('Error Classifier', () => {
   const transientMessages = [
     'ECONNREFUSED 127.0.0.1:6379',

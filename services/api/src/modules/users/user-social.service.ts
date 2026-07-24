@@ -53,10 +53,6 @@ export class UserSocialService {
     private readonly healthService?: Neo4jHealthService,
   ) {}
 
-  /**
-   * Enqueues a Neo4j sync job only if the circuit breaker allows it.
-   * When Neo4j is down, skips the job — reconciliation will catch up.
-   */
   private async enqueueSync(name: string, data: any): Promise<void> {
     if (this.healthService && !this.healthService.isHealthy()) {
       this.logger.warn(
@@ -77,7 +73,6 @@ export class UserSocialService {
     return [...new Set(ids)];
   }
 
-  /** True if either user has blocked the other, in either direction. */
   async isBlocked(userIdA: string, userIdB: string): Promise<boolean> {
     const block = await this.blockRepository.findOne({
       where: [
@@ -88,7 +83,6 @@ export class UserSocialService {
     return block !== null;
   }
 
-  /** True if `blockerId` has explicitly blocked `blockedId`. */
   async hasBlocked(blockerId: string, blockedId: string): Promise<boolean> {
     const block = await this.blockRepository.findOne({
       where: { blockerId, blockedId },
@@ -108,7 +102,6 @@ export class UserSocialService {
       throw new NotFoundException('Utilisateur cible introuvable');
     }
 
-    // Check block in opposite direction (if target blocked me, I cannot follow them)
     const isBlocked = await this.blockRepository.findOne({
       where: { blockerId: followedId, blockedId: followerId },
     });
@@ -126,17 +119,12 @@ export class UserSocialService {
     const follow = this.followRepository.create({ followerId, followedId });
     await this.followRepository.save(follow);
 
-    // Publish to Neo4j Sync Queue
     await this.enqueueSync('user.follows.create', {
       followerId,
       followedId,
     });
 
-    // Notify the followed user (in-app + email relay if offline).
     try {
-      // Le nom affiché doit être celui de la personne qui suit (followerId),
-      // pas celui du destinataire (followedUser) — sinon la notification
-      // affiche systématiquement le propre prénom du destinataire.
       const followerUser = await this.userRepository.findOne({
         where: { id: followerId, deletedAt: IsNull() },
         select: ['firstName'],
@@ -152,7 +140,6 @@ export class UserSocialService {
       );
     }
 
-    // Check for mutual follow
     const mutualFollow = await this.followRepository.findOne({
       where: { followerId: followedId, followedId: followerId },
     });
@@ -216,7 +203,6 @@ export class UserSocialService {
       followedId,
     });
 
-    // Break mutual friendship
     const u1 = followerId < followedId ? followerId : followedId;
     const u2 = followerId < followedId ? followedId : followerId;
 
@@ -378,8 +364,6 @@ export class UserSocialService {
     const block = this.blockRepository.create({ blockerId, blockedId });
     await this.blockRepository.save(block);
 
-    // Invalidate the cached feed so a re-fetch doesn't keep serving this
-    // now-blocked user back (would otherwise 409 on a repeat block attempt).
     await this.redis.del(`discover:${blockerId}`);
 
     await this.enqueueSync('user.blocks.create', {
@@ -387,7 +371,6 @@ export class UserSocialService {
       blockedId,
     });
 
-    // Clean up follows in both directions
     await this.followRepository.delete({
       followerId: blockerId,
       followedId: blockedId,
@@ -405,7 +388,6 @@ export class UserSocialService {
       followedId: blockerId,
     });
 
-    // Clean up friendships
     const u1 = blockerId < blockedId ? blockerId : blockedId;
     const u2 = blockerId < blockedId ? blockedId : blockerId;
 
@@ -421,10 +403,6 @@ export class UserSocialService {
         userId2: u2,
       });
 
-      // Un blocage doit couper la messagerie directe immédiatement : sans
-      // ça, les deux restent membres actifs du groupe direct_message
-      // auto-créé au moment du follow mutuel, et assertCanParticipate
-      // (chat.service.ts) continue de les laisser s'envoyer des messages.
       if (friendship.groupId) {
         await this.usersInGroupRepository.update(
           {

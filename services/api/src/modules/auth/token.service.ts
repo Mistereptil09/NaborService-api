@@ -13,9 +13,6 @@ export class TokenService {
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
-  /**
-   * Generates an access token: signed JWT HS256, 15 min expiry, payload { sub, role, locale }
-   */
   generateAccessToken(user: User): string {
     const payload = {
       sub: user.id,
@@ -28,23 +25,14 @@ export class TokenService {
     });
   }
 
-  /**
-   * Generates a 64-character opaque refresh token using base64url encoding
-   */
   generateRefreshToken(): string {
     return crypto.randomBytes(48).toString('base64url');
   }
 
-  /**
-   * Hashes a refresh token using SHA-256
-   */
   hashRefreshToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-  /**
-   * Stores the refresh token payload in Redis under `refresh:<sha256_hash>` with a TTL of 30 days
-   */
   async storeRefreshInRedis(
     hash: string,
     userId: string,
@@ -58,21 +46,14 @@ export class TokenService {
       expires_at: expiresAt.toISOString(),
     };
 
-    // TTL is 30 days = 2,592,000 seconds
     await this.redis.set(key, JSON.stringify(payload), 'EX', 2592000);
   }
 
-  /**
-   * Deletes a refresh token from Redis
-   */
   async deleteRefreshFromRedis(hash: string): Promise<void> {
     const key = `refresh:${hash}`;
     await this.redis.del(key);
   }
 
-  /**
-   * Looks up a refresh token in Redis and returns the parsed payload or null if not found
-   */
   async lookupRefreshInRedis(
     hash: string,
   ): Promise<RedisRefreshPayload | null> {

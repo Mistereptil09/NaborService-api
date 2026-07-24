@@ -5,9 +5,6 @@ import { MediaService } from '../media/services/media.service';
 export class UserMediaService {
   constructor(private readonly mediaService: MediaService) {}
 
-  /**
-   * Upload user avatar or banner. Delegates to the new MediaService.
-   */
   async uploadMedia(
     userId: string,
     file: Express.Multer.File,
@@ -18,9 +15,6 @@ export class UserMediaService {
     return media._id.toString();
   }
 
-  /**
-   * Delete user avatar or banner. Delegates to the new MediaService.
-   */
   async deleteMedia(userId: string, type: 'avatar' | 'banner'): Promise<void> {
     const ownerType = type === 'avatar' ? 'user_avatar' : 'user_banner';
     const existing = await this.mediaService.findByOwner(ownerType, userId);

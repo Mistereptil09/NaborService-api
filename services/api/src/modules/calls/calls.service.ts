@@ -47,7 +47,6 @@ interface CallMeta {
   startedAt: string;
 }
 
-/** Un RTCIceServer tel qu'attendu par le client (config RTCPeerConnection). */
 export interface IceServer {
   urls: string[];
   username?: string;
@@ -58,8 +57,6 @@ const LIVE_CALL_TTL_SECONDS = 6 * 60 * 60; // abandoned-call safety net
 const RINGING_TIMEOUT_MS = 45 * 1000;
 const TURN_CREDENTIAL_TTL_SECONDS = 23 * 60 * 60; // just under Cloudflare's 24h lifetime
 const TURN_CACHE_KEY = 'turn:credentials';
-// Repli STUN-only quand Cloudflare TURN n'est pas configuré. Note : ne permet
-// PAS de traverser un NAT symétrique — un vrai serveur TURN reste nécessaire en prod.
 const FALLBACK_ICE_SERVERS: IceServer[] = [
   { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] },
 ];
@@ -93,8 +90,6 @@ export class CallsService {
     @Inject(forwardRef(() => CallsGateway))
     private readonly callsGateway: CallsGateway,
   ) {}
-
-  // ── Redis key helpers ───────────────────────────────────
 
   private metaKey(callId: string): string {
     return `call:${callId}:meta`;
@@ -149,8 +144,6 @@ export class CallsService {
     if (job) await job.remove().catch(() => {});
   }
 
-  // ── ICE / TURN (Cloudflare Calls) ───────────────────────
-
   async getIceServers(): Promise<IceServer[]> {
     const cached = await this.redis.get(TURN_CACHE_KEY);
     if (cached) return JSON.parse(cached);
@@ -167,9 +160,6 @@ export class CallsService {
     }
 
     try {
-      // https://developers.cloudflare.com/realtime/turn/generate-credentials/
-      // POST .../credentials/generate-ice-servers → { iceServers: RTCIceServer[] }
-      // (une entrée STUN + une entrée TURN avec username/credential éphémères).
       const response = await this.httpRetryService.fetchWithRetry(
         `https://rtc.live.cloudflare.com/v1/turn/keys/${keyId}/credentials/generate-ice-servers`,
         {
@@ -198,8 +188,6 @@ export class CallsService {
       return FALLBACK_ICE_SERVERS;
     }
   }
-
-  // ── Lifecycle ────────────────────────────────────────────
 
   async initiateCall(callerId: string, dto: InitiateCallDto) {
     const isMember = await this.chatService.isMember(dto.group_id, callerId);
@@ -414,9 +402,6 @@ export class CallsService {
     participants[userId] = p;
     await this.setParticipant(callId, userId, p);
 
-    // The initiator auto-joins at creation and stays 'joined' even while
-    // everyone else is still ringing — exclude them so a callee declining
-    // a 1:1 call resolves it instead of leaving it stuck ringing forever.
     const others = Object.entries(participants).filter(
       ([id]) => id !== meta?.initiatedBy,
     );
@@ -453,7 +438,6 @@ export class CallsService {
     return { id: callId, status: CallStatusEnum.ENDED, ended_at: endedAt };
   }
 
-  /** Called by CallTimeoutWorker when the ringing-timeout job fires. */
   async handleRingingTimeout(callId: string): Promise<void> {
     const meta = await this.getMeta(callId);
     if (!meta || meta.status !== CallStatusEnum.RINGING) return; // already resolved
@@ -468,11 +452,6 @@ export class CallsService {
     await this.resolveCall(callId, CallStatusEnum.MISSED);
   }
 
-  /**
-   * Shared resolution path for every way a call can end: explicit end,
-   * everyone leaving, everyone declining, or the ringing timeout firing.
-   * Snapshots the live Redis state into a durable CallLog, then clears it.
-   */
   private async resolveCall(
     callId: string,
     status:
@@ -482,14 +461,6 @@ export class CallsService {
   ): Promise<void> {
     if (!RESOLVED_STATUSES.has(status)) return;
 
-    // Plusieurs chemins peuvent tenter de résoudre le même appel à quelques
-    // ms d'écart (ex. côté 1:1, l'appelant raccroche : `endCallPrivileged`
-    // (HTTP) ET l'émission socket `leave_call` du même client démarrent en
-    // parallèle ; ou les deux participants raccrochent presque en même temps).
-    // Sans verrou, chacun lirait `meta` non-nul avant que l'autre n'ait eu le
-    // temps de le supprimer (le `del` n'intervient qu'après plusieurs await),
-    // doublant le CallLog, le message système et les notifications. Ce verrou
-    // atomique (NX) garantit qu'un seul appelant gagne la course.
     const claimed = await this.redis.set(
       this.resolvingKey(callId),
       '1',
@@ -556,11 +527,6 @@ export class CallsService {
     await this.notifyCallResolved(log, participantRows);
   }
 
-  /**
-   * Best-effort: posts a system message into the call's group conversation
-   * and notifies affected participants. Never throws — a failure here must
-   * not undo the call-teardown work already committed above.
-   */
   private async notifyCallResolved(
     log: CallLog,
     participantRows: CallLogParticipant[],
@@ -604,8 +570,6 @@ export class CallsService {
         });
       }
     } else if (log.status === CallStatusEnum.ENDED) {
-      // Les appels sont strictement à deux — l'autre participant est donc
-      // toujours désignable sans ambiguïté.
       const nameCache = new Map<string, string | null>();
       const resolveCachedName = async (userId: string) => {
         if (!nameCache.has(userId)) {
@@ -616,7 +580,8 @@ export class CallsService {
 
       for (const p of participantRows) {
         if (!p.joinedAt) continue;
-        const other = participantRows.find((o) => o.userId !== p.userId) ?? null;
+        const other =
+          participantRows.find((o) => o.userId !== p.userId) ?? null;
         const otherName = other ? await resolveCachedName(other.userId) : null;
         await this.safeNotify(p.userId, 'call_summary', {
           callId: log.callId,

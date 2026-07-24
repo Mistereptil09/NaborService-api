@@ -46,7 +46,6 @@ describe('EntityPatchHandler', () => {
   });
 
   it('should process a valid update by whitelisting fields (User)', async () => {
-    // base_updated_at is the entity's updated_at from the last server snapshot
     const serverSnapshotTime = new Date('2025-06-01T10:00:00Z');
 
     const update: SyncUpdateItemDto = {
@@ -64,7 +63,6 @@ describe('EntityPatchHandler', () => {
       id: 'user-123',
       firstName: 'Old',
       role: 'resident',
-      // Server hasn't been modified since the snapshot — safe to apply
       updatedAt: new Date('2025-06-01T10:00:00Z'),
     };
 
@@ -81,7 +79,6 @@ describe('EntityPatchHandler', () => {
 
   it('should return conflict if server data was modified after the snapshot base version', async () => {
     const serverSnapshotTime = new Date('2025-06-01T10:00:00Z');
-    // Server was modified at 11:00, which is AFTER the snapshot base version
 
     const update: SyncUpdateItemDto = {
       entity_type: 'user',
@@ -93,7 +90,6 @@ describe('EntityPatchHandler', () => {
     const existingUser = {
       id: 'user-123',
       firstName: 'New',
-      // Server was updated more recently than the snapshot base version
       updatedAt: new Date('2025-06-01T11:00:00Z'),
     };
 
@@ -167,7 +163,6 @@ describe('EntityPatchHandler', () => {
     const existingUser = {
       id: 'user-123',
       firstName: 'Old',
-      // Server timestamp matches the snapshot — no external modification
       updatedAt: new Date('2025-06-01T10:00:00Z'),
     };
 

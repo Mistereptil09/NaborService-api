@@ -68,7 +68,6 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { event: 'joined', room: `event:${data.eventId}` };
   }
 
-  // Fallback helper
   private async notifyUser(userId: string, eventName: string, payload: any) {
     if (!this.server) return;
     const socketId = this.userSockets.get(userId);
@@ -80,7 +79,6 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
     }
 
-    // Offline fallback to email via Queue
     const isOnline = await this.redisClient.exists(`presence:${userId}`);
     if (!isOnline) {
       const user = await this.dataSource
